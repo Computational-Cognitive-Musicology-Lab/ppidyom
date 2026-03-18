@@ -1,8 +1,8 @@
 library(data.table)
 
 
-ppm <- setRefClass(
-  "ppm",
+ppidyom <- setRefClass(
+  "ppidyom",
 
   fields = list(
     N = "numeric",
@@ -117,7 +117,7 @@ ppm <- setRefClass(
       else if(model_type == "ltm" || model_type == "ltm+")
         result <- P_ltm
       else if(model_type %in% c("both","both+"))
-        result <- combine_models(P_stm, P_ltm, b)
+        result <- combine_models(self$alphabet, P_stm, P_ltm, b)
 
       # ------------------------------------------------
       # Online learning (+ models)
@@ -134,23 +134,25 @@ ppm <- setRefClass(
 )
 
 
-combine_models <- function(p_stm, p_ltm, b=1) {
-
+combine_models <- function(alphabet, p_stm, p_ltm, b=1) {
   dt <- merge(
     p_stm[, .(index, Event, P_stm=P, H_stm=Entropy)],
     p_ltm[, .(index, Event, P_ltm=P, H_ltm=Entropy)],
     by=c("index","Event")
   )
 
-  dt[, w_stm := 2^(-b * H_stm)]
-  dt[, w_ltm := 2^(-b * H_ltm)]
+  logA <- log2(length(alphabet))
+
+  # TODO: relative = if Hmax([τb]) > 0, below; else, 1
+  dt[, Hrel_stm := H_stm / logA]
+  dt[, Hrel_ltm := H_ltm / logA]
+
+  dt[, w_stm := Hrel_stm^(-b)]
+  dt[, w_ltm := Hrel_ltm^(-b)]
 
   dt[, norm := w_stm + w_ltm]
 
-  dt[, w_stm := w_stm / norm]
-  dt[, w_ltm := w_ltm / norm]
-
-  dt[, P := w_stm * P_stm + w_ltm * P_ltm]
+  dt[, P := (w_stm * P_stm + w_ltm * P_ltm) / norm]
 
   dt[, IC := -log2(P)]
 
