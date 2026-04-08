@@ -34,6 +34,53 @@ ppidyom <- setRefClass(
       invisible(NULL)
     },
 
+
+    #' Remove a single sequence from the trained LTM counts
+    #' @param x Character vector sequence to de-train
+    detrain_sequence = function(x) {
+      T <- length(x)
+      dt_lag <- lag_matrix(x, .self$N)
+
+      for(n in 0:N) {
+        context_cols <- if(n == 0) character(0) else paste0("Lag", n:1)
+        # Context identifiers
+        if(n==0) dt_lag[, context_id := "ROOT"]
+        else dt_lag[, context_id := do.call(paste, c(.SD, sep="_")), .SDcols=context_cols]
+
+        # counts_ltm has one table for each N
+        counts_ltm_n <- .self$counts_ltm[[n+1]]
+        setkey(counts_ltm_n, context_id, Event)
+        for(t in seq_len(T)) {
+          ctx <- dt_lag$context_id[t]
+          event <- dt_lag$Lag0[t]
+          # Locate each (context_id, event) pair in the LTM counts
+          idx <- counts_ltm_n[list(ctx, event), which = TRUE]
+
+          if(length(idx) == 0) next  # nothing to remove
+          old_ce <- counts_ltm_n$Ce[idx]
+          if(old_ce <= 0) next # original LTM did not have this (ctx, event) pair
+
+          # --- Update Ce for the row of (ctx, event) pair ---
+          counts_ltm_n$Ce[idx] <- old_ce - 1L
+
+          # --- Update C for all rows where context_id=ctx ---
+          counts_ltm_n[context_id == ctx, C := C - 1L]
+
+          # --- Update t and t1 ---
+          if(old_ce == 1L) {
+            # event disappears
+            counts_ltm_n[context_id == ctx, t := t - 1L]
+            counts_ltm_n[context_id == ctx, t1 := t1 - 1L]
+          } else if(old_ce == 2L) {
+            # becomes singleton
+            counts_ltm_n[context_id == ctx, t1 := t1 + 1L]
+          }
+        }
+
+        .self$counts_ltm[[n+1]] <- counts_ltm_n
+      }
+    },
+
     #' Predict IC and entropy for a sequence
     #' @param x Character vector sequence
     #' @param model_type Model type: "stm", "ltm", "both", "ltm+", "both+"
@@ -57,7 +104,6 @@ ppidyom <- setRefClass(
       if(is.null(escape_func)) stop("Unknown escape lambda: ", lambda)
       discount_func <- discount_functions[[lambda]]
       if(is.null(discount_func)) stop("Unknown discount lambda: ", lambda)
-
 
       # ------------------------------------------------
       # Build count tables
@@ -117,7 +163,7 @@ ppidyom <- setRefClass(
       else if(model_type == "ltm" || model_type == "ltm+")
         result <- P_ltm
       else if(model_type %in% c("both","both+"))
-        result <- combine_models(self$alphabet, P_stm, P_ltm, b)
+        result <- combine_models(.self$alphabet, P_stm, P_ltm, b)
 
       # ------------------------------------------------
       # Online learning (+ models)
@@ -132,7 +178,6 @@ ppidyom <- setRefClass(
   )
 
 )
-
 
 combine_models <- function(alphabet, p_stm, p_ltm, b=1) {
   dt <- merge(
@@ -158,4 +203,3 @@ combine_models <- function(alphabet, p_stm, p_ltm, b=1) {
 
   dt[, .(index, Event, P, IC)]
 }
-
