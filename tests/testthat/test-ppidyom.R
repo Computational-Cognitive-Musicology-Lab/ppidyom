@@ -96,7 +96,6 @@ manual_ppidyom <- function(seq_list, N, alphabet, model_type, ppm_type, lambda, 
   results <- vector("list", length(seq_list))
 
   for(i in seq_along(seq_list)) {
-
     # Train on all except i
     model <- ppidyom$new(N = N, alphabet = alphabet)
 
@@ -125,12 +124,15 @@ manual_ppidyom <- function(seq_list, N, alphabet, model_type, ppm_type, lambda, 
 # ---------------------------
 # Test
 # ---------------------------
+# IMPORTANT: this test_that function runs for an extended amount of time!
+# seq_list <- replicate(50, gen_seq(30), simplify = FALSE)
+# run_ppidyom: 18.4710 sec; manual loop: 209.0050 sec
 test_that("run_ppidyom matches manual leave-one-out and reports timing", {
   set.seed(1)
 
   gen_seq <- function(n) sample(c("A","B","C","D","E"), n, replace=TRUE)
 
-  seq_list <- gen_seq(50)
+  seq_list <- replicate(50, gen_seq(30), simplify = FALSE)
 
   alphabet <- c("A", "B", "C", "D", "E")
   N <- 3
@@ -164,6 +166,7 @@ test_that("run_ppidyom matches manual leave-one-out and reports timing", {
   # ---------------------------
   # Check equality
   # ---------------------------
+  print("checking equality")
   expect_true(
     compare_results(res_fast, res_manual, by = c("index", "Event"))
   )
