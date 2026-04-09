@@ -159,11 +159,11 @@ ppidyom <- setRefClass(
       # ------------------------------------------------
 
       if(model_type == "stm")
-        result <- P_stm
+        result_all_symbols <- P_stm
       else if(model_type == "ltm" || model_type == "ltm+")
-        result <- P_ltm
+        result_all_symbols <- P_ltm
       else if(model_type %in% c("both","both+"))
-        result <- combine_models(.self$alphabet, P_stm, P_ltm, b)
+        result_all_symbols <- combine_models(.self$alphabet, P_stm, P_ltm, b)
 
       # ------------------------------------------------
       # Online learning (+ models)
@@ -173,6 +173,12 @@ ppidyom <- setRefClass(
         .self$counts_ltm <- counts$ltm
       }
 
+      result <- result_all_symbols[
+        data.table(index = seq_len(length(x)), Event = x),
+        on = .(index, Event)
+      ][
+        , .(index, Event, P, IC, Entropy)
+      ]
       result
     }
   )
@@ -201,5 +207,7 @@ combine_models <- function(alphabet, p_stm, p_ltm, b=1) {
 
   dt[, IC := -log2(P)]
 
-  dt[, .(index, Event, P, IC)]
+  dt[, Entropy := -sum(P * log2(P)), by = index]
+
+  dt[, .(index, Event, P, IC, Entropy)]
 }

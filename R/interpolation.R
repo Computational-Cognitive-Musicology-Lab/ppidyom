@@ -19,7 +19,7 @@ compute_discounted_probs <- function(dt, discount_func) {
   }, by = .(index, context_id, Event)]
 }
 
-#' Compute PPM Probabilities with Interpolation
+#' Compute PPM Probabilities for all symbols with Interpolation
 #'
 #' Vectorized interpolated PPM.
 #' Each order contributes to the final probability weighted by its discounted probability mass.
@@ -88,22 +88,12 @@ ppm_interpolated <- function(x, N, alphabet, order_counts, discount_func=discoun
     if (s > 0) P / s else P
   }, by = index]
   dt_final[, IC := -log2(P)]
+  dt_final[, Entropy := -sum(P * log2(P)), by = index]
 
-  # Compute entropy per timestep
-  Entropy <- compute_entropy(dt_final)
-
-  # Merge actual events with computed probabilities
-  # select only the probability for the actual event
   # TODO: order
-  dt_result <- dt_final[
-    data.table(index = seq_len(T), Event = x),
-    on = .(index, Event)
-  ][
-    , .(index, Event, P, IC, Entropy)
-  ]
-
-  dt_result
+  dt_final
 }
+
 
 
 print("PPIDYOM Result:")
@@ -117,17 +107,25 @@ counts <- count_tables(
   model_type="both"
 )
 result <- ppm_interpolated(
-  x = test,
+  x = x,
   N = max_order,
   alphabet = alphabet,
   order_counts = counts$stm,
   discount_func = discount_C
 )
-
 print(result)
 
+res_ppidyom <- result[
+  data.table(index = seq_len(length(x)), Event = x),
+  on = .(index, Event)
+][
+  , .(index, Event, P, IC, Entropy)
+]
+
+print(res_ppidyom)
 
 
+library(ppm)
 print("PPM Result:")
 seq <- factor(x, levels = alphabet)
 mod <- new_ppm_simple(

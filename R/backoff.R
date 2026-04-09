@@ -40,7 +40,7 @@ compute_local_probs <- function(dt, escape_func, normalize = FALSE) {
 }
 
 
-#' Compute PPM Probabilities with Backoff
+#' Compute PPM Probabilities for all symbols with Backoff
 #'
 #' Vectorized backoff implementation of PPM.
 #' For each timestep, uses highest available order with non-zero counts,
@@ -100,21 +100,10 @@ ppm_backoff <- function(x, N, alphabet, order_counts, escape_func=escape_C) {
   dt_final[remaining, P := p_mass[remaining] * base_prob[remaining]]
 
   dt_final[, IC := -log2(P)]
+  dt_final[, Entropy := -sum(P * log2(P)), by = index]
 
-  # 4. Compute entropy per timestep
-  Entropy <- compute_entropy(dt_final)
-
-  # 5. Merge actual events with computed probabilities
-  # select only the probability for the actual event
   # TODO: order
-  dt_result <- dt_final[
-    data.table(index = seq_len(T), Event = x),
-    on = .(index, Event)
-  ][
-    , .(index, Event, P, IC, Entropy)
-  ]
-
-  dt_result
+  dt_final
 }
 
 x <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
@@ -136,3 +125,12 @@ result <- ppm_backoff(
 
 print(result)
 
+
+res_ppidyom <- result[
+  data.table(index = seq_len(length(x)), Event = x),
+  on = .(index, Event)
+][
+  , .(index, Event, P, IC, Entropy)
+]
+
+print(res_ppidyom)

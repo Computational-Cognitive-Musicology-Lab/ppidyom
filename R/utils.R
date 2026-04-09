@@ -1,14 +1,10 @@
 # setwd("/Users/ling/Desktop/ppidyom")
 
-compute_entropy <- function(dt_dist) {
-  dt_dist[, .(Entropy = -sum(P * log2(P))), by = index][, Entropy := Entropy]$Entropy
-}
-
 # Right now, it runs on all sequences provided by training on the remaining as LTM.
 run_ppidyom <- function(
     seq_list,
     N,
-    alphabet,
+    alphabet = NULL,
     model_type = c("stm", "ltm", "both", "ltm+", "both+"),
     ppm_type = c("interpolation", "backoff"),
     lambda = "C",
@@ -17,7 +13,9 @@ run_ppidyom <- function(
   model_type <- match.arg(model_type)
   ppm_type <- match.arg(ppm_type)
 
-  # TODO: if alphabet is not provided, calculate the alphabet from all seq
+  if (is.null(alphabet)) {
+    alphabet <- unique(unlist(seq_list, use.names = FALSE))
+  }
   model <- ppidyom$new(N = N, alphabet = alphabet)
 
   has_ltm <- model_type %in% c("ltm","both","ltm+","both+")
@@ -60,6 +58,39 @@ run_ppidyom <- function(
 # ---------------------------
 # Example sequence
 # ---------------------------
+library(humdrumR)
+
+kern_files <- readHumdrum("tests/data/kern/*.krn")
+kern_files |> select(Token) |> pitch()
+
+seq_df <- kern_files |>
+  midi() |>
+  group_by(Piece) |>
+  summarise(seq = list(as.character(Midi)))
+seq_list <- seq_df$seq
+attributes(seq_list) <- NULL
+
+run_ppidyom(
+  seq_list,
+  max_order,
+  # alphabet,
+  model_type = "both",
+  ppm_type = "interpolation",
+  lambda = "C",
+  b = 1
+)
+
+run_ppidyom(
+  seq_list,
+  max_order,
+  # alphabet,
+  model_type = "ltm",
+  ppm_type = "interpolation",
+  lambda = "C",
+  b = 1
+)
+
+
 seq1 <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
 seq2 <- c("A", "B", "C", "A", "B", "C", "A", "B", "C")
 seq3  <- c("B", "A", "B", "C", "A")
@@ -76,7 +107,3 @@ run_ppidyom(
   lambda = "C",
   b = 1
 )
-
-test_model <- ppidyom$new(N = max_order, alphabet = alphabet)
-test_model$train_sequence(seq1)
-test_model$predict_sequence(seq2)

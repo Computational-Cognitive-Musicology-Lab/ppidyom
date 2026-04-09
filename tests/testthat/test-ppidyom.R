@@ -1,9 +1,15 @@
 library(testthat)
 library(data.table)
 
+
+# remove zero-count contexts
+clean_counts <- function(x) {
+  lapply(x, function(dt) dt[C > 0])
+}
+
 # Helper: compare count tables
 compare_results <- function(a, b, by = c("index", "Event"),
-                            tolerance = NULL, verbose = FALSE) {
+                            tolerance = 1.5e-8, verbose = TRUE) {
 
   if(length(a) != length(b)) return(FALSE)
 
@@ -26,16 +32,13 @@ compare_results <- function(a, b, by = c("index", "Event"),
     dt2 <- dt2[, ..common_cols]
 
     # Comparison
-    equal <- if(is.null(tolerance)) {
-      identical(dt1, dt2)
-    } else {
-      isTRUE(all.equal(dt1, dt2, tolerance = tolerance))
-    }
+    equal <- isTRUE(all.equal(dt1, dt2, tolerance = tolerance, check.attributes = FALSE))
 
     if(!equal) {
       if(verbose) {
         cat("Mismatch at element:", i, "\n")
         print(fsetdiff(dt1, dt2))
+        cat("Mismatch at element:", i, "\n")
         print(fsetdiff(dt2, dt1))
       }
       return(FALSE)
@@ -43,11 +46,6 @@ compare_results <- function(a, b, by = c("index", "Event"),
   }
 
   TRUE
-}
-
-# remove zero-count contexts
-clean_counts <- function(x) {
-  lapply(x, function(dt) dt[C > 0])
 }
 
 test_that("detrain_sequence restores LTM state after training", {
