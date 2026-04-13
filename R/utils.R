@@ -98,6 +98,7 @@ seq3  <- c("B", "A", "B", "C", "A")
 alphabet <- c("A", "B", "C")
 max_order <- 3
 
+print("run_ppidyom Result:")
 run_ppidyom(
   list(seq1, seq2, seq3),
   max_order,
@@ -107,3 +108,20 @@ run_ppidyom(
   lambda = "C",
   b = 1
 )
+
+
+library(ppm)
+print("PPM Result:")
+mod <- new_ppm_simple(
+  order_bound = max_order,
+  alphabet_levels = alphabet,
+  escape = "c",
+  shortest_deterministic = FALSE,
+  exclusion = FALSE,
+  update_exclusion = FALSE
+)
+res <- model_seq(mod, factor(seq1, levels = alphabet))
+res <- model_seq(mod, factor(seq2, levels = alphabet))
+res <- model_seq(mod, factor(seq3, levels = alphabet))
+print(res)
+

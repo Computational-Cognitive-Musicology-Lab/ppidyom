@@ -90,7 +90,8 @@ ppidyom <- setRefClass(
     #' @return data.table with columns: index, Event, P, IC, Entropy
     predict_sequence = function(x, model_type = c("stm", "ltm", "both", "ltm+", "both+"),
                                 ppm_type = c("interpolation", "backoff"),
-                                lambda = "C",
+                                stm_lambda = "C",
+                                ltm_lambda = "C",
                                 b = 1) {
       model_type <- match.arg(model_type)
       ppm_type <- match.arg(ppm_type)
@@ -100,10 +101,20 @@ ppidyom <- setRefClass(
       # -------------------------
       # lambda function
       # -------------------------
-      escape_func <- escape_functions[[lambda]]
-      if(is.null(escape_func)) stop("Unknown escape lambda: ", lambda)
-      discount_func <- discount_functions[[lambda]]
-      if(is.null(discount_func)) stop("Unknown discount lambda: ", lambda)
+      if (ppm_type == "backoff"){
+        stm_lambda_func <- escape_functions[[stm_lambda]]
+        if(is.null(stm_lambda_func)) stop("Unknown escape lambda: ", stm_lambda)
+        ltm_lambda_func <- escape_functions[[ltm_lambda]]
+        if(is.null(ltm_lambda_func)) stop("Unknown escape lambda: ", ltm_lambda)
+      } else if (ppm_type == "interpolation") {
+        stm_lambda_func <- discount_functions[[stm_lambda]]
+        if(is.null(stm_lambda_func)) stop("Unknown discount lambda: ", stm_lambda)
+        ltm_lambda_func <- discount_functions[[ltm_lambda]]
+        if(is.null(ltm_lambda_func)) stop("Unknown discount lambda: ", ltm_lambda)
+      } else {
+        stop("Unknown PPM type: ", ppm_type)
+      }
+
 
       # ------------------------------------------------
       # Build count tables
@@ -135,9 +146,9 @@ ppidyom <- setRefClass(
       if(model_type %in% c("stm","both","both+")) {
 
         P_stm <- if(ppm_type == "interpolation")
-          ppm_interpolated(x, .self$N, .self$alphabet, counts$stm, discount_func=discount_func)
+          ppm_interpolated(x, .self$N, .self$alphabet, counts$stm, discount_func=stm_lambda_func)
         else
-          ppm_backoff(x, .self$N, .self$alphabet, counts$stm, escape_func=escape_func)
+          ppm_backoff(x, .self$N, .self$alphabet, counts$stm, escape_func=stm_lambda_func)
 
       }
 
@@ -149,9 +160,9 @@ ppidyom <- setRefClass(
       if(model_type %in% c("ltm","both","ltm+","both+")) {
 
         P_ltm <- if(ppm_type == "interpolation")
-          ppm_interpolated(x, .self$N, .self$alphabet, counts$ltm, discount_func=discount_func)
+          ppm_interpolated(x, .self$N, .self$alphabet, counts$ltm, discount_func=ltm_lambda_func)
         else
-          ppm_backoff(x, .self$N, .self$alphabet, counts$ltm, escape_func=escape_func)
+          ppm_backoff(x, .self$N, .self$alphabet, counts$ltm, escape_func=ltm_lambda_func)
       }
 
       # ------------------------------------------------

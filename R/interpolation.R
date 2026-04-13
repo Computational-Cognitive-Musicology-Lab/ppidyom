@@ -38,7 +38,10 @@ compute_discounted_probs <- function(dt, discount_func) {
 #'
 #' @return data.table with columns: index, Event, P, IC
 #' @export
-ppm_interpolated <- function(x, N, alphabet, order_counts, discount_func=discount_C) {
+ppm_interpolated <- function(
+    x, N, alphabet, order_counts,
+    discount_func=discount_C
+) {
   T <- length(x)
   alpha_len <- length(alphabet)
 
@@ -104,8 +107,12 @@ counts <- count_tables(
   x = x,
   N = max_order,
   alphabet = alphabet,
-  model_type="both"
+  model_type="both",
+  stm_update_exclusion = FALSE,
+  ltm_update_exclusion = FALSE
 )
+print(counts)
+
 result <- ppm_interpolated(
   x = x,
   N = max_order,
@@ -127,14 +134,17 @@ print(res_ppidyom)
 
 library(ppm)
 print("PPM Result:")
+# same as:
+# (idyom:idyom 66041326023457 '(cpitch) '(cpitch) :texture :melody :models :stm :k :full :detail 3 :stmo '(:escape :c :order-bound 3 :exclusion nil) :output-path "experiment_history/13-04-26_02.20.05/experiment_output_data_folder/" :overwrite nil)
+
 seq <- factor(x, levels = alphabet)
 mod <- new_ppm_simple(
   order_bound = max_order,
   alphabet_levels = alphabet,
   escape = "c",
   shortest_deterministic = FALSE,
-  exclusion = FALSE,
-  update_exclusion = FALSE
+  exclusion = TRUE,
+  update_exclusion = TRUE
 )
 res <- model_seq(mod, seq)
 print(res)

@@ -1,19 +1,4 @@
-# Define all available escape/discount functions
-escape_functions <- list(
-  A       = escape_A,
-  B       = escape_B,
-  C       = escape_C,
-  D       = escape_D,
-  X       = escape_AX
-)
 
-discount_functions <- list(
-  A       = discount_A,
-  B       = discount_B,
-  C       = discount_C,
-  D       = discount_D,
-  X       = discount_AX
-)
 
 # C: Total times this context has occurred
 # t: Number of distinct events seen after this context
@@ -98,8 +83,25 @@ discount_D <- function(C, t, t1) {
 
 discount_AX <- function(C, t, t1) {
   list(
-    lambda = C / (C + t1),
+    lambda = C / (C + t1 + 1),
     k = 0
   )
 }
+
+# Define all available escape/discount functions
+escape_functions <- list(
+  A       = escape_A,
+  B       = escape_B,
+  C       = escape_C,
+  D       = escape_D,
+  X       = escape_AX
+)
+
+discount_functions <- list(
+  A       = discount_A,
+  B       = discount_B,
+  C       = discount_C,
+  D       = discount_D,
+  X       = discount_AX
+)
 

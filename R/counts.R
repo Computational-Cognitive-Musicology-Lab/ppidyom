@@ -15,6 +15,23 @@ lag_matrix <- function(x, N = 3) {
   dt
 }
 
+update_env <- function(env, ctx, sym, sign = +1) {
+  v <- env[[ctx]]
+
+  if (is.null(v)) {
+    if (sign > 0) env[[ctx]] <- setNames(1L, sym)
+    return(invisible(NULL))
+  }
+
+  if (sym %in% names(v)) {
+    v[sym] <- v[sym] + sign
+  } else if (sign > 0) {
+    v[sym] <- 1L
+  }
+
+  env[[ctx]] <- v
+}
+
 #' Compute Count Tables for STM and LTM with Optional Prior
 #'
 #' Generates count tables for STM (per-timestep) and/or LTM (per-context),
@@ -26,47 +43,121 @@ lag_matrix <- function(x, N = 3) {
 #' @param model_type Character: one of `"stm"`, `"ltm"`, `"both"`.
 #' @param prior Optional: previously accumulated LTM tables (list of length N+1).
 #'   Used to initialize/accumulate counts for LTM or `both` type.
+#' @param stm_update_exclusion Logical; apply update exclusion in STM (default TRUE).
+#'   Prevents lower-order updates when an event is already observed in a higher-order
+#'   context at the same timestep.
+#' @param ltm_update_exclusion Logical; apply update exclusion in LTM (default FALSE).
+#'   If TRUE, applies the same exclusion logic during corpus accumulation; if FALSE,
+#'   all orders are updated for every event.
 #' @return A list with elements depending on `model_type`:
 #'   - `$stm`: list of length N+1, each a data.table of counts per timestep (if `model_type` includes `"stm"`).
 #'   - `$ltm`: list of length N+1, each a data.table of counts per context (if `model_type` includes `"ltm"`).
 #' @export
-count_tables <- function(x, N, alphabet, model_type = c("stm","ltm","both"), prior = list()) {
-
+count_tables <- function(
+  x, N, alphabet,
+  model_type = c("stm","ltm","both"),
+  prior = list(),
+  stm_update_exclusion = TRUE, ltm_update_exclusion=FALSE
+) {
   model_type <- match.arg(model_type)
   T <- length(x)
   dt_lag <- lag_matrix(x, N)
 
-  stm_tables <- if(model_type %in% c("stm","both")) vector("list", N+1) else NULL
-  ltm_tables <- if(model_type %in% c("ltm","both")) vector("list", N+1) else NULL
+  # -----------------------------
+  # Precompute context IDs
+  # -----------------------------
+  context_list <- vector("list", N + 1)
+  for (n in 0:N) {
+    if (n == 0) {
+      context_list[[n+1]] <- rep("ROOT", T)
+    } else {
+      cols <- paste0("Lag", n:1)
+      context_list[[n+1]] <- do.call(paste, c(dt_lag[, ..cols], sep = "_"))
+    }
+  }
+
+  # -----------------------------
+  # Initialize count stores
+  # -----------------------------
+  use_stm <- (model_type %in% c("stm","both"))
+  use_ltm <- (model_type %in% c("ltm","both"))
+
+  counts_stm <- if (use_stm)
+    lapply(0:N, function(.) new.env(hash=TRUE, parent=emptyenv())) else NULL
+  counts_ltm <- if (use_ltm)
+    lapply(0:N, function(.) new.env(hash=TRUE, parent=emptyenv())) else NULL
+
+  # -----------------------------
+  # Add prior counts to counts_ltm, if provided
+  # -----------------------------
+  if (use_ltm && length(prior) > 0) {
+    for (n in 0:N) {
+      prior_dt <- prior[[n+1]]
+      if (is.null(prior_dt) || nrow(prior_dt) == 0) next
+
+      env <- counts_ltm[[n+1]]
+
+      for (ctx in unique(prior_dt$context_id)) {
+        rows <- prior_dt[context_id == ctx]
+        env[[ctx]] <- setNames(as.integer(rows$Ce), rows$Event)
+      }
+    }
+  }
+
+  stm_tables <- if(use_stm) lapply(0:N, function(.) vector("list", T)) else NULL
+  ltm_tables <- if(use_ltm) vector("list", N+1) else NULL
 
 
-  for(n in 0:N) {
-    context_cols <- if(n == 0) character(0) else paste0("Lag", n:1)
-    # Context identifiers
-    if(n==0) dt_lag[, context_id := "ROOT"]
-    else dt_lag[, context_id := do.call(paste, c(.SD, sep="_")), .SDcols=context_cols]
+  # -----------------------------
+  # Build LTM Tables
+  # -----------------------------
 
-    counts <- new.env(hash=TRUE, parent=emptyenv())
+  for (t in seq_len(T)) {
+    sym <- x[t]
+    seen_stm <- FALSE
+    seen_ltm <- FALSE
 
-    # Initialize STM or LTM
-    if(model_type %in% c("stm","both")) stm_list <- vector("list", T)
-    ctx_ids <- unique(dt_lag$context_id)
-    if(model_type %in% c("ltm","both")) ltm_list <- vector("list", length(ctx_ids))
+    # -----------------------------
+    # Update env with optional exclusion
+    # -----------------------------
+    for (n in N:0) {
+      ctx <- context_list[[n+1]][t]
 
-    # Loop over timesteps for STM, or LTM accumulation
-    for(t in seq_len(T)) {
-      ctx <- dt_lag$context_id[t]
+      # ---------- STM ----------
+      if (use_stm) {
+        if (!stm_update_exclusion || !seen_stm) {
+          env <- counts_stm[[n+1]]
+          v <- env[[ctx]]
+          exists <- !is.null(v) && sym %in% names(v)
+          update_env(env, ctx, sym, +1)
+          if (exists) seen_stm <- TRUE
+        }
+      }
+      # ---------- LTM ----------
+      if (use_ltm) {
+        if (!ltm_update_exclusion || !seen_ltm) {
+          env <- counts_ltm[[n+1]]
+          v <- env[[ctx]]
+          exists <- !is.null(v) && sym %in% names(v)
+          update_env(env, ctx, sym, +1)
+          if (exists) seen_ltm <- TRUE
+        }
+      }
+    }
 
-      # If STM, create table for the current timestep
-      if(model_type %in% c("stm","both")) {
-        ctx_counts <- counts[[ctx]]
-        if(is.null(ctx_counts)) ctx_counts <- integer(0)
+    # -----------------------------
+    # Build STM tables from lower order after optional update exclusion
+    # -----------------------------
+    if (use_stm) {
+      for (n in 0:N) {
+        ctx <- context_list[[n+1]][t]
+        ctx_counts <- counts_stm[[n+1]][[ctx]]
 
         # Ce for all symbols in the alphabet (fill missing with 0)
         Ce_full <- setNames(integer(length(alphabet)), alphabet)
-        if (length(ctx_counts) > 0) Ce_full[names(ctx_counts)] <- ctx_counts
+        if (!is.null(ctx_counts)) Ce_full[names(ctx_counts)] <- ctx_counts
 
-        stm_list[[t]] <- data.table(
+        stm_tables[[n+1]][[t]] <- data.table(
           index = t,
           context_id = ctx,
           Event = alphabet,
@@ -76,52 +167,31 @@ count_tables <- function(x, N, alphabet, model_type = c("stm","ltm","both"), pri
           t1 = sum(Ce_full == 1L)
         )
       }
-
-      # Update symbol-by-context counts for either STM or LTM
-      sym <- x[t]
-      if(is.null(counts[[ctx]])) counts[[ctx]] <- setNames(1L, sym)
-      else if(sym %in% names(counts[[ctx]])) counts[[ctx]][sym] <- counts[[ctx]][sym] + 1L
-      else counts[[ctx]][sym] <- 1L
     }
-    if(model_type %in% c("stm","both")) stm_tables[[n+1]] <- rbindlist(stm_list)
+  }
 
-    # Loop over contexts for LTM
-    if(model_type %in% c("ltm","both")) {
-      # Add prior counts, if provided, to current sequence's counts
-      if (length(prior) > 0) {
-        prior_dt <- prior[[n+1]]
-        if (!is.null(prior_dt) && nrow(prior_dt) > 0) {
-          for (ctx in unique(prior_dt$context_id)) {
-            prior_ctx <- prior_dt[context_id == ctx]
-            prior_vec <- setNames(as.integer(prior_ctx$Ce), prior_ctx$Event)
+  stm_tables_out <- NULL
+  if (use_stm) {
+    stm_tables_out <- lapply(stm_tables, rbindlist)
+  }
 
-            # Ensure counts[[ctx]] has all alphabet symbols
-            if(is.null(counts[[ctx]])) {
-              counts[[ctx]] <- setNames(integer(length(alphabet)), alphabet)
-            } else {
-              # Fill missing symbols with 0 to avoid NA
-              missing_syms <- setdiff(names(prior_vec), names(counts[[ctx]]))
-              if(length(missing_syms) > 0) counts[[ctx]][missing_syms] <- 0L
-            }
-
-            # safe addition
-            for(sym in names(prior_vec)) {
-              counts[[ctx]][sym] <- counts[[ctx]][sym] + prior_vec[sym]
-            }
-          }
-        }
-      }
-
+  # -----------------------------
+  # Build LTM tables
+  # -----------------------------
+  if (use_ltm) {
+    for (n in 0:N) {
+      env <- counts_ltm[[n+1]]
       ltm_idx <- 1
       ctx_ids_prior <- if(length(prior) > 0 && !is.null(prior[[n+1]])) unique(prior[[n+1]]$context_id) else character(0)
-      combined_ctx_ids <- unique(c(ctx_ids, ctx_ids_prior))
+      combined_ctx_ids <- unique(c(names(env), ctx_ids_prior))
+      ltm_list <- vector("list", length(combined_ctx_ids))
 
       for(ctx in combined_ctx_ids) {
-        if(is.null(counts[[ctx]])) {
-          counts[[ctx]] <- setNames(integer(length(alphabet)), alphabet)
+        if(is.null(env[[ctx]])) {
+          env[[ctx]] <- setNames(integer(length(alphabet)), alphabet)
         }
         Ce_full <- setNames(integer(length(alphabet)), alphabet)
-        if(length(counts[[ctx]]) > 0) Ce_full[names(counts[[ctx]])] <- counts[[ctx]]
+        if(length(env[[ctx]]) > 0) Ce_full[names(env[[ctx]])] <- env[[ctx]]
         ltm_list[[ltm_idx]] <- data.table(
           index = -1L,
           context_id = ctx,
@@ -137,7 +207,7 @@ count_tables <- function(x, N, alphabet, model_type = c("stm","ltm","both"), pri
     }
   }
 
-  list(stm = stm_tables, ltm = ltm_tables)
+  list(stm = stm_tables_out, ltm = ltm_tables)
 }
 
 #' Expand LTM Count Tables to Timestep-Aligned Order Tables
