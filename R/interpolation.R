@@ -16,14 +16,22 @@ library(data.table)
 #'   - For **LTM**, `index` is constantly -1 since counts
 #'     represent aggregated training statistics.
 #' @param discount_func Discount function (e.g., `discount_C`).
-#' @param exclusion Logical. If TRUE, symbols seen at a higher-order context
-#'  are excluded from lower-order probability contributions.
+#' @param exclusion Logical. If TRUE, applies exclusion as per Cleary & Witten (1984).
+#'
+#'   When a symbol has been observed in a higher-order context, it is excluded
+#'   from the context count used to compute the escape probability at lower orders.
+#'   This does NOT prevent excluded symbols from receiving probability mass at
+#'   lower orders — they still receive the (1-lambda) spillover from above.
+#'   Rather, exclusion prevents already-predicted symbols from inflating the
+#'   lower-order context count, which would otherwise suppress the escape
+#'   probability and starve unseen symbols of probability mass.
+#'
 #' @return data.table with columns: index, Event, P, IC
 #' @export
 ppm_interpolated <- function(
     x, N, alphabet, order_counts,
     discount_func=discount_C,
-    exclusion=FALSE
+    exclusion=TRUE
 ) {
   T <- length(x)
   alpha_len <- length(alphabet)
@@ -67,34 +75,27 @@ ppm_interpolated <- function(
       Ce_over_C <- ifelse(dt_n$C > 0, dt_n$Ce / dt_n$C, 0)
     }
 
-    # Interpolation formula:
-    # Interpolated P = lambda * (Ce / C if C > 0 else 0) + (1 - lambda) * P_lower
-    # TODO: check what k does in ppm
-    Ce_over_C <- ifelse(dt_n$C > 0, dt_n$Ce / dt_n$C, 0)
-
-    active <- !is_excluded                   # symbols still in play
-    seen_here <- active & (dt_n$Ce > 0)        # seen at this order, not yet excluded
+    # TODO: make this work for escape functions other than C that includes the concept of K
 
     # Probability contribution for seen symbols at this order
-    P[seen_here] <- P[seen_here] +
-      remaining_mass[seen_here] * lambda[seen_here] * Ce_over_C[seen_here]
+    # PPM: alphas[i] + (1 - lambda) * lower_order_distribution[i];
+    # PPIDYOM: higher_order_P + product of all (1-lambda) from orders above * this_P
+    # P_2 = alpha_2 + (1-λ_2) * [alpha_1 + (1-λ_1) * [alpha_0 + (1-λ_0) * base]]
+    # P = alpha_2 + (1-λ_2) * alpha_1 + (1-λ_2)(1-λ_1) * alpha_0 + (1-λ_2)(1-λ_1)(1-λ_0) * base
+    # remaining mass = product of all (1-lambda) from orders above
+    P <- P + remaining_mass * (lambda * Ce_over_C)
 
-    # All active symbols lose their lambda-share of remaining mass
-    remaining_mass[active] <- remaining_mass[active] * (1 - lambda[active])
+    # Product of all (1-lambda) from orders
+    remaining_mass <- remaining_mass * (1 - lambda)
 
-    # Exclusion only: freeze seen symbols out of lower orders
+    # Exclusion only: exclude seen symbols from context count in lower orders probability distribution
     if (exclusion) {
-      is_excluded[seen_here] <- TRUE
-      remaining_mass[seen_here] <- 0
+      is_excluded[!is_excluded & (dt_n$Ce > 0)] <- TRUE
     }
   }
 
-  # Leftover mass → base distribution
-  # With exclusion: only unseen-at-any-order symbols receive base mass
-  # Without exclusion: all symbols receive their remaining base mass
-  active_final <- !is_excluded
-  P[active_final] <- P[active_final] +
-    remaining_mass[active_final] * base_prob[active_final]
+  # Leftover mass → base distribution: all symbols receive their remaining base mass
+  P <- P + remaining_mass * base_prob
 
   dt_final <- copy(dt_orders[[N + 1]])[, .(index, Event)]
   dt_final[, P := P]
@@ -112,6 +113,7 @@ ppm_interpolated <- function(
 
 
 print("PPIDYOM Result:")
+#x <- c("A", "B", "B", "B")
 x <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
 alphabet <- c("A", "B", "C")
 max_order <- 3
@@ -157,8 +159,10 @@ mod <- new_ppm_simple(
   escape = "c",
   shortest_deterministic = FALSE,
   exclusion = TRUE,
-  update_exclusion = TRUE
+  update_exclusion = TRUE,
+  debug_smooth=TRUE
 )
 res <- model_seq(mod, seq)
 print(res)
+print(res$distribution)
 
