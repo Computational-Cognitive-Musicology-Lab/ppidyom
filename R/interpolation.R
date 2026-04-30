@@ -1,24 +1,5 @@
 library(data.table)
 
-
-#' Compute Discounted Probabilities for a Single Order; Used by Interpolation PPM
-#'
-#' @param dt Data.table from `dynamic_count_table_for_each_order` for a single order.
-#'           Must have columns: index, context_id, Event, Ce, C, t, t1
-#' @param discount_func Function to compute discounted probability mass.
-#'                      Signature: function(C, t, t1) returns list(lambda, k)
-#'
-#' @return Data.table with columns: index, Event, probability
-#' @export
-compute_discounted_probs <- function(dt, discount_func) {
-  dt[, {
-    stats  <- discount_func(C[1], t[1], t1[1])
-    lambda <- if (C[1] > 0) stats$lambda else 0
-
-    list(lambda = lambda)
-  }, by = .(index, context_id, Event)]
-}
-
 #' Compute PPM Probabilities for all symbols with Interpolation
 #'
 #' Vectorized interpolated PPM.
@@ -35,12 +16,14 @@ compute_discounted_probs <- function(dt, discount_func) {
 #'   - For **LTM**, `index` is constantly -1 since counts
 #'     represent aggregated training statistics.
 #' @param discount_func Discount function (e.g., `discount_C`).
-#'
+#' @param exclusion Logical. If TRUE, symbols seen at a higher-order context
+#'  are excluded from lower-order probability contributions.
 #' @return data.table with columns: index, Event, P, IC
 #' @export
 ppm_interpolated <- function(
     x, N, alphabet, order_counts,
-    discount_func=discount_C
+    discount_func=discount_C,
+    exclusion=FALSE
 ) {
   T <- length(x)
   alpha_len <- length(alphabet)
@@ -61,42 +44,71 @@ ppm_interpolated <- function(
     base_prob[idx] <- 1 / denom
   }
 
-  # Compute PPM probabilities
-  # Initialize probability matrix: rows = timesteps × symbols
-  dt_final <- copy(dt_orders[[N + 1]])[, .(index, Event)]
-  P <- base_prob
+  n_rows <- T * alpha_len
+  P <- numeric(n_rows)
+  remaining_mass <- rep(1.0, n_rows)
+  # TRUE = this symbol has been handled at a higher order and is excluded
+  is_excluded <- rep(FALSE, n_rows)
 
-  # Precompute discounted probabilities
-  discount_probs <- lapply(dt_orders, compute_discounted_probs,
-                           discount_func = discount_C)
-  # Interpolation loop (from lowest to highest order)
-  for (n in 0:N) {
+  for (n in N:0) {
     dt_n <- dt_orders[[n + 1]]
-    lambda_dt <- discount_probs[[n + 1]]
-    # Apply interpolation formula:
-    # Interpolated P = lambda * (Ce / C if C > 0 else 0) + (1 - lambda) * P_lower
-    # TODO: check what k does
-    Ce_over_C <- ifelse(dt_n$C > 0,
-                        dt_n$Ce / dt_n$C,
-                        0)
-    lambda <- lambda_dt$lambda
 
-    P <- lambda * Ce_over_C + (1 - lambda) * P
+    if (exclusion) {
+      # Recompute C excluding already-excluded symbols
+      Ce_excl  <- ifelse(is_excluded, 0L, dt_n$Ce)
+      C_excl   <- ave(Ce_excl,      dt_n$index, FUN = sum)
+
+      stats     <- discount_func(C_excl, dt_n$t, dt_n$t1)
+      lambda    <- ifelse(C_excl > 0, stats$lambda, 0)
+      Ce_over_C <- ifelse(C_excl > 0, dt_n$Ce / C_excl, 0)
+    } else {
+      stats     <- discount_func(dt_n$C, dt_n$t, dt_n$t1)
+      lambda    <- ifelse(dt_n$C > 0, stats$lambda, 0)
+      Ce_over_C <- ifelse(dt_n$C > 0, dt_n$Ce / dt_n$C, 0)
+    }
+
+    # Interpolation formula:
+    # Interpolated P = lambda * (Ce / C if C > 0 else 0) + (1 - lambda) * P_lower
+    # TODO: check what k does in ppm
+    Ce_over_C <- ifelse(dt_n$C > 0, dt_n$Ce / dt_n$C, 0)
+
+    active <- !is_excluded                   # symbols still in play
+    seen_here <- active & (dt_n$Ce > 0)        # seen at this order, not yet excluded
+
+    # Probability contribution for seen symbols at this order
+    P[seen_here] <- P[seen_here] +
+      remaining_mass[seen_here] * lambda[seen_here] * Ce_over_C[seen_here]
+
+    # All active symbols lose their lambda-share of remaining mass
+    remaining_mass[active] <- remaining_mass[active] * (1 - lambda[active])
+
+    # Exclusion only: freeze seen symbols out of lower orders
+    if (exclusion) {
+      is_excluded[seen_here] <- TRUE
+      remaining_mass[seen_here] <- 0
+    }
   }
 
+  # Leftover mass → base distribution
+  # With exclusion: only unseen-at-any-order symbols receive base mass
+  # Without exclusion: all symbols receive their remaining base mass
+  active_final <- !is_excluded
+  P[active_final] <- P[active_final] +
+    remaining_mass[active_final] * base_prob[active_final]
+
+  dt_final <- copy(dt_orders[[N + 1]])[, .(index, Event)]
   dt_final[, P := P]
-  # Normalization
+
+  # normalization
   dt_final[, P := {
     s <- sum(P)
-    if (s > 0) P / s else P
+    if (s > 0) P / s else rep(1 / alpha_len, .N)
   }, by = index]
+
   dt_final[, IC := -log2(P)]
   dt_final[, Entropy := -sum(P * log2(P)), by = index]
-
-  # TODO: order
   dt_final
 }
-
 
 
 print("PPIDYOM Result:")
@@ -108,17 +120,18 @@ counts <- count_tables(
   N = max_order,
   alphabet = alphabet,
   model_type="both",
-  stm_update_exclusion = FALSE,
+  stm_update_exclusion = TRUE,
   ltm_update_exclusion = FALSE
 )
-print(counts)
+print(counts$stm)
 
 result <- ppm_interpolated(
   x = x,
   N = max_order,
   alphabet = alphabet,
   order_counts = counts$stm,
-  discount_func = discount_C
+  discount_func = discount_C,
+  exclusion = TRUE
 )
 print(result)
 

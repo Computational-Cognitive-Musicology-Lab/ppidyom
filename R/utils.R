@@ -1,4 +1,4 @@
-# setwd("/Users/ling/Desktop/ppidyom")
+setwd("/Users/ling/Desktop/ppidyom")
 
 # Right now, it runs on all sequences provided by training on the remaining as LTM.
 run_ppidyom <- function(
@@ -7,7 +7,11 @@ run_ppidyom <- function(
     alphabet = NULL,
     model_type = c("stm", "ltm", "both", "ltm+", "both+"),
     ppm_type = c("interpolation", "backoff"),
-    lambda = "C",
+    stm_lambda = "C",
+    ltm_lambda = "C",
+    exclusion = FALSE,
+    stm_update_exclusion = TRUE,
+    ltm_update_exclusion = FALSE,
     b = 1
 ){
   model_type <- match.arg(model_type)
@@ -16,7 +20,12 @@ run_ppidyom <- function(
   if (is.null(alphabet)) {
     alphabet <- unique(unlist(seq_list, use.names = FALSE))
   }
-  model <- ppidyom$new(N = N, alphabet = alphabet)
+  model <- ppidyom$new(
+    N = N, alphabet = alphabet,
+    exclusion = exclusion,
+    stm_update_exclusion = stm_update_exclusion,
+    ltm_update_exclusion = ltm_update_exclusion
+  )
 
   has_ltm <- model_type %in% c("ltm","both","ltm+","both+")
 
@@ -40,7 +49,8 @@ run_ppidyom <- function(
       x,
       model_type = model_type,
       ppm_type = ppm_type,
-      lambda = lambda,
+      stm_lambda = stm_lambda,
+      ltm_lambda = ltm_lambda,
       b = b
     )
     pred[, seq_id := i]
@@ -76,7 +86,8 @@ run_ppidyom(
   # alphabet,
   model_type = "both",
   ppm_type = "interpolation",
-  lambda = "C",
+  stm_lambda = "C",
+  ltm_lambda = "C",
   b = 1
 )
 
@@ -86,7 +97,8 @@ run_ppidyom(
   # alphabet,
   model_type = "ltm",
   ppm_type = "interpolation",
-  lambda = "C",
+  stm_lambda = "C",
+  ltm_lambda = "C",
   b = 1
 )
 
@@ -100,12 +112,17 @@ max_order <- 3
 
 print("run_ppidyom Result:")
 run_ppidyom(
-  list(seq1, seq2, seq3),
+  #list(seq1, seq2, seq3),
+  list(seq3),
   max_order,
   alphabet,
   model_type = "both",
   ppm_type = "interpolation",
-  lambda = "C",
+  stm_lambda = "C",
+  ltm_lambda = "C",
+  exclusion = FALSE,
+  stm_update_exclusion = FALSE,
+  ltm_update_exclusion = FALSE,
   b = 1
 )
 
@@ -120,8 +137,8 @@ mod <- new_ppm_simple(
   exclusion = FALSE,
   update_exclusion = FALSE
 )
-res <- model_seq(mod, factor(seq1, levels = alphabet))
-res <- model_seq(mod, factor(seq2, levels = alphabet))
+#res <- model_seq(mod, factor(seq1, levels = alphabet))
+#res <- model_seq(mod, factor(seq2, levels = alphabet))
 res <- model_seq(mod, factor(seq3, levels = alphabet))
 print(res)
 

@@ -7,16 +7,27 @@ ppidyom <- setRefClass(
   fields = list(
     N = "numeric",
     alphabet = "character",
-    counts_ltm = "list"
+    counts_ltm = "list",
+    exclusion = "logical",
+    stm_update_exclusion = "logical",
+    ltm_update_exclusion = "logical"
   ),
 
   methods = list(
 
     #' Initialize a new PPM counter
-    initialize = function(N, alphabet) {
+    initialize = function(
+      N, alphabet,
+      exclusion=TRUE,
+      # TODO: change STM defaults to TRUE after adding update exclusion
+      stm_update_exclusion=FALSE, ltm_update_exclusion=FALSE
+    ) {
       .self$N <- N
       .self$alphabet <- alphabet
       .self$counts_ltm <- list()
+      .self$exclusion <- exclusion
+      .self$stm_update_exclusion <- stm_update_exclusion
+      .self$ltm_update_exclusion <- ltm_update_exclusion
     },
 
     #' Train on a single sequence (incremental LTM update)
@@ -27,7 +38,9 @@ ppidyom <- setRefClass(
         N = .self$N,
         alphabet = .self$alphabet,
         model_type="ltm",
-        prior = .self$counts_ltm
+        prior = .self$counts_ltm,
+        stm_update_exclusion = .self$stm_update_exclusion,
+        ltm_update_exclusion = .self$ltm_update_exclusion
       )
       # Update LTM
       .self$counts_ltm <- count_tables$ltm
@@ -85,7 +98,8 @@ ppidyom <- setRefClass(
     #' @param x Character vector sequence
     #' @param model_type Model type: "stm", "ltm", "both", "ltm+", "both+"
     #' @param ppm_type "interpolation" or "backoff"
-    #' @param lambda escape or discount function (default = "C")
+    #' @param stm_lambda escape or discount function for STM (default = "C")
+    #' @param ltm_lambda escape or discount function for LTM (default = "C")
     #' @param b Bias parameter for relative-entropy weighting (used for + models)
     #' @return data.table with columns: index, Event, P, IC, Entropy
     predict_sequence = function(x, model_type = c("stm", "ltm", "both", "ltm+", "both+"),
@@ -98,9 +112,7 @@ ppidyom <- setRefClass(
       T <- length(x)
       alpha_len <- length(.self$alphabet)
 
-      # -------------------------
       # lambda function
-      # -------------------------
       if (ppm_type == "backoff"){
         stm_lambda_func <- escape_functions[[stm_lambda]]
         if(is.null(stm_lambda_func)) stop("Unknown escape lambda: ", stm_lambda)
@@ -116,9 +128,7 @@ ppidyom <- setRefClass(
       }
 
 
-      # ------------------------------------------------
       # Build count tables
-      # ------------------------------------------------
       # Determine which counts to compute
       if (model_type == "stm") {
         count_type <- "stm"
@@ -135,13 +145,14 @@ ppidyom <- setRefClass(
         N = .self$N,
         alphabet = .self$alphabet,
         model_type = count_type,
-        prior = .self$counts_ltm
+        prior = .self$counts_ltm,
+        stm_update_exclusion = .self$stm_update_exclusion,
+        ltm_update_exclusion = .self$ltm_update_exclusion
       )
 
-      # ------------------------------------------------
-      # STM probabilities
-      # ------------------------------------------------
+      # TODO: add exclusion argument to the ppm calls
 
+      # STM probabilities
       P_stm <- NULL
       if(model_type %in% c("stm","both","both+")) {
 
@@ -152,10 +163,7 @@ ppidyom <- setRefClass(
 
       }
 
-      # ------------------------------------------------
       # LTM probabilities
-      # ------------------------------------------------
-
       P_ltm <- NULL
       if(model_type %in% c("ltm","both","ltm+","both+")) {
 
@@ -165,10 +173,7 @@ ppidyom <- setRefClass(
           ppm_backoff(x, .self$N, .self$alphabet, counts$ltm, escape_func=ltm_lambda_func)
       }
 
-      # ------------------------------------------------
       # Model selection
-      # ------------------------------------------------
-
       if(model_type == "stm")
         result_all_symbols <- P_stm
       else if(model_type == "ltm" || model_type == "ltm+")
@@ -176,10 +181,7 @@ ppidyom <- setRefClass(
       else if(model_type %in% c("both","both+"))
         result_all_symbols <- combine_models(.self$alphabet, P_stm, P_ltm, b)
 
-      # ------------------------------------------------
       # Online learning (+ models)
-      # ------------------------------------------------
-
       if(model_type %in% c("ltm+","both+")) {
         .self$counts_ltm <- counts$ltm
       }
@@ -222,3 +224,4 @@ combine_models <- function(alphabet, p_stm, p_ltm, b=1) {
 
   dt[, .(index, Event, P, IC, Entropy)]
 }
+

@@ -207,7 +207,8 @@ count_tables <- function(
   x, N, alphabet,
   model_type = c("stm","ltm","both"),
   prior = list(),
-  stm_update_exclusion = TRUE, ltm_update_exclusion=FALSE
+  # TODO: change STM defaults to TRUE after adding update exclusion
+  stm_update_exclusion = FALSE, ltm_update_exclusion=FALSE
 ) {
   model_type <- match.arg(model_type)
   T <- length(x)
@@ -276,6 +277,7 @@ count_tables <- function(
 
   list(stm = stm_tables_out, ltm = ltm_tables)
 }
+
 
 #' Expand LTM Count Tables to Timestep-Aligned Order Tables
 #'
