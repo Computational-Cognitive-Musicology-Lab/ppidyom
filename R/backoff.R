@@ -106,31 +106,3 @@ ppm_backoff <- function(x, N, alphabet, order_counts, escape_func=escape_C) {
   dt_final
 }
 
-x <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
-alphabet <- c("A", "B", "C")
-max_order <- 3
-counts <- count_tables(
-  x = x,
-  N = max_order,
-  alphabet = alphabet,
-  model_type="both"
-)
-result <- ppm_backoff(
-  x = x,
-  N = max_order,
-  alphabet = alphabet,
-  order_counts = counts$ltm,
-  escape_func = escape_C
-)
-
-print(result)
-
-
-res_ppidyom <- result[
-  data.table(index = seq_len(length(x)), Event = x),
-  on = .(index, Event)
-][
-  , .(index, Event, P, IC, Entropy)
-]
-
-print(res_ppidyom)

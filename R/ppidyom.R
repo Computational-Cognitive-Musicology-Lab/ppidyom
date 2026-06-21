@@ -19,8 +19,7 @@ ppidyom <- setRefClass(
     initialize = function(
       N, alphabet,
       exclusion=TRUE,
-      # TODO: change STM defaults to TRUE after adding update exclusion
-      stm_update_exclusion=FALSE, ltm_update_exclusion=FALSE
+      stm_update_exclusion=TRUE, ltm_update_exclusion=FALSE
     ) {
       .self$N <- N
       .self$alphabet <- alphabet
@@ -157,7 +156,10 @@ ppidyom <- setRefClass(
       if(model_type %in% c("stm","both","both+")) {
 
         P_stm <- if(ppm_type == "interpolation")
-          ppm_interpolated(x, .self$N, .self$alphabet, counts$stm, discount_func=stm_lambda_func)
+          ppm_interpolated(
+            x, .self$N, .self$alphabet, counts$stm,
+            discount_func=stm_lambda_func, exclusion=.self$exclusion
+          )
         else
           ppm_backoff(x, .self$N, .self$alphabet, counts$stm, escape_func=stm_lambda_func)
 
@@ -168,7 +170,10 @@ ppidyom <- setRefClass(
       if(model_type %in% c("ltm","both","ltm+","both+")) {
 
         P_ltm <- if(ppm_type == "interpolation")
-          ppm_interpolated(x, .self$N, .self$alphabet, counts$ltm, discount_func=ltm_lambda_func)
+          ppm_interpolated(
+            x, .self$N, .self$alphabet, counts$ltm,
+            discount_func=ltm_lambda_func, exclusion=.self$exclusion
+          )
         else
           ppm_backoff(x, .self$N, .self$alphabet, counts$ltm, escape_func=ltm_lambda_func)
       }

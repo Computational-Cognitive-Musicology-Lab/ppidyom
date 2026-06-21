@@ -183,24 +183,25 @@ The nice things about the count-matrix approach include that
 ## Dev Testing
 This project uses **`testthat`** for testing. All tests live under `tests/testthat/`.
 
+See [README_DEV.md](README_DEV.md) for the full developer setup and build workflow.
+
 ### Run tests
-From the R console:
+From the R console (after `devtools::load_all()`):
 ```r
-library(testthat)
-testthat::test_dir("tests/testthat")
+devtools::test()
 ```
 To run a specific test file:
 ```r
-testthat::test_file("tests/testthat/test-information-theory-construct.R")
+devtools::test(filter = "counts")   # test-counts.R
+devtools::test(filter = "escape")   # test-escape.R
 ```
 
 ### Run scalability timing tests
-Scalability tests are informational only and print execution time.
-They are disabled by default to avoid slowing down routine test runs.
+Scalability tests are disabled by default to avoid slowing down routine test runs.
 
-To enable them, run this from R console:
+To enable them:
 ```r
 Sys.setenv(RUN_SCALABILITY_TESTS = "true")
-testthat::test_file("tests/testthat/test-scalability.R")
+devtools::test(filter = "scalability")
 ```
 

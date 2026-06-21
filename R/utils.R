@@ -9,7 +9,7 @@ run_ppidyom <- function(
     ppm_type = c("interpolation", "backoff"),
     stm_lambda = "C",
     ltm_lambda = "C",
-    exclusion = FALSE,
+    exclusion = TRUE,
     stm_update_exclusion = TRUE,
     ltm_update_exclusion = FALSE,
     b = 1
