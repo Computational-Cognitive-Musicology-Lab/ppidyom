@@ -1,13 +1,28 @@
 
+# ── Shared parameters ─────────────────────────────────────────────────────────
+# C   : total observations after this context (sum of all Ce)
+# t   : number of distinct event types seen after this context
+# t1  : number of event types seen exactly once (singletons)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# ── Two families of functions ─────────────────────────────────────────────────
+#
+#  escape_*   used by ppm_backoff.  Each function returns:
+#    $denom    denominator when computing P(seen event | context)
+#    $esc      probability of escaping to a lower order
+#    $subtract subtracted from Ce before dividing (method B/D)
+#
+#  discount_* used by ppm_interpolated.  Each function returns:
+#    $lambda   weight given to this order's MLE estimate;
+#              (1 - lambda) = probability mass that flows to lower orders
+#    $k        count subtraction per type (currently unused in main loop)
+#
+#  For method C (the most common choice): esc = t/(C+t) = 1 - lambda.
+#  The two families are mathematically equivalent for method C; the naming
+#  reflects their role in each algorithm (explicit escape vs. smooth weight).
+# ─────────────────────────────────────────────────────────────────────────────
 
-# C: Total times this context has occurred
-# t: Number of distinct events seen after this context
-# t1: Number of events seen exactly once (singletons) after this context
-
-
-# esc: escape probability
-# denom: denominator for seen events
-# subtract: optional count subtraction
+# ── escape_* functions ────────────────────────────────────────────────────────
 
 escape_A <- function(C, t, t1) {
   list(
@@ -50,8 +65,8 @@ escape_AX <- function(C, t, t1) {
 }
 
 
-# lambda: Used to calculate the discounted probability mass of each order
-# TODO k: optional count subtraction
+# ── discount_* functions ──────────────────────────────────────────────────────
+# TODO: k (count subtraction per type) is not yet applied in ppm_interpolated.
 
 discount_A <- function(C, t, t1) {
   list(

@@ -133,3 +133,49 @@ devtools::test(filter = "counts")
 devtools::document()   # if you changed roxygen comments
 devtools::check()      # full check (optional but recommended)
 ```
+
+---
+
+## Understanding the Codebase
+
+### File-by-file overview
+
+| File | Role |
+|------|------|
+| `R/escape.R` | Pure math: escape and discount function definitions (methods A, B, C, D, AX). No side effects, no dependencies. |
+| `R/counts.R` | Count accumulation: builds the sparse count tables (Ce, C, t, t1) for all n-gram orders, for both STM and LTM. Also handles the lag matrix, context key generation, prior seeding, and update-exclusion logic. |
+| `R/interpolation.R` | Probability computation (interpolated PPM): consumes count tables, applies the weighted sum across orders, handles the exclusion mechanism. |
+| `R/backoff.R` | Probability computation (backoff PPM): consumes count tables, cascades through orders assigning probability mass to seen symbols. |
+| `R/ppidyom.R` | The main `ppidyom` R5 Reference Class: wraps LTM state and calls `count_tables`, `ppm_interpolated`/`ppm_backoff`, and `detrain_sequence`. Also contains `combine_models` for STM+LTM blending. |
+| `R/utils.R` | Top-level user function `run_ppidyom`: runs leave-one-out or train-all evaluation over a corpus using the `ppidyom` class. |
+
+### Dependency graph
+
+```
+escape.R  ──────────────────────────────────────────┐
+                                                    ▼
+counts.R  ──► interpolation.R ──────────────► ppidyom.R ──► utils.R
+          └─► backoff.R ───────────────────────────►┘
+```
+
+### Key data structures
+
+**Count table** (output of `count_tables`, input to `ppm_interpolated` / `ppm_backoff`):
+
+A list of N+1 `data.table`s (one per order 0..N). Each row is one `(timestep, symbol)` pair:
+
+| Column | Type | Meaning |
+|--------|------|---------|
+| `index` | int | Timestep (1..T for STM; -1 for LTM, a constant sentinel) |
+| `context_id` | chr | N-gram context string, e.g. `"A_B"` for order 2, `"ROOT"` for order 0 |
+| `Event` | chr | Symbol/event label |
+| `Ce` | int | Count of times this symbol followed this context |
+| `C` | int | Total count of all symbols after this context (= sum of Ce over the alphabet) |
+| `t` | int | Number of distinct symbols seen after this context |
+| `t1` | int | Number of symbols seen exactly once (singletons) |
+
+**LTM environments** (internal representation during accumulation in `counts.R`):
+
+During training, counts are stored as `new.env(hash=TRUE)` objects — one environment per order. Each key is a `context_id` string; each value is a named integer vector `c(A=3, B=1, ...)` mapping symbols to Ce counts. These are converted to data.tables at the end of `count_tables`. Only symbols with Ce > 0 are stored as keys.
+
+---

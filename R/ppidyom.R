@@ -48,49 +48,81 @@ ppidyom <- setRefClass(
 
 
     #' Remove a single sequence from the trained LTM counts
+    #'
+    #' Exactly reverses one call to train_sequence(x), event by event.
+    #'
+    #' ## Why the loop order matters for ltm_update_exclusion
+    #'
+    #' train_sequence increments counts with this per-timestep logic:
+    #'
+    #'   seen = FALSE
+    #'   for n = N downto 0:
+    #'     if !ltm_update_exclusion OR !seen:
+    #'       exists = (ctx_n, sym) already in LTM   [Ce > 0 BEFORE update]
+    #'       Ce_n += 1
+    #'       if exists: seen = TRUE   ← stop updating lower orders
+    #'
+    #' detrain_sequence must undo exactly those increments.  The key is
+    #' reconstructing which orders were actually updated:
+    #'
+    #'   • We know Ce_current (the value NOW, after training).
+    #'   • The Ce before training was Ce_current - 1.
+    #'   • "exists before training" = Ce_before > 0 = Ce_current - 1 > 0
+    #'     = old_ce > 1.
+    #'
+    #' So we mirror the training loop, decrementing Ce at each order and
+    #' stopping (setting seen_ltm=TRUE) whenever old_ce > 1, because that
+    #' is exactly when training would have stopped updating lower orders.
+    #'
     #' @param x Character vector sequence to de-train
     detrain_sequence = function(x) {
-      T <- length(x)
-      dt_lag <- lag_matrix(x, .self$N)
+      N_ord <- .self$N
+      T_len <- length(x)
+      dt_lag <- lag_matrix(x, N_ord)
+      context_list <- precompute_contexts(dt_lag, N_ord)
 
-      for(n in 0:N) {
-        context_cols <- if(n == 0) character(0) else paste0("Lag", n:1)
-        # Context identifiers
-        if(n==0) dt_lag[, context_id := "ROOT"]
-        else dt_lag[, context_id := do.call(paste, c(.SD, sep="_")), .SDcols=context_cols]
+      # Keyed copies for fast O(1) (context_id, Event) lookup
+      counts_local <- lapply(.self$counts_ltm, function(dt) {
+        dt_copy <- data.table::copy(dt)
+        setkeyv(dt_copy, c("context_id", "Event"))
+        dt_copy
+      })
 
-        # counts_ltm has one table for each N
-        counts_ltm_n <- .self$counts_ltm[[n+1]]
-        setkey(counts_ltm_n, context_id, Event)
-        for(t in seq_len(T)) {
-          ctx <- dt_lag$context_id[t]
-          event <- dt_lag$Lag0[t]
-          # Locate each (context_id, event) pair in the LTM counts
-          idx <- counts_ltm_n[list(ctx, event), which = TRUE]
+      for (ti in seq_len(T_len)) {
+        sym      <- x[ti]
+        seen_ltm <- FALSE   # mirrors the seen_ltm flag in train_sequence
 
-          if(length(idx) == 0) next  # nothing to remove
-          old_ce <- counts_ltm_n$Ce[idx]
-          if(old_ce <= 0) next # original LTM did not have this (ctx, event) pair
+        for (n in N_ord:0) {
+          if (.self$ltm_update_exclusion && seen_ltm) break
 
-          # --- Update Ce for the row of (ctx, event) pair ---
-          counts_ltm_n$Ce[idx] <- old_ce - 1L
+          ctx  <- context_list[[n + 1]][ti]
+          dt_n <- counts_local[[n + 1]]
 
-          # --- Update C for all rows where context_id=ctx ---
-          counts_ltm_n[context_id == ctx, C := C - 1L]
+          idx <- dt_n[.(ctx, sym), which = TRUE]
+          if (length(idx) == 0) next
 
-          # --- Update t and t1 ---
-          if(old_ce == 1L) {
-            # event disappears
-            counts_ltm_n[context_id == ctx, t := t - 1L]
-            counts_ltm_n[context_id == ctx, t1 := t1 - 1L]
-          } else if(old_ce == 2L) {
-            # becomes singleton
-            counts_ltm_n[context_id == ctx, t1 := t1 + 1L]
+          old_ce <- dt_n$Ce[idx]
+          if (old_ce <= 0L) next      # nothing to undo
+
+          # Decrement Ce and the context-level aggregates
+          dt_n[idx, Ce := Ce - 1L]
+          dt_n[context_id == ctx, C := C - 1L]
+
+          if (old_ce == 1L) {
+            # sym disappears entirely from this context
+            dt_n[context_id == ctx, `:=`(t = t - 1L, t1 = t1 - 1L)]
+          } else if (old_ce == 2L) {
+            # sym goes from observed-twice to singleton
+            dt_n[context_id == ctx, t1 := t1 + 1L]
           }
-        }
 
-        .self$counts_ltm[[n+1]] <- counts_ltm_n
+          # old_ce > 1  ↔  Ce before training was > 0  ↔  exists=TRUE during
+          # training  ↔  training set seen_ltm=TRUE at this order, stopping lower
+          if (.self$ltm_update_exclusion && old_ce > 1L) seen_ltm <- TRUE
+        }
       }
+
+      .self$counts_ltm <- counts_local
     },
 
     #' Predict IC and entropy for a sequence

@@ -1,5 +1,3 @@
-setwd("/Users/ling/Desktop/ppidyom")
-
 # Right now, it runs on all sequences provided by training on the remaining as LTM.
 run_ppidyom <- function(
     seq_list,
@@ -62,83 +60,5 @@ run_ppidyom <- function(
   }
 
   results_list
-  # rbindlist(results_list)
 }
-
-# ---------------------------
-# Example sequence
-# ---------------------------
-library(humdrumR)
-
-kern_files <- readHumdrum("tests/data/kern/*.krn")
-kern_files |> select(Token) |> pitch()
-
-seq_df <- kern_files |>
-  midi() |>
-  group_by(Piece) |>
-  summarise(seq = list(as.character(Midi)))
-seq_list <- seq_df$seq
-attributes(seq_list) <- NULL
-
-run_ppidyom(
-  seq_list,
-  max_order,
-  # alphabet,
-  model_type = "both",
-  ppm_type = "interpolation",
-  stm_lambda = "C",
-  ltm_lambda = "C",
-  b = 1
-)
-
-run_ppidyom(
-  seq_list,
-  max_order,
-  # alphabet,
-  model_type = "ltm",
-  ppm_type = "interpolation",
-  stm_lambda = "C",
-  ltm_lambda = "C",
-  b = 1
-)
-
-
-seq1 <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
-seq2 <- c("A", "B", "C", "A", "B", "C", "A", "B", "C")
-seq3  <- c("B", "A", "B", "C", "A")
-
-alphabet <- c("A", "B", "C")
-max_order <- 3
-
-print("run_ppidyom Result:")
-run_ppidyom(
-  #list(seq1, seq2, seq3),
-  list(seq3),
-  max_order,
-  alphabet,
-  model_type = "both",
-  ppm_type = "interpolation",
-  stm_lambda = "C",
-  ltm_lambda = "C",
-  exclusion = FALSE,
-  stm_update_exclusion = FALSE,
-  ltm_update_exclusion = FALSE,
-  b = 1
-)
-
-
-library(ppm)
-print("PPM Result:")
-mod <- new_ppm_simple(
-  order_bound = max_order,
-  alphabet_levels = alphabet,
-  escape = "c",
-  shortest_deterministic = FALSE,
-  exclusion = FALSE,
-  update_exclusion = FALSE
-)
-#res <- model_seq(mod, factor(seq1, levels = alphabet))
-#res <- model_seq(mod, factor(seq2, levels = alphabet))
-res <- model_seq(mod, factor(seq3, levels = alphabet))
-print(res)
 

@@ -42,9 +42,31 @@ compute_local_probs <- function(dt, escape_func, normalize = FALSE) {
 
 #' Compute PPM Probabilities for all symbols with Backoff
 #'
-#' Vectorized backoff implementation of PPM.
-#' For each timestep, uses highest available order with non-zero counts,
-#' falling back to lower orders and finally to base probabilities.
+#' Implements a vectorized PPM backoff.  Starting from the highest order,
+#' each order assigns probability to symbols it has seen (Ce > 0); any
+#' probability mass not allocated by that order survives to lower orders.
+#' Symbols not seen at any order receive the remaining mass divided by the
+#' uniform base distribution.
+#'
+#' ## How compute_local_probs and the backoff cascade relate
+#'
+#' `compute_local_probs` converts raw counts into per-symbol local weights:
+#'
+#'   prob_local(s) = max(Ce(s) - subtract, 0) / denom
+#'                   where denom and subtract come from escape_func
+#'
+#' For escape_C: denom = C + t, subtract = 0, so prob_local(s) = Ce(s)/(C+t).
+#' Summing over all seen symbols: Σ prob_local = C/(C+t) = 1 - esc.
+#'
+#' The backoff cascade (p_mass tracks unallocated probability):
+#'
+#'   p_mass starts at 1
+#'   for n = N downto 0:
+#'     for each seen symbol s (Ce_n > 0):
+#'       P(s) = p_mass(s) · prob_local_n(s)   ← allocate a share
+#'       p_mass(s) *= (1 - prob_local_n(s))   ← reduce remaining share
+#'   after loop:
+#'     unseen symbols: P(s) = p_mass(s) / |alphabet|
 #'
 #' @param x Character vector of events
 #' @param N Maximum order
@@ -52,13 +74,13 @@ compute_local_probs <- function(dt, escape_func, normalize = FALSE) {
 #' @param order_counts List of length N+1 containing count tables for orders
 #'   0..N. Each element must be a `data.table` with columns:
 #'   `index`, `context_id`, `Event`, `Ce`, `C`, `t`, `t1`.
-#'
 #'   - For **STM**, `index` corresponds to the timestep.
-#'   - For **LTM**, `index` is constantly -1 since counts
-#'     represent aggregated training statistics.
+#'   - For **LTM**, `index` is constantly -1; `ltm_to_timestep_counts` maps
+#'     them to per-timestep tables first.
 #' @param escape_func Escape function (e.g., `escape_C`).
+#'   Returns `$denom`, `$esc`, `$subtract`; see escape.R.
 #'
-#' @return data.table with columns: index, Event, P, IC
+#' @return data.table with columns: index, Event, P, IC, Entropy
 #' @export
 ppm_backoff <- function(x, N, alphabet, order_counts, escape_func=escape_C) {
 
@@ -74,35 +96,36 @@ ppm_backoff <- function(x, N, alphabet, order_counts, escape_func=escape_C) {
   dt_final <- copy(dt_orders[[N + 1]])[, .(index, Event)]
   dt_final[, P := NA_real_]
 
-  # Base probability: 1 / (∣alphabet∣)
+  # Uniform base: used only for symbols unseen at all orders
   base_prob <- rep(1 / alpha_len, T * alpha_len)
 
-  # Initialize leftover mass
+  # p_mass: unallocated probability for each (timestep × symbol) row; starts at 1
   p_mass <- rep(1, nrow(dt_final))
 
-  # Compute local probabilities for all orders in advance
-  local_probs <- lapply(dt_orders, compute_local_probs,
-                        escape_func = escape_func)
+  # Pre-compute prob_local for every order (avoids recomputing inside the loop)
+  local_probs <- lapply(dt_orders, compute_local_probs, escape_func = escape_func)
 
-  # Backoff loop from highest to lowest order
+  # Cascade: allocate probability from highest order downward
   for (n in N:0) {
     dt_n <- local_probs[[n + 1]]
 
-    # Rows with seen events (Ce > 0)
-    seen <- dt_orders[[n + 1]]$Ce > 0
+    seen <- dt_orders[[n + 1]]$Ce > 0   # symbol observed in this context
 
+    # P is overwritten each time a symbol is seen, so the final P(s) reflects
+    # the contribution from the lowest order where Ce(s) > 0, weighted by the
+    # p_mass remaining after higher orders have taken their share.
     dt_final[seen, P := p_mass[seen] * dt_n$prob_local[seen]]
-    p_mass[seen] <- p_mass[seen] * (1 - dt_n$prob_local[seen])
+    p_mass[seen]   <- p_mass[seen] * (1 - dt_n$prob_local[seen])
   }
 
-  # Assign remaining mass to base probabilities
+  # Symbols with P still NA were never seen at any order; assign remaining mass
   remaining <- is.na(dt_final$P)
   dt_final[remaining, P := p_mass[remaining] * base_prob[remaining]]
 
-  dt_final[, IC := -log2(P)]
+  dt_final[, IC      := -log2(P)]
   dt_final[, Entropy := -sum(P * log2(P)), by = index]
 
-  # TODO: order
+  # TODO: track which order was chosen for each symbol (model_order column)
   dt_final
 }
 

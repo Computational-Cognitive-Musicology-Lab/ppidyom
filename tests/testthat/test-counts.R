@@ -21,7 +21,7 @@ expected_stm_order0 <- data.table(
 )
 
 test_that("STM exact counts for order 0 match expectations", {
-  counts <- count_tables(seq1, N=N, alphabet=alphabet, type="stm")
+  counts <- count_tables(seq1, N=N, alphabet=alphabet, model_type="stm")
   stm0 <- counts$stm[[1]]  # order 0
   expect_equal(stm0$Ce, expected_stm_order0$Ce)
   expect_equal(stm0$C, expected_stm_order0$C)
@@ -42,7 +42,7 @@ expected_ltm_order0 <- data.table(
 )
 
 test_that("LTM exact counts for order 0 match expectations", {
-  counts <- count_tables(seq1, N=N, alphabet=alphabet, type="ltm")
+  counts <- count_tables(seq1, N=N, alphabet=alphabet, model_type="ltm")
   ltm0 <- counts$ltm[[1]][context_id == "ROOT"]
   expect_equal(ltm0$Ce, expected_ltm_order0$Ce)
   expect_equal(ltm0$C, expected_ltm_order0$C)
@@ -53,7 +53,7 @@ test_that("LTM exact counts for order 0 match expectations", {
 
 # Test both STM and LTM together
 test_that("Both STM and LTM produce correct exact counts", {
-  counts <- count_tables(seq1, N=N, alphabet=alphabet, type="both")
+  counts <- count_tables(seq1, N=N, alphabet=alphabet, model_type="both")
 
   # STM order 0
   expect_equal(counts$stm[[1]]$Ce, expected_stm_order0$Ce)
@@ -78,7 +78,10 @@ expected_stm_order2 <- data.table(
 )
 
 
-# Expected LTM counts for order 2
+# Expected LTM counts for order 2 (after training seq1 then seq2 with prior)
+# seq1 = c("A","B","A","C"), seq2 = c("C","A","B","A")
+# Contexts and values are correct; comparison is done after sorting by
+# (context_id, Event) to avoid dependence on hash-environment ordering.
 expected_ltm_order2 <- data.table(
   index = -1L,
   context_id = c("NA_NA","NA_NA","NA_NA",
@@ -87,29 +90,35 @@ expected_ltm_order2 <- data.table(
                  "A_B","A_B","A_B",
                  "NA_A","NA_A","NA_A",
                  "B_A","B_A","B_A"),
-  Event = list(alphabet, alphabet, alphabet, alphabet, alphabet, alphabet),
-  Ce = c(1,0,1,1,0,0,0,1,0,2,0,0,0,1,0,0,0,1),
-  C = c(2,2,2,1,1,1,1,1,1,2,2,2,1,1,1,1,1,1),
-  t = c(2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),
-  t1 = c(2,2,2,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1)
+  Event = rep(alphabet, 6),
+  Ce = c(1,0,1, 1,0,0, 0,1,0, 2,0,0, 0,1,0, 0,0,1),
+  C  = c(2,2,2, 1,1,1, 1,1,1, 2,2,2, 1,1,1, 1,1,1),
+  t  = c(2,2,2, 1,1,1, 1,1,1, 1,1,1, 1,1,1, 1,1,1),
+  t1 = c(2,2,2, 1,1,1, 1,1,1, 0,0,0, 1,1,1, 1,1,1)
 )
 
 
 # Test accumulation with prior
 test_that("LTM prior counts accumulate correctly", {
   # seq1 <- c("A","B","A","C")
-  prior_counts <- count_tables(seq1, N=N, alphabet=alphabet, type="ltm")
+  prior_counts <- count_tables(seq1, N=N, alphabet=alphabet, model_type="ltm")
   seq2 <- c("C","A","B","A")
-  counts_with_prior <- count_tables(seq2, N=N, alphabet=alphabet, type="both", prior=prior_counts$ltm)
+  counts_with_prior <- count_tables(seq2, N=N, alphabet=alphabet, model_type="both", prior=prior_counts$ltm)
 
   expect_equal(counts_with_prior$stm[[3]]$Ce, expected_stm_order2$Ce)
   expect_equal(counts_with_prior$stm[[3]]$C, expected_stm_order2$C)
   expect_equal(counts_with_prior$stm[[3]]$t, expected_stm_order2$t)
   expect_equal(counts_with_prior$stm[[3]]$t1, expected_stm_order2$t1)
 
-  expect_equal(counts_with_prior$ltm[[3]]$Ce, expected_ltm_order2$Ce)
-  expect_equal(counts_with_prior$ltm[[3]]$C, expected_ltm_order2$C)
-  expect_equal(counts_with_prior$ltm[[3]]$t, expected_ltm_order2$t)
-  expect_equal(counts_with_prior$ltm[[3]]$t1, expected_ltm_order2$t1)
+  # Sort both by (context_id, Event) — hash-env ordering is not deterministic
+  actual_ltm2 <- data.table::copy(counts_with_prior$ltm[[3]])
+  setorderv(actual_ltm2, c("context_id", "Event"))
+  expected_ltm2 <- data.table::copy(expected_ltm_order2)
+  setorderv(expected_ltm2, c("context_id", "Event"))
+
+  expect_equal(actual_ltm2$Ce, expected_ltm2$Ce)
+  expect_equal(actual_ltm2$C,  expected_ltm2$C)
+  expect_equal(actual_ltm2$t,  expected_ltm2$t)
+  expect_equal(actual_ltm2$t1, expected_ltm2$t1)
 })
 

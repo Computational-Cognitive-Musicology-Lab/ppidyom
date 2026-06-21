@@ -36,12 +36,22 @@ precompute_contexts <- function(dt_lag, N) {
   context_list
 }
 
-#' Initialize LTM with prior counts
+#' Seed LTM environments from previously accumulated count tables
 #'
-#' @param counts_ltm LTM env list
-#' @param prior prior LTM tables
-#' @param N maximum order
-#' @return modified counts_ltm
+#' Converts a list of data.tables (the output format of count_tables) back into
+#' sparse environments so that update_env_and_build_stm_tables can continue
+#' accumulating counts on top of them.
+#'
+#' Only symbols with Ce > 0 are stored as environment keys.  This is critical:
+#' `update_env_and_build_stm_tables` uses `sym %in% names(env[[ctx]])` to test
+#' whether a symbol was already "seen" in a context, which controls the
+#' ltm_update_exclusion early-stop logic.  Storing Ce = 0 entries as keys
+#' would cause false "already seen" hits and premature stopping.
+#'
+#' @param counts_ltm List of environments (one per order 0..N)
+#' @param prior List of data.tables from a previous count_tables() call
+#' @param N Maximum n-gram order
+#' @return counts_ltm with prior counts loaded into the environments
 apply_prior_ltm <- function(counts_ltm, prior, N) {
 
   if (length(prior) == 0) return(counts_ltm)
@@ -54,7 +64,12 @@ apply_prior_ltm <- function(counts_ltm, prior, N) {
     env <- counts_ltm[[n+1]]
 
     for (ctx in unique(prior_dt$context_id)) {
-      rows <- prior_dt[context_id == ctx]
+      # Only store symbols with Ce > 0: zero-count entries must not be present
+      # as keys, because update_env_and_build_stm_tables uses `sym %in% names(v)`
+      # to decide whether a symbol was already "seen" (exists=TRUE), which drives
+      # the ltm_update_exclusion early-stop logic.
+      rows <- prior_dt[context_id == ctx & Ce > 0L]
+      if (nrow(rows) == 0L) next
       env[[ctx]] <- setNames(as.integer(rows$Ce), rows$Event)
     }
   }
@@ -112,6 +127,31 @@ update_env <- function(env, ctx, sym, sign = +1) {
   env[[ctx]] <- v
 }
 
+# Build count environments (STM and/or LTM) by scanning x once.
+#
+# The outer loop is over timesteps t; the inner loop is over orders n (N→0).
+# This ordering is essential for update exclusion, which is a per-timestep
+# decision:
+#
+#   For each event x[t]:
+#     seen = FALSE
+#     for n = N downto 0:
+#       if !update_exclusion OR !seen:
+#         exists = (ctx_n, x[t]) already in counts before this update
+#         increment Ce at order n
+#         if exists: seen = TRUE   ← skip all lower orders for this event
+#
+# STM snapshot (read before write):
+#   For the STM, the count table at timestep t represents the state BEFORE
+#   observing x[t], so the snapshot is taken first (inner loop 0→N), then
+#   the environments are updated (inner loop N→0).
+#
+# Update exclusion (Moffat 1990, IDyOM :update-exclusion):
+#   When x[t] was already present in the LTM at some order n (exists=TRUE),
+#   we stop incrementing lower orders.  Intuition: the count already exists
+#   at a higher-order context, so recording it again at order n-1 would
+#   double-count an observation that interpolation assigns exclusively to
+#   the higher order.
 update_env_and_build_stm_tables <- function(
   x, N, alphabet, context_list,
   use_stm, use_ltm, stm_update_exclusion, ltm_update_exclusion,
@@ -121,13 +161,13 @@ update_env_and_build_stm_tables <- function(
   stm_tables <- if(use_stm) lapply(0:N, function(.) vector("list", T)) else NULL
 
   for (t in seq_len(T)) {
-    # Build STM tables from lower order after optional update exclusion
+
+    # ── STM snapshot: record current counts BEFORE updating for x[t] ─────────
     if (use_stm) {
       for (n in 0:N) {
         ctx <- context_list[[n+1]][t]
         ctx_counts <- counts_stm[[n+1]][[ctx]]
 
-        # Ce for all symbols in the alphabet (fill missing with 0)
         Ce_full <- setNames(integer(length(alphabet)), alphabet)
         if (!is.null(ctx_counts)) Ce_full[names(ctx_counts)] <- ctx_counts
         stm_tables[[n+1]][[t]] <- data.table(
@@ -135,37 +175,37 @@ update_env_and_build_stm_tables <- function(
           context_id = ctx,
           Event = alphabet,
           Ce = as.integer(Ce_full),
-          C = sum(Ce_full),
-          t = sum(Ce_full > 0L),
+          C  = sum(Ce_full),
+          t  = sum(Ce_full > 0L),
           t1 = sum(Ce_full == 1L)
         )
       }
     }
 
-    sym <- x[t]
-    seen_stm <- FALSE
-    seen_ltm <- FALSE
+    sym      <- x[t]
+    seen_stm <- FALSE   # have we already seen sym in a higher-order STM context?
+    seen_ltm <- FALSE   # same for LTM
 
-    # Update env with optional exclusion
+    # ── Increment counts from highest order down ──────────────────────────────
     for (n in N:0) {
       ctx <- context_list[[n+1]][t]
 
-      # ---------- STM ----------
+      # STM
       if (use_stm) {
         if (!stm_update_exclusion || !seen_stm) {
-          env <- counts_stm[[n+1]]
-          v <- env[[ctx]]
-          exists <- !is.null(v) && sym %in% names(v)
+          env    <- counts_stm[[n+1]]
+          v      <- env[[ctx]]
+          exists <- !is.null(v) && sym %in% names(v)  # Ce > 0 before update
           update_env(env, ctx, sym, +1)
           if (exists) seen_stm <- TRUE
         }
       }
-      # ---------- LTM ----------
+      # LTM
       if (use_ltm) {
         if (!ltm_update_exclusion || !seen_ltm) {
-          env <- counts_ltm[[n+1]]
-          v <- env[[ctx]]
-          exists <- !is.null(v) && sym %in% names(v)
+          env    <- counts_ltm[[n+1]]
+          v      <- env[[ctx]]
+          exists <- !is.null(v) && sym %in% names(v)  # Ce > 0 before update
           update_env(env, ctx, sym, +1)
           if (exists) seen_ltm <- TRUE
         }
@@ -176,8 +216,8 @@ update_env_and_build_stm_tables <- function(
   stm_tables_out <- NULL
   if (use_stm) stm_tables_out <- lapply(stm_tables, rbindlist)
   list(
-    counts_stm = counts_stm,
-    counts_ltm = counts_ltm,
+    counts_stm     = counts_stm,
+    counts_ltm     = counts_ltm,
     stm_tables_out = stm_tables_out
   )
 }

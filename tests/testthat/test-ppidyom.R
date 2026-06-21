@@ -91,7 +91,8 @@ test_that("detrain_sequence restores LTM state after training", {
 # ---------------------------
 # Helper: manual leave-one-out
 # ---------------------------
-manual_ppidyom <- function(seq_list, N, alphabet, model_type, ppm_type, lambda, b) {
+manual_ppidyom <- function(seq_list, N, alphabet, model_type, ppm_type,
+                           stm_lambda, ltm_lambda, b) {
 
   results <- vector("list", length(seq_list))
 
@@ -110,7 +111,8 @@ manual_ppidyom <- function(seq_list, N, alphabet, model_type, ppm_type, lambda, 
       seq_list[[i]],
       model_type = model_type,
       ppm_type = ppm_type,
-      lambda = lambda,
+      stm_lambda = stm_lambda,
+      ltm_lambda = ltm_lambda,
       b = b
     )
 
@@ -143,7 +145,8 @@ test_that("run_ppidyom matches manual leave-one-out and reports timing", {
     alphabet = alphabet,
     model_type = "both",
     ppm_type = "interpolation",
-    lambda = "C",
+    stm_lambda = "C",
+    ltm_lambda = "C",
     b = 1
   )
 
@@ -180,5 +183,35 @@ test_that("run_ppidyom matches manual leave-one-out and reports timing", {
   cat(sprintf("run_ppidyom: %.4f sec\n", t1["elapsed"]))
   cat(sprintf("manual loop: %.4f sec\n", t2["elapsed"]))
   cat(sprintf("speedup: %.2fx\n", speedup))
+})
+
+
+test_that("detrain_sequence restores LTM state with ltm_update_exclusion=TRUE", {
+
+  train_seq1 <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
+  train_seq2 <- c("A", "B", "C", "A", "B", "C", "A", "B", "C")
+
+  alphabet    <- c("A", "B", "C")
+  max_order   <- 3
+
+  model <- ppidyom$new(
+    N = max_order, alphabet = alphabet,
+    ltm_update_exclusion = TRUE
+  )
+
+  model$train_sequence(train_seq1)
+  counts_before <- lapply(model$counts_ltm, copy)
+
+  model$train_sequence(train_seq2)
+  model$detrain_sequence(train_seq2)
+  counts_after <- model$counts_ltm
+
+  expect_true(
+    compare_results(
+      clean_counts(counts_before),
+      clean_counts(counts_after),
+      by = c("context_id", "Event")
+    )
+  )
 })
 
