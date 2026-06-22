@@ -3,40 +3,32 @@ library(data.table)
 
 #' Compute Local Probabilities for a Single Order; Used by Backoff PPM
 #'
-#' @param dt Data.table from `dynamic_count_table_for_each_order` for a single order.
-#'           Must have columns: index, context_id, Event, Ce, C, t, t1
-#' @param escape_func Function to compute escape probability.
-#'                    Signature: function(C, t, t1) returns list(denom, esc, subtract)
+#' @param dt Data.table for a single order. Columns: index, context_id, Event, Ce, C, t, t1.
+#' @param escape_func Escape function from escape.R.
+#'   Signature: `function(t, t1)` returning `list(subtract, esc_numer)`.
 #'
 #' @return Data.table with columns: index, Event, prob_local, esc
 #' @export
 compute_local_probs <- function(dt, escape_func, normalize = FALSE) {
 
-  # Initialize vectors
-  prob_local <- numeric(nrow(dt))
-  esc        <- numeric(nrow(dt))
+  escape_stats <- escape_func(dt$t, dt$t1)
+  subtract     <- escape_stats$subtract
+  esc_numer <- escape_stats$esc_numer
 
-  # Compute escape and denominator per row
-  escape_stats <- escape_func(dt$C, dt$t, dt$t1)
+  Ce_adj <- pmax(dt$Ce - subtract, 0)                 # modify_count(Ce)
+  ctx    <- dt$C - subtract * dt$t                    # context_count = Σ max(Ce-d,0)
+  denom  <- ctx + esc_numer
 
-  denom <- escape_stats$denom
-  esc[] <- escape_stats$esc
-  subtract <- escape_stats$subtract
+  has_ctx    <- ctx > 0
+  prob_local <- ifelse(has_ctx & denom > 0, Ce_adj / denom, 0)
+  esc        <- ifelse(has_ctx & denom > 0, esc_numer / denom, NA_real_)
 
-  # Numerator = Ce - subtract (cannot be negative)
-  numer <- pmax(dt$Ce - subtract, 0)
-
-  # Only assign probabilities for valid rows (C > 0 and numer > 0)
-  valid_idx <- which(!is.na(denom) & denom > 0 & numer >= 0)
-  prob_local[valid_idx] <- numer[valid_idx] / denom[valid_idx]
-
-  out <- data.table(
-    index = dt$index,
-    Event = dt$Event,
+  data.table(
+    index      = dt$index,
+    Event      = dt$Event,
     prob_local = prob_local,
-    esc = esc
+    esc        = esc
   )
-  out
 }
 
 
@@ -78,7 +70,7 @@ compute_local_probs <- function(dt, escape_func, normalize = FALSE) {
 #'   - For **LTM**, `index` is constantly -1; `ltm_to_timestep_counts` maps
 #'     them to per-timestep tables first.
 #' @param escape_func Escape function (e.g., `escape_C`).
-#'   Returns `$denom`, `$esc`, `$subtract`; see escape.R.
+#'   Signature: `function(t, t1)` returning `list(subtract, esc_numer)`; see escape.R.
 #'
 #' @return data.table with columns: index, Event, P, IC, Entropy
 #' @export

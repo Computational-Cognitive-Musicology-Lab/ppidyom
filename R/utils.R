@@ -1,4 +1,5 @@
-# Right now, it runs on all sequences provided by training on the remaining as LTM.
+# Runs leave-one-out PPM over a corpus: trains on all sequences, then for each
+# sequence detrains itself, predicts, and retrains.
 run_ppidyom <- function(
     seq_list,
     N,
@@ -7,20 +8,22 @@ run_ppidyom <- function(
     ppm_type = c("interpolation", "backoff"),
     stm_lambda = "C",
     ltm_lambda = "C",
-    exclusion = TRUE,
+    stm_exclusion = TRUE,
+    ltm_exclusion = TRUE,
     stm_update_exclusion = TRUE,
     ltm_update_exclusion = FALSE,
     b = 1
-){
+) {
   model_type <- match.arg(model_type)
-  ppm_type <- match.arg(ppm_type)
+  ppm_type   <- match.arg(ppm_type)
 
   if (is.null(alphabet)) {
     alphabet <- unique(unlist(seq_list, use.names = FALSE))
   }
   model <- ppidyom$new(
     N = N, alphabet = alphabet,
-    exclusion = exclusion,
+    stm_exclusion = stm_exclusion,
+    ltm_exclusion = ltm_exclusion,
     stm_update_exclusion = stm_update_exclusion,
     ltm_update_exclusion = ltm_update_exclusion
   )

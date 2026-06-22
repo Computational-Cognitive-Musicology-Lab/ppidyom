@@ -8,7 +8,8 @@ ppidyom <- setRefClass(
     N = "numeric",
     alphabet = "character",
     counts_ltm = "list",
-    exclusion = "logical",
+    stm_exclusion = "logical",
+    ltm_exclusion = "logical",
     stm_update_exclusion = "logical",
     ltm_update_exclusion = "logical"
   ),
@@ -18,13 +19,14 @@ ppidyom <- setRefClass(
     #' Initialize a new PPM counter
     initialize = function(
       N, alphabet,
-      exclusion=TRUE,
-      stm_update_exclusion=TRUE, ltm_update_exclusion=FALSE
+      stm_exclusion = TRUE, ltm_exclusion = TRUE,
+      stm_update_exclusion = TRUE, ltm_update_exclusion = FALSE
     ) {
       .self$N <- N
       .self$alphabet <- alphabet
       .self$counts_ltm <- list()
-      .self$exclusion <- exclusion
+      .self$stm_exclusion <- stm_exclusion
+      .self$ltm_exclusion <- ltm_exclusion
       .self$stm_update_exclusion <- stm_update_exclusion
       .self$ltm_update_exclusion <- ltm_update_exclusion
     },
@@ -143,20 +145,13 @@ ppidyom <- setRefClass(
       T <- length(x)
       alpha_len <- length(.self$alphabet)
 
-      # lambda function
-      if (ppm_type == "backoff"){
-        stm_lambda_func <- escape_functions[[stm_lambda]]
-        if(is.null(stm_lambda_func)) stop("Unknown escape lambda: ", stm_lambda)
-        ltm_lambda_func <- escape_functions[[ltm_lambda]]
-        if(is.null(ltm_lambda_func)) stop("Unknown escape lambda: ", ltm_lambda)
-      } else if (ppm_type == "interpolation") {
-        stm_lambda_func <- discount_functions[[stm_lambda]]
-        if(is.null(stm_lambda_func)) stop("Unknown discount lambda: ", stm_lambda)
-        ltm_lambda_func <- discount_functions[[ltm_lambda]]
-        if(is.null(ltm_lambda_func)) stop("Unknown discount lambda: ", ltm_lambda)
-      } else {
-        stop("Unknown PPM type: ", ppm_type)
-      }
+      # Both backoff and interpolation use the escape_functions lookup.
+      # escape_* functions return denom/esc/subtract, which is the correct
+      # interface for both algorithms (ppm_interpolated was fixed to match).
+      stm_lambda_func <- escape_functions[[stm_lambda]]
+      if (is.null(stm_lambda_func)) stop("Unknown escape function: ", stm_lambda)
+      ltm_lambda_func <- escape_functions[[ltm_lambda]]
+      if (is.null(ltm_lambda_func)) stop("Unknown escape function: ", ltm_lambda)
 
 
       # Build count tables
@@ -181,33 +176,28 @@ ppidyom <- setRefClass(
         ltm_update_exclusion = .self$ltm_update_exclusion
       )
 
-      # TODO: add exclusion argument to the ppm calls
-
       # STM probabilities
       P_stm <- NULL
-      if(model_type %in% c("stm","both","both+")) {
-
-        P_stm <- if(ppm_type == "interpolation")
+      if (model_type %in% c("stm","both","both+")) {
+        P_stm <- if (ppm_type == "interpolation")
           ppm_interpolated(
             x, .self$N, .self$alphabet, counts$stm,
-            discount_func=stm_lambda_func, exclusion=.self$exclusion
+            escape_func = stm_lambda_func, exclusion = .self$stm_exclusion
           )
         else
-          ppm_backoff(x, .self$N, .self$alphabet, counts$stm, escape_func=stm_lambda_func)
-
+          ppm_backoff(x, .self$N, .self$alphabet, counts$stm, escape_func = stm_lambda_func)
       }
 
       # LTM probabilities
       P_ltm <- NULL
-      if(model_type %in% c("ltm","both","ltm+","both+")) {
-
-        P_ltm <- if(ppm_type == "interpolation")
+      if (model_type %in% c("ltm","both","ltm+","both+")) {
+        P_ltm <- if (ppm_type == "interpolation")
           ppm_interpolated(
             x, .self$N, .self$alphabet, counts$ltm,
-            discount_func=ltm_lambda_func, exclusion=.self$exclusion
+            escape_func = ltm_lambda_func, exclusion = .self$ltm_exclusion
           )
         else
-          ppm_backoff(x, .self$N, .self$alphabet, counts$ltm, escape_func=ltm_lambda_func)
+          ppm_backoff(x, .self$N, .self$alphabet, counts$ltm, escape_func = ltm_lambda_func)
       }
 
       # Model selection

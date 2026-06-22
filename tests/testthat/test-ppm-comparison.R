@@ -1,0 +1,253 @@
+library(testthat)
+library(data.table)
+
+# ── Guards ─────────────────────────────────────────────────────────────────────
+# These tests require the ppm package (Harrison et al. 2020,
+# https://github.com/pmcharrison/ppm) and are slow.
+# Run them with: Sys.setenv(RUN_PPM_COMPARISON = "true"); devtools::test(filter="ppm-comparison")
+if (!requireNamespace("ppm", quietly = TRUE) ||
+    Sys.getenv("RUN_PPM_COMPARISON") != "true") {
+  testthat::skip("ppm package not installed or RUN_PPM_COMPARISON != 'true'")
+}
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+# ppm method strings: ppidyom uses "A"/"B"/"C"/"D"/"X", ppm uses "a"/"b"/"c"/"d"/"ax"
+ppm_escape_name <- c(A = "a", B = "b", C = "c", D = "d", X = "ax")
+
+# Run ppidyom STM-interpolated and return IC for the observed sequence.
+ppidyom_stm_ic <- function(x, alphabet, N, method,
+                            exclusion = FALSE, update_exclusion = FALSE) {
+  counts  <- count_tables(x, N = N, alphabet = alphabet, model_type = "stm",
+                          stm_update_exclusion = update_exclusion,
+                          ltm_update_exclusion = FALSE)
+  result  <- ppm_interpolated(x, N = N, alphabet = alphabet,
+                               order_counts  = counts$stm,
+                               escape_func   = escape_functions[[method]],
+                               exclusion     = exclusion)
+  result[data.table(index = seq_along(x), Event = x), on = .(index, Event)]$IC
+}
+
+# Run Harrison's ppm package (new_ppm_simple) and return IC for the sequence.
+# IDyOM equivalent (Common Lisp):
+#   (idyom:idyom <db-id> '(cpitch) '(cpitch)
+#     :texture :melody :models :stm :k :full :detail 3
+#     :stmo '(:escape <method> :order-bound <N>
+#             :exclusion <t/nil> :update-exclusion <t/nil>))
+ppm_stm_ic <- function(x, alphabet, N, method,
+                        exclusion = FALSE, update_exclusion = FALSE) {
+  mod <- ppm::new_ppm_simple(
+    order_bound           = N,
+    alphabet_levels       = alphabet,
+    escape                = ppm_escape_name[[method]],
+    shortest_deterministic = FALSE,
+    exclusion             = exclusion,
+    update_exclusion      = update_exclusion
+  )
+  res <- ppm::model_seq(mod, factor(x, levels = alphabet))
+  res$information.content
+}
+
+# Compare ppidyom vs ppm and report a diff table if they disagree.
+compare_ic <- function(ppidyom_ic, ppm_ic, tolerance = 1e-5, label = "") {
+  diff <- abs(ppidyom_ic - ppm_ic)
+  if (any(diff > tolerance, na.rm = TRUE)) {
+    cat(sprintf("\n[%s] Max IC diff: %.8f at positions: %s\n",
+                label, max(diff, na.rm = TRUE),
+                paste(which(diff > tolerance), collapse = ", ")))
+    cat("ppidyom IC:", round(ppidyom_ic, 6), "\n")
+    cat("ppm     IC:", round(ppm_ic,     6), "\n")
+  }
+  expect_equal(ppidyom_ic, ppm_ic, tolerance = tolerance, label = label)
+}
+
+# ── Shared test data ──────────────────────────────────────────────────────────
+
+x1       <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")   # longer, more context
+x2       <- c("B", "A", "B", "C", "A")                        # shorter, varied start
+alphabet <- c("A", "B", "C")
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 1. ESCAPE METHOD — vary one at a time from baseline
+#    Baseline: N=3, exclusion=FALSE, update_exclusion=FALSE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# IDyOM:  :stmo '(:escape :c :order-bound 3 :exclusion nil :update-exclusion nil)
+# ppm:    new_ppm_simple(escape="c", exclusion=FALSE, update_exclusion=FALSE)
+test_that("method C (baseline) matches ppm", {
+  for (x in list(x1, x2)) {
+    compare_ic(
+      ppidyom_stm_ic(x, alphabet, N = 3, method = "C"),
+      ppm_stm_ic   (x, alphabet, N = 3, method = "C"),
+      label = "C"
+    )
+  }
+})
+
+# IDyOM:  :stmo '(:escape :a :order-bound 3 :exclusion nil :update-exclusion nil)
+test_that("method A matches ppm", {
+  for (x in list(x1, x2)) {
+    compare_ic(
+      ppidyom_stm_ic(x, alphabet, N = 3, method = "A"),
+      ppm_stm_ic   (x, alphabet, N = 3, method = "A"),
+      label = "A"
+    )
+  }
+})
+
+# IDyOM:  :stmo '(:escape :b :order-bound 3 :exclusion nil :update-exclusion nil)
+# NOTE: method B gives zero probability to singletons (Ce=1); probabilities
+# may not sum to 1 before normalization.
+test_that("method B matches ppm", {
+  for (x in list(x1, x2)) {
+    compare_ic(
+      ppidyom_stm_ic(x, alphabet, N = 3, method = "B"),
+      ppm_stm_ic   (x, alphabet, N = 3, method = "B"),
+      label = "B"
+    )
+  }
+})
+
+# IDyOM:  :stmo '(:escape :d :order-bound 3 :exclusion nil :update-exclusion nil)
+# NOTE: method D subtracts 0.5 from each Ce (absolute discounting).
+test_that("method D matches ppm", {
+  for (x in list(x1, x2)) {
+    compare_ic(
+      ppidyom_stm_ic(x, alphabet, N = 3, method = "D"),
+      ppm_stm_ic   (x, alphabet, N = 3, method = "D"),
+      label = "D"
+    )
+  }
+})
+
+# IDyOM:  :stmo '(:escape :ax :order-bound 3 :exclusion nil :update-exclusion nil)
+# NOTE: AX (method A+, Moffat 1990) uses singleton count t1 in the escape
+# formula.  The escape function is esc=(t1+1)/(C+t+1).  The sum of seen
+# probabilities plus escape may be <1 when t>t1; renormalization compensates.
+# This test may fail if ppm-AX uses a different variant of the formula.
+test_that("method AX matches ppm", {
+  for (x in list(x1, x2)) {
+    compare_ic(
+      ppidyom_stm_ic(x, alphabet, N = 3, method = "X"),
+      ppm_stm_ic   (x, alphabet, N = 3, method = "X"),
+      label = "AX"
+    )
+  }
+})
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 2. EXCLUSION — vary stm_exclusion (method C, update_exclusion=FALSE)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# IDyOM:  :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil)
+test_that("exclusion=TRUE matches ppm", {
+  for (x in list(x1, x2)) {
+    compare_ic(
+      ppidyom_stm_ic(x, alphabet, N = 3, method = "C", exclusion = TRUE),
+      ppm_stm_ic   (x, alphabet, N = 3, method = "C", exclusion = TRUE),
+      label = "C + exclusion"
+    )
+  }
+})
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 3. UPDATE EXCLUSION — vary stm_update_exclusion (method C, exclusion=FALSE)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# IDyOM:  :stmo '(:escape :c :order-bound 3 :exclusion nil :update-exclusion t)
+test_that("update_exclusion=TRUE matches ppm", {
+  for (x in list(x1, x2)) {
+    compare_ic(
+      ppidyom_stm_ic(x, alphabet, N = 3, method = "C", update_exclusion = TRUE),
+      ppm_stm_ic   (x, alphabet, N = 3, method = "C", update_exclusion = TRUE),
+      label = "C + update_exclusion"
+    )
+  }
+})
+
+# IDyOM:  :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion t)
+test_that("exclusion=TRUE + update_exclusion=TRUE matches ppm", {
+  for (x in list(x1, x2)) {
+    compare_ic(
+      ppidyom_stm_ic(x, alphabet, N = 3, method = "C",
+                     exclusion = TRUE, update_exclusion = TRUE),
+      ppm_stm_ic   (x, alphabet, N = 3, method = "C",
+                     exclusion = TRUE, update_exclusion = TRUE),
+      label = "C + excl + upd_excl"
+    )
+  }
+})
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 4. ORDER BOUND — vary N (method C, no exclusion, no update_exclusion)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# IDyOM:  :stmo '(:escape :c :order-bound 1 :exclusion nil)
+test_that("order bound N=1 matches ppm", {
+  compare_ic(
+    ppidyom_stm_ic(x1, alphabet, N = 1, method = "C"),
+    ppm_stm_ic   (x1, alphabet, N = 1, method = "C"),
+    label = "N=1"
+  )
+})
+
+# IDyOM:  :stmo '(:escape :c :order-bound 5 :exclusion nil)
+test_that("order bound N=5 matches ppm", {
+  compare_ic(
+    ppidyom_stm_ic(x1, alphabet, N = 5, method = "C"),
+    ppm_stm_ic   (x1, alphabet, N = 5, method = "C"),
+    label = "N=5"
+  )
+})
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 5. MODEL TYPE INVARIANTS (stm, ltm, both, ltm+, both+)
+#    Cannot compare against ppm (no LTM concept). Just verify prob sums to 1.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that("all model types produce valid probability distributions", {
+  seq_list <- list(x1, x2)
+  model_types <- c("stm", "ltm", "both", "ltm+", "both+")
+
+  for (mtype in model_types) {
+    res <- run_ppidyom(seq_list, N = 3, alphabet = alphabet,
+                       model_type    = mtype,
+                       ppm_type      = "interpolation",
+                       stm_lambda    = "C", ltm_lambda = "C",
+                       stm_exclusion = FALSE, ltm_exclusion = FALSE,
+                       stm_update_exclusion = FALSE, ltm_update_exclusion = FALSE)
+
+    all_probs <- rbindlist(res)
+    sums <- all_probs[, .(S = sum(P)), by = .(seq_id, index)]
+
+    expect_true(all(abs(sums$S - 1) < 1e-9),
+                label = paste0("P sums to 1 for model_type=", mtype))
+    expect_true(all(all_probs$P > 0),
+                label = paste0("P > 0 for model_type=", mtype))
+    expect_true(all(all_probs$P <= 1 + 1e-12),
+                label = paste0("P <= 1 for model_type=", mtype))
+  }
+})
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 6. ALL-METHOD GRID with invariants only (no ppm comparison needed)
+#    Checks that every method produces valid distributions for STM.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that("all escape methods produce valid STM distributions", {
+  methods <- names(escape_functions)
+
+  for (m in methods) {
+    counts <- count_tables(x1, N = 3, alphabet = alphabet, model_type = "stm")
+    result <- ppm_interpolated(x1, N = 3, alphabet = alphabet,
+                                order_counts = counts$stm,
+                                escape_func  = escape_functions[[m]],
+                                exclusion    = FALSE)
+
+    sums <- result[, .(S = sum(P)), by = index]
+    expect_true(all(abs(sums$S - 1) < 1e-9),
+                label = paste0("P sums to 1 for method ", m))
+    expect_true(all(result$P >= 0),
+                label = paste0("P >= 0 for method ", m))
+  }
+})
