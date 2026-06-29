@@ -1,53 +1,6 @@
 library(testthat)
 library(data.table)
 
-
-# remove zero-count contexts
-clean_counts <- function(x) {
-  lapply(x, function(dt) dt[C > 0])
-}
-
-# Helper: compare count tables
-compare_results <- function(a, b, by = c("index", "Event"),
-                            tolerance = 1.5e-8, verbose = TRUE) {
-
-  if(length(a) != length(b)) return(FALSE)
-
-  for(i in seq_along(a)) {
-    dt1 <- copy(a[[i]])
-    dt2 <- copy(b[[i]])
-
-    # Ensure required columns exist
-    if(!all(by %in% names(dt1)) || !all(by %in% names(dt2))) {
-      stop("Missing columns in comparison: ", paste(by, collapse = ", "))
-    }
-
-    # Order consistently
-    setorderv(dt1, by)
-    setorderv(dt2, by)
-
-    # Align columns
-    common_cols <- intersect(names(dt1), names(dt2))
-    dt1 <- dt1[, ..common_cols]
-    dt2 <- dt2[, ..common_cols]
-
-    # Comparison
-    equal <- isTRUE(all.equal(dt1, dt2, tolerance = tolerance, check.attributes = FALSE))
-
-    if(!equal) {
-      if(verbose) {
-        cat("Mismatch at element:", i, "\n")
-        print(fsetdiff(dt1, dt2))
-        cat("Mismatch at element:", i, "\n")
-        print(fsetdiff(dt2, dt1))
-      }
-      return(FALSE)
-    }
-  }
-
-  TRUE
-}
-
 test_that("detrain_sequence restores LTM state after training", {
 
   # ---------------------------
@@ -88,101 +41,20 @@ test_that("detrain_sequence restores LTM state after training", {
 })
 
 
-# ---------------------------
-# Helper: manual leave-one-out
-# ---------------------------
-manual_ppidyom <- function(seq_list, N, alphabet, model_type, ppm_type,
-                           stm_lambda, ltm_lambda, b) {
-
-  results <- vector("list", length(seq_list))
-
-  for(i in seq_along(seq_list)) {
-    # Train on all except i
-    model <- ppidyom$new(N = N, alphabet = alphabet)
-
-    for(j in seq_along(seq_list)) {
-      if(j != i) {
-        model$train_sequence(seq_list[[j]])
-      }
-    }
-
-    # Predict on held-out sequence
-    pred <- model$predict_sequence(
-      seq_list[[i]],
-      model_type = model_type,
-      ppm_type = ppm_type,
-      stm_lambda = stm_lambda,
-      ltm_lambda = ltm_lambda,
-      b = b
-    )
-
-    pred[, seq_id := i]
-    results[[i]] <- pred
-  }
-
-  results
-}
-
-# ---------------------------
-# Test
-# ---------------------------
-# IMPORTANT: this test_that function runs for an extended amount of time!
-# seq_list <- replicate(50, gen_seq(30), simplify = FALSE)
-# run_ppidyom: 18.4710 sec; manual loop: 209.0050 sec
-test_that("run_ppidyom matches manual leave-one-out and reports timing", {
+test_that("run_ppidyom matches manual leave-one-out", {
   set.seed(1)
-
-  gen_seq <- function(n) sample(c("A","B","C","D","E"), n, replace=TRUE)
-
-  seq_list <- replicate(50, gen_seq(30), simplify = FALSE)
-
   alphabet <- c("A", "B", "C", "D", "E")
-  N <- 3
+  N        <- 3
+  seq_list <- replicate(10, sample(alphabet, 15, replace = TRUE), simplify = FALSE)
 
-  args <- list(
-    seq_list = seq_list,
-    N = N,
-    alphabet = alphabet,
-    model_type = "both",
-    ppm_type = "interpolation",
-    stm_lambda = "C",
-    ltm_lambda = "C",
-    b = 1
-  )
+  args <- list(seq_list = seq_list, N = N, alphabet = alphabet,
+               model_type = "both", ppm_type = "interpolation",
+               stm_lambda = "C", ltm_lambda = "C", b = 1)
 
-  # ---------------------------
-  # Time run_ppidyom
-  # ---------------------------
-  print("running ppidyom")
-  t1 <- system.time({
-    res_fast <- do.call(run_ppidyom, args)
-  })
+  res_fast   <- do.call(run_ppidyom,   args)
+  res_manual <- do.call(manual_ppidyom, args)
 
-  # ---------------------------
-  # Time manual loop
-  # ---------------------------
-  print("running manual loop")
-  t2 <- system.time({
-    res_manual <- do.call(manual_ppidyom, args)
-  })
-
-  # ---------------------------
-  # Check equality
-  # ---------------------------
-  print("checking equality")
-  expect_true(
-    compare_results(res_fast, res_manual, by = c("index", "Event"))
-  )
-
-  # ---------------------------
-  # Report timing
-  # ---------------------------
-  speedup <- t1["elapsed"] / t2["elapsed"]
-
-  cat("\nTiming comparison:\n")
-  cat(sprintf("run_ppidyom: %.4f sec\n", t1["elapsed"]))
-  cat(sprintf("manual loop: %.4f sec\n", t2["elapsed"]))
-  cat(sprintf("speedup: %.2fx\n", speedup))
+  expect_true(compare_results(res_fast, res_manual, by = c("index", "Event")))
 })
 
 

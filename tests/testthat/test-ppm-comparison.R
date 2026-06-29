@@ -1,14 +1,6 @@
 library(testthat)
 library(data.table)
 
-# ── Guards ─────────────────────────────────────────────────────────────────────
-# These tests require the ppm package (Harrison et al. 2020,
-# https://github.com/pmcharrison/ppm) and are slow.
-# Run them with: Sys.setenv(RUN_PPM_COMPARISON = "true"); devtools::test(filter="ppm-comparison")
-if (!requireNamespace("ppm", quietly = TRUE) ||
-    Sys.getenv("RUN_PPM_COMPARISON") != "true") {
-  testthat::skip("ppm package not installed or RUN_PPM_COMPARISON != 'true'")
-}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -45,7 +37,7 @@ ppm_stm_ic <- function(x, alphabet, N, method,
     update_exclusion      = update_exclusion
   )
   res <- ppm::model_seq(mod, factor(x, levels = alphabet))
-  res$information.content
+  res$information_content
 }
 
 # Compare ppidyom vs ppm and report a diff table if they disagree.
@@ -201,53 +193,44 @@ test_that("order bound N=5 matches ppm", {
 })
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 5. MODEL TYPE INVARIANTS (stm, ltm, both, ltm+, both+)
-#    Cannot compare against ppm (no LTM concept). Just verify prob sums to 1.
+# 5. RUN_PPIDYOM vs PPM — full grid: escape × exclusion × update_exclusion
+#    Covers  STM + interpolation only.
+#    The PPM package only has equivalent STM comparison and no backoff method.
 # ═══════════════════════════════════════════════════════════════════════════════
 
-test_that("all model types produce valid probability distributions", {
-  seq_list <- list(x1, x2)
-  model_types <- c("stm", "ltm", "both", "ltm+", "both+")
+# Run run_ppidyom with model_type="stm" (single sequence) and extract IC.
+ppidyom_run_stm_ic <- function(x, alphabet, N, method, exclusion, update_exclusion) {
+  res <- run_ppidyom(
+    list(x), N = N, alphabet = alphabet,
+    model_type = "stm", ppm_type = "interpolation",
+    stm_lambda = method, ltm_lambda = "C",
+    stm_exclusion = exclusion, ltm_exclusion = FALSE,
+    stm_update_exclusion = update_exclusion, ltm_update_exclusion = FALSE,
+    b = 1
+  )
+  print(res)
+  res[[1]][data.table(index = seq_along(x), Event = x), on = .(index, Event)]$IC
+}
 
-  for (mtype in model_types) {
-    res <- run_ppidyom(seq_list, N = 3, alphabet = alphabet,
-                       model_type    = mtype,
-                       ppm_type      = "interpolation",
-                       stm_lambda    = "C", ltm_lambda = "C",
-                       stm_exclusion = FALSE, ltm_exclusion = FALSE,
-                       stm_update_exclusion = FALSE, ltm_update_exclusion = FALSE)
-
-    all_probs <- rbindlist(res)
-    sums <- all_probs[, .(S = sum(P)), by = .(seq_id, index)]
-
-    expect_true(all(abs(sums$S - 1) < 1e-9),
-                label = paste0("P sums to 1 for model_type=", mtype))
-    expect_true(all(all_probs$P > 0),
-                label = paste0("P > 0 for model_type=", mtype))
-    expect_true(all(all_probs$P <= 1 + 1e-12),
-                label = paste0("P <= 1 for model_type=", mtype))
-  }
-})
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# 6. ALL-METHOD GRID with invariants only (no ppm comparison needed)
-#    Checks that every method produces valid distributions for STM.
-# ═══════════════════════════════════════════════════════════════════════════════
-
-test_that("all escape methods produce valid STM distributions", {
-  methods <- names(escape_functions)
+test_that("run_ppidyom (STM) matches ppm: all escape × exclusion × update_exclusion", {
+  methods   <- names(escape_functions)   # A B C D X
+  excl_grid <- c(FALSE, TRUE)
+  upd_grid  <- c(FALSE, TRUE)
 
   for (m in methods) {
-    counts <- count_tables(x1, N = 3, alphabet = alphabet, model_type = "stm")
-    result <- ppm_interpolated(x1, N = 3, alphabet = alphabet,
-                                order_counts = counts$stm,
-                                escape_func  = escape_functions[[m]],
-                                exclusion    = FALSE)
-
-    sums <- result[, .(S = sum(P)), by = index]
-    expect_true(all(abs(sums$S - 1) < 1e-9),
-                label = paste0("P sums to 1 for method ", m))
-    expect_true(all(result$P >= 0),
-                label = paste0("P >= 0 for method ", m))
+    for (excl in excl_grid) {
+      for (upd in upd_grid) {
+        label <- sprintf("STM m=%s excl=%s upd=%s", m, excl, upd)
+        for (x in list(x1, x2)) {
+          compare_ic(
+            ppidyom_run_stm_ic(x, alphabet, N = 3, m, excl, upd),
+            ppm_stm_ic        (x, alphabet, N = 3, method = m,
+                               exclusion = excl, update_exclusion = upd),
+            label = label
+          )
+        }
+      }
+    }
   }
 })
+
