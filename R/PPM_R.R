@@ -56,10 +56,12 @@ dynamicModel <- function(x, N = 5, escape = c('a', 'b', 'c', 'd'), prior = NULL)
 
   switch(escape,
          a = {
+           dmatrix <- t
            numerator <- pmax(numerator, 1)
            denominator <- denominator + 1
          },
          b = {
+           dmatrix <- 1
            numerator <- fifelse(numerator == 0, tmatrix, numerator - 1)
          })
 
@@ -129,3 +131,144 @@ cumH <- function(counts, base = 2) {
 
   -((cumsum(l - l_0) - index*log(index, base)) / index)
 }
+
+
+
+
+
+
+
+data <- readHumdrum(...)
+
+data |> midi() -> data
+
+
+data |> ppidyom()
+
+
+ppidyom <- function(...) useGeneric()
+
+ppiydom.default <- function(inputvector, short_term_by = list(), long_term_by = list()) {
+	if (is.null(group_by)) {
+		input <- list(inputvector)
+
+	} else  {
+		tapply(inputvector, group_by, c, simplify = FALSE)
+	}
+
+	...
+
+
+}
+
+
+ppiydom.humdrumR <- function(humObject, ...) {
+	mutate(humObject, PPIYDOM_P = ppiydom.default(., groupby = list(Piece, Spine))
+}
+
+data |> midi() |> ppiydom()
+
+
+data |> mutate(ppyidom(Midi, groupby = list(Piece,Formal, Spine)))
+
+# new field is created call "PPYIDOM" 
+
+
+
+
+
+
+data1 <- readHumdrum(...)
+data2 <- readHumdrum(different)
+
+
+ppidyom_train <- function()  
+	# result is countable/etc. everything you need to generate probabilties
+
+ppidyom <- function(inputvectors, prior = NULL) { 
+	if (is.null(prior)) prior <- ppidyom_train(inputvector)
+
+	...
+
+}
+ # result is vector or  probabilties
+ # counts are stored in attribute
+
+
+
+
+data1 |> midi() |> ppyidom() -> data1_probabilities
+
+data2 |> midi() |> ppiydom(prior = data1_probabilities) 
+
+
+
+melody1
+
+melody2
+
+
+data |> midi() |>
+	filter(Spine == 1) |> 
+	ppiydom(Midi)  |>
+	filter(Spine == 2) |>
+	ppiydom(Midi, prior = PPIYDORM_SPINE1) 
+
+
+
+
+.ppidyom_table <- function(...) {
+
+	bigtable <- ...
+
+	return(bigtable)
+}
+
+
+ppidyom <- function(...) {
+	bigtable <- .ppidyom_table(...)
+
+	output <- bigtable$Probability
+	attr(output, 'bigtable') <- bigtable
+
+	output
+}
+
+humdrumdata |>
+	mutate(P_piydom = ppidyom(Pitch))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 
+
+midi <- function() UseMethod("midi")
+
+midi.default <- function(...) {...actual midi }
+
+
+humdrum |>
+	mutate(MIDI = midi(Token))
+
+
+
+
+midi.humdrumR <- function(humdrum, ...) {
+ humdrum |> mutate(MIDI = midi(SelectedField))
+	
+}
+
+humdrum |> midi()
+
