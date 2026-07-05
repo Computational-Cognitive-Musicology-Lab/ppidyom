@@ -1,6 +1,12 @@
 library(testthat)
 library(data.table)
 
+skip_if_not_installed("ppm")   # ppm is required for this comparison suite
+
+# All ppidyom calls here use the default idyom_base=FALSE, which matches
+# Harrison's ppm package (both use the shrinking-denominator order-(-1) base).
+# See vignette("implementation-discrepancy") for why ppm and IDyOM differ
+# on exclusion=FALSE configurations.
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

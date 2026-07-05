@@ -155,7 +155,8 @@ update_env <- function(env, ctx, sym, sign = +1) {
 update_env_and_build_stm_tables <- function(
   x, N, alphabet, context_list,
   use_stm, use_ltm, stm_update_exclusion, ltm_update_exclusion,
-  counts_stm, counts_ltm
+  counts_stm, counts_ltm,
+  ltm_start_token = TRUE
 ) {
   T <- length(x)
   stm_tables <- if(use_stm) lapply(0:N, function(.) vector("list", T)) else NULL
@@ -202,7 +203,13 @@ update_env_and_build_stm_tables <- function(
       }
       # LTM
       if (use_ltm) {
-        if (!ltm_update_exclusion || !seen_ltm) {
+        # ltm_start_token=FALSE: skip when t <= n (insufficient history → context
+        # contains NA lags).  Without this guard, "NA"/"NA_NA_NA" context IDs
+        # accumulate in the LTM during training and then match position 1 of any
+        # new sequence, giving it spuriously high probability for whatever symbol
+        # started the training sequences.  IDyOM does not track these contexts.
+        # ltm_start_token=TRUE (default): no guard — NA contexts ARE stored.
+        if ((!ltm_update_exclusion || !seen_ltm) && (ltm_start_token || t > n)) {
           env    <- counts_ltm[[n+1]]
           v      <- env[[ctx]]
           exists <- !is.null(v) && sym %in% names(v)  # Ce > 0 before update
@@ -248,7 +255,8 @@ count_tables <- function(
   model_type = c("stm","ltm","both"),
   prior = list(),
   # TODO: change STM defaults to TRUE after adding update exclusion
-  stm_update_exclusion = FALSE, ltm_update_exclusion=FALSE
+  stm_update_exclusion = FALSE, ltm_update_exclusion = FALSE,
+  ltm_start_token = TRUE
 ) {
   model_type <- match.arg(model_type)
   T <- length(x)
@@ -279,7 +287,8 @@ count_tables <- function(
     stm_update_exclusion = stm_update_exclusion,
     ltm_update_exclusion = ltm_update_exclusion,
     counts_stm = counts_stm,
-    counts_ltm = counts_ltm
+    counts_ltm = counts_ltm,
+    ltm_start_token = ltm_start_token
   )
   counts_stm <- updated$counts_stm
   counts_ltm <- updated$counts_ltm
@@ -380,6 +389,11 @@ ltm_to_timestep_counts <- function(x, N, alphabet, order_counts) {
       all.x = TRUE
     )
 
+    # Restore (index, Event) order — merge(sort=TRUE) reorders by join keys
+    # (context_id, Event), but ppm_interpolated accumulates P positionally and
+    # requires all dt_orders to share the same row order.
+    setorder(dt_n, index, Event)
+
     # Fill unseen contexts with zero counts
     dt_n[is.na(C), `:=`(
       Ce = 0L,
@@ -399,5 +413,118 @@ is_stm <- function(order_counts) {
   dt <- order_counts[[1]]
   # STM if any index > 0
   any(dt$index > 0)
+}
+
+
+#' Build Per-Timestep LTM Count Tables with Online Update
+#'
+#' For ltm+/both+ models: records the LTM state BEFORE observing x[t] at each
+#' timestep, then updates the LTM with x[t].  This matches IDyOM's online-update
+#' semantics, where prediction at position t uses only the training corpus plus
+#' x[1:t-1], not x[t:T].
+#'
+#' @param x Character vector of events (the prediction sequence).
+#' @param N Maximum n-gram order.
+#' @param alphabet Character vector of all symbols.
+#' @param init_ltm List of data.tables (format of counts_ltm): the pre-trained
+#'   LTM state before any events from x are observed.
+#' @param ltm_update_exclusion Logical. Apply update exclusion during online update.
+#' @param ltm_start_token Logical. If FALSE, skip NA-lag contexts (IDyOM-compatible).
+#' @return List of length N+1, each a data.table with columns
+#'   index, context_id, Event, Ce, C, t, t1 — same format as STM tables, with
+#'   index in 1..T.
+#' @export
+build_online_ltm_timestep_counts <- function(x, N, alphabet, init_ltm,
+                                              ltm_update_exclusion = FALSE,
+                                              ltm_start_token = TRUE) {
+  T         <- length(x)
+  alpha_len <- length(alphabet)
+
+  dt_lag       <- lag_matrix(x, N)
+  context_list <- precompute_contexts(dt_lag, N)
+
+  # Seed sparse environments from pre-trained LTM data.tables
+  envs <- lapply(0:N, function(.) new.env(hash = TRUE, parent = emptyenv()))
+  if (length(init_ltm) > 0) {
+    envs <- apply_prior_ltm(envs, init_ltm, N)
+  }
+
+  # Collect per-timestep snapshots (before observing x[t]) then update
+  order_tables <- lapply(0:N, function(n) vector("list", T))
+
+  for (t in seq_len(T)) {
+
+    # Snapshot: LTM state BEFORE x[t] is observed
+    for (n in 0:N) {
+      ctx    <- context_list[[n + 1]][t]
+      v      <- envs[[n + 1]][[ctx]]
+      Ce_full <- setNames(integer(alpha_len), alphabet)
+      if (!is.null(v)) Ce_full[names(v)] <- v
+      C_val <- sum(Ce_full)
+      order_tables[[n + 1]][[t]] <- data.table(
+        index      = t,
+        context_id = ctx,
+        Event      = alphabet,
+        Ce         = as.integer(Ce_full),
+        C          = C_val,
+        t          = sum(Ce_full > 0L),
+        t1         = sum(Ce_full == 1L)
+      )
+    }
+
+    # Online update: add x[t] to environments (mirrors update_env_and_build_stm_tables)
+    sym      <- x[t]
+    seen_ltm <- FALSE
+    for (n in N:0) {
+      if (ltm_update_exclusion && seen_ltm) break
+      if (!ltm_start_token && t <= n) next
+      ctx    <- context_list[[n + 1]][t]
+      env    <- envs[[n + 1]]
+      v      <- env[[ctx]]
+      exists <- !is.null(v) && sym %in% names(v)
+      update_env(env, ctx, sym, +1)
+      if (ltm_update_exclusion && exists) seen_ltm <- TRUE
+    }
+  }
+
+  lapply(order_tables, rbindlist)
+}
+
+
+#' Convert online-update environments to LTM data.table format
+#'
+#' After running build_online_ltm_timestep_counts, the updated environments
+#' are not directly accessible.  This helper rebuilds them and converts to the
+#' data.table list format used by counts_ltm (index = -1L rows).
+#'
+#' @param envs List of N+1 environments (one per order 0..N)
+#' @param N Maximum n-gram order
+#' @param alphabet Character vector of all symbols
+#' @return List of N+1 data.tables, each with columns
+#'   index=-1L, context_id, Event, Ce, C, t, t1.
+envs_to_ltm_tables <- function(envs, N, alphabet) {
+  lapply(0:N, function(n) {
+    env      <- envs[[n + 1]]
+    ctx_ids  <- ls(env)
+    if (length(ctx_ids) == 0) return(data.table(
+      index = integer(0), context_id = character(0), Event = character(0),
+      Ce = integer(0), C = integer(0), t = integer(0), t1 = integer(0)
+    ))
+    rows <- lapply(ctx_ids, function(ctx) {
+      v       <- env[[ctx]]
+      Ce_full <- setNames(integer(length(alphabet)), alphabet)
+      if (length(v) > 0) Ce_full[names(v)] <- v
+      data.table(
+        index      = -1L,
+        context_id = ctx,
+        Event      = alphabet,
+        Ce         = as.integer(Ce_full),
+        C          = sum(Ce_full),
+        t          = sum(Ce_full > 0L),
+        t1         = sum(Ce_full == 1L)
+      )
+    })
+    rbindlist(rows)
+  })
 }
 

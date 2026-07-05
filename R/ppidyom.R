@@ -11,7 +11,8 @@ ppidyom <- setRefClass(
     stm_exclusion = "logical",
     ltm_exclusion = "logical",
     stm_update_exclusion = "logical",
-    ltm_update_exclusion = "logical"
+    ltm_update_exclusion = "logical",
+    ltm_start_token = "logical"
   ),
 
   methods = list(
@@ -20,7 +21,8 @@ ppidyom <- setRefClass(
     initialize = function(
       N, alphabet,
       stm_exclusion = TRUE, ltm_exclusion = TRUE,
-      stm_update_exclusion = TRUE, ltm_update_exclusion = FALSE
+      stm_update_exclusion = TRUE, ltm_update_exclusion = FALSE,
+      ltm_start_token = TRUE
     ) {
       .self$N <- N
       .self$alphabet <- alphabet
@@ -29,6 +31,7 @@ ppidyom <- setRefClass(
       .self$ltm_exclusion <- ltm_exclusion
       .self$stm_update_exclusion <- stm_update_exclusion
       .self$ltm_update_exclusion <- ltm_update_exclusion
+      .self$ltm_start_token <- ltm_start_token
     },
 
     #' Train on a single sequence (incremental LTM update)
@@ -41,7 +44,8 @@ ppidyom <- setRefClass(
         model_type="ltm",
         prior = .self$counts_ltm,
         stm_update_exclusion = .self$stm_update_exclusion,
-        ltm_update_exclusion = .self$ltm_update_exclusion
+        ltm_update_exclusion = .self$ltm_update_exclusion,
+        ltm_start_token = .self$ltm_start_token
       )
       # Update LTM
       .self$counts_ltm <- count_tables$ltm
@@ -134,92 +138,121 @@ ppidyom <- setRefClass(
     #' @param stm_lambda escape or discount function for STM (default = "C")
     #' @param ltm_lambda escape or discount function for LTM (default = "C")
     #' @param b Bias parameter for relative-entropy weighting (used for + models)
+    #' @param idyom_base Logical. If TRUE, use IDyOM-compatible order-(-1) base
+    #'   distribution: 1/|alphabet| when exclusion=FALSE, shrinking denominator
+    #'   when exclusion=TRUE.  If FALSE (default), always use the shrinking
+    #'   denominator (matches Harrison's ppm package).
+    #'   See vignette("implementation-discrepancy") for details.
+    #'
+    #'   Note: the constructor flag `ltm_start_token` controls whether LTM counts
+    #'   include beginning-of-sequence positions (TRUE, default) or skip them
+    #'   (FALSE, IDyOM-compatible).  See vignette("implementation-discrepancy").
     #' @return data.table with columns: index, Event, P, IC, Entropy
     predict_sequence = function(x, model_type = c("stm", "ltm", "both", "ltm+", "both+"),
                                 ppm_type = c("interpolation", "backoff"),
                                 stm_lambda = "C",
                                 ltm_lambda = "C",
-                                b = 1) {
+                                b = 1,
+                                idyom_base = FALSE) {
       model_type <- match.arg(model_type)
-      ppm_type <- match.arg(ppm_type)
-      T <- length(x)
-      alpha_len <- length(.self$alphabet)
+      ppm_type   <- match.arg(ppm_type)
+      T          <- length(x)
 
-      # Both backoff and interpolation use the escape_functions lookup.
-      # escape_* functions return denom/esc/subtract, which is the correct
-      # interface for both algorithms (ppm_interpolated was fixed to match).
       stm_lambda_func <- escape_functions[[stm_lambda]]
       if (is.null(stm_lambda_func)) stop("Unknown escape function: ", stm_lambda)
       ltm_lambda_func <- escape_functions[[ltm_lambda]]
       if (is.null(ltm_lambda_func)) stop("Unknown escape function: ", ltm_lambda)
 
+      is_plus   <- model_type %in% c("ltm+", "both+")
+      needs_stm <- model_type %in% c("stm", "both", "both+")
+      needs_ltm <- model_type %in% c("ltm", "ltm+", "both", "both+")
 
-      # Build count tables
-      # Determine which counts to compute
-      if (model_type == "stm") {
-        count_type <- "stm"
-      } else if (grepl("ltm", model_type) && !grepl("both", model_type)) {
-        count_type <- "ltm"
-      } else if (grepl("both", model_type)) {
-        count_type <- "both"
-      } else {
-        stop("Invalid model_type")
+      # ── STM counts (always batch: observe-before-predict is baked into
+      #   update_env_and_build_stm_tables, which snapshots before writing) ───────
+      stm_order_counts <- NULL
+      if (needs_stm) {
+        stm_order_counts <- count_tables(
+          x = x, N = .self$N, alphabet = .self$alphabet,
+          model_type = "stm",
+          stm_update_exclusion = .self$stm_update_exclusion,
+          ltm_update_exclusion = .self$ltm_update_exclusion,
+          ltm_start_token = .self$ltm_start_token
+        )$stm
       }
 
-      counts <- count_tables(
-        x = x,
-        N = .self$N,
-        alphabet = .self$alphabet,
-        model_type = count_type,
-        prior = .self$counts_ltm,
-        stm_update_exclusion = .self$stm_update_exclusion,
-        ltm_update_exclusion = .self$ltm_update_exclusion
-      )
+      # ── LTM counts ────────────────────────────────────────────────────────────
+      # ltm/both  : use pre-trained .self$counts_ltm only (no test-data leakage).
+      # ltm+/both+: online update — predict x[t] using LTM state before x[t],
+      #             then add x[t] to LTM; matches IDyOM's :both+ / :ltm+ semantics.
+      ltm_order_counts <- NULL
+      if (needs_ltm) {
+        if (is_plus) {
+          ltm_order_counts <- build_online_ltm_timestep_counts(
+            x, .self$N, .self$alphabet, .self$counts_ltm,
+            ltm_update_exclusion = .self$ltm_update_exclusion,
+            ltm_start_token      = .self$ltm_start_token
+          )
+        } else {
+          ltm_order_counts <- if (length(.self$counts_ltm) > 0)
+            .self$counts_ltm
+          else {
+            # Edge case: untrained model — fall back to x itself as training data
+            count_tables(
+              x = x, N = .self$N, alphabet = .self$alphabet,
+              model_type = "ltm",
+              stm_update_exclusion = .self$stm_update_exclusion,
+              ltm_update_exclusion = .self$ltm_update_exclusion,
+              ltm_start_token      = .self$ltm_start_token
+            )$ltm
+          }
+        }
+      }
 
-      # STM probabilities
+      # ── Compute probabilities ─────────────────────────────────────────────────
       P_stm <- NULL
-      if (model_type %in% c("stm","both","both+")) {
+      if (needs_stm) {
         P_stm <- if (ppm_type == "interpolation")
           ppm_interpolated(
-            x, .self$N, .self$alphabet, counts$stm,
-            escape_func = stm_lambda_func, exclusion = .self$stm_exclusion
+            x, .self$N, .self$alphabet, stm_order_counts,
+            escape_func = stm_lambda_func, exclusion = .self$stm_exclusion,
+            idyom_base = idyom_base
           )
         else
-          ppm_backoff(x, .self$N, .self$alphabet, counts$stm, escape_func = stm_lambda_func)
+          ppm_backoff(x, .self$N, .self$alphabet, stm_order_counts,
+                      escape_func = stm_lambda_func)
       }
 
-      # LTM probabilities
       P_ltm <- NULL
-      if (model_type %in% c("ltm","both","ltm+","both+")) {
+      if (needs_ltm) {
         P_ltm <- if (ppm_type == "interpolation")
           ppm_interpolated(
-            x, .self$N, .self$alphabet, counts$ltm,
-            escape_func = ltm_lambda_func, exclusion = .self$ltm_exclusion
+            x, .self$N, .self$alphabet, ltm_order_counts,
+            escape_func = ltm_lambda_func, exclusion = .self$ltm_exclusion,
+            idyom_base = idyom_base
           )
         else
-          ppm_backoff(x, .self$N, .self$alphabet, counts$ltm, escape_func = ltm_lambda_func)
+          ppm_backoff(x, .self$N, .self$alphabet, ltm_order_counts,
+                      escape_func = ltm_lambda_func)
       }
 
-      # Model selection
-      if(model_type == "stm")
-        result_all_symbols <- P_stm
-      else if(model_type == "ltm" || model_type == "ltm+")
-        result_all_symbols <- P_ltm
-      else if(model_type %in% c("both","both+"))
-        result_all_symbols <- combine_models(.self$alphabet, P_stm, P_ltm, b)
+      result_all_symbols <- if (model_type == "stm")
+        P_stm
+      else if (model_type %in% c("ltm", "ltm+"))
+        P_ltm
+      else
+        combine_models(.self$alphabet, P_stm, P_ltm, b)
 
-      # Online learning (+ models)
-      if(model_type %in% c("ltm+","both+")) {
-        .self$counts_ltm <- counts$ltm
+      # ── Online LTM update (+ models only) ─────────────────────────────────────
+      # train_sequence(x) adds x's events on top of the current .self$counts_ltm,
+      # which still holds the pre-prediction state — so the final LTM = prior + x.
+      if (is_plus) {
+        .self$train_sequence(x)
       }
 
-      result <- result_all_symbols[
-        data.table(index = seq_len(length(x)), Event = x),
+      result_all_symbols[
+        data.table(index = seq_len(T), Event = x),
         on = .(index, Event)
-      ][
-        , .(index, Event, P, IC, Entropy)
-      ]
-      result
+      ][, .(index, Event, P, IC, Entropy)]
     }
   )
 
@@ -234,19 +267,32 @@ combine_models <- function(alphabet, p_stm, p_ltm, b=1) {
 
   logA <- log2(length(alphabet))
 
-  # TODO: relative = if Hmax([τb]) > 0, below; else, 1
+  # Relative entropy weights: w_i = (H_i / H_max)^{-b}
+  # Dividing by logA (= H_max for a uniform alphabet) makes w scale-invariant.
+  # The logA^b factor cancels in normalisation, so only the H ratio matters.
   dt[, Hrel_stm := H_stm / logA]
   dt[, Hrel_ltm := H_ltm / logA]
 
   dt[, w_stm := Hrel_stm^(-b)]
   dt[, w_ltm := Hrel_ltm^(-b)]
 
-  dt[, norm := w_stm + w_ltm]
+  # Normalise weights to [0,1] so they can be used as geometric-mean exponents
+  dt[, w_norm := w_stm + w_ltm]
+  dt[, w_stm_n := w_stm / w_norm]
+  dt[, w_ltm_n := w_ltm / w_norm]
 
-  dt[, P := (w_stm * P_stm + w_ltm * P_ltm) / norm]
+  # IDyOM log-linear (geometric-mean) combination.
+  # Geometric mean: P_raw(s) = P_stm(s)^w_stm_n * P_ltm(s)^w_ltm_n
+  #
+  # IDyOM normalises conditionally (ppm-star.lisp: normalise-distribution /
+  # sums-to-one-p): if 0.999 < sum(P_raw) < 1.0 it treats the distribution as
+  # already summing to one and skips the division.  We replicate that exactly.
+  dt[, P_raw := P_stm^w_stm_n * P_ltm^w_ltm_n]
+  dt[, Z     := sum(P_raw), by = index]
+  dt[, P     := if (Z[1] > 0.999 && Z[1] < 1.0) P_raw else P_raw / Z,
+      by = index]
 
-  dt[, IC := -log2(P)]
-
+  dt[, IC      := -log2(P)]
   dt[, Entropy := -sum(P * log2(P)), by = index]
 
   dt[, .(index, Event, P, IC, Entropy)]

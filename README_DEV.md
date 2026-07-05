@@ -117,6 +117,161 @@ devtools::test(filter = "scalability")
 
 ---
 
+### Test coverage summary
+
+| Test file | What it covers | 
+|---|---|
+| `test-escape.R` | Escape functions A/B/C/D/AX: correct `subtract`, `esc_numer`, full escape probability |
+| `test-counts.R` | STM and LTM count tables (`Ce`, `C`, `t`, `t1`) at order 0 and order 2; LTM prior accumulation across sequences | 
+| `test-invariants.R` | `P ∈ (0,1]` for observed events; per-timestep distribution sums to 1 | 
+| `test-ppidyom.R` | `detrain_sequence` exactly reverses training (with and without `ltm_update_exclusion`); `run_ppidyom` matches manual leave-one-out | 
+| `test-ppm-comparison.R` | ppidyom STM ↔ Harrison's **ppm** for all 5 escape methods, both exclusion flags, both update-exclusion flags, N ∈ {1,3,5}; full `run_ppidyom` grid | 
+| `test-idyom-comparison.R` | ppidyom ↔ IDyOM (Common Lisp) for all model/escape/exclusion combinations × 2 sequences (AX via `:x`); ppidyom ↔ ppm for STM excl=ON | 
+| `test-scalability.R` | timing benchmarks for large sequences (disabled by default) |
+
+---
+
+### `test-ppm-comparison.R` — detailed coverage
+
+Compares ppidyom STM against Harrison's **ppm** package.  All tests use
+`ppm_type = "interpolation"` and `idyom_base = FALSE` (ppm-compatible
+shrinking-denominator base).
+
+#### What IS covered
+
+| Section | Escape | Exclusion | Update-excl | N | Sequences |
+|---|---|---|---|---|---|
+| §1 escape sweep | A, B, C, D, AX | FALSE | FALSE | 3 | x1, x2 |
+| §2 exclusion | C | **TRUE** | FALSE | 3 | x1, x2 |
+| §3 update-exclusion | C | FALSE | **TRUE** | 3 | x1, x2 |
+| §3 both flags | C | **TRUE** | **TRUE** | 3 | x1, x2 |
+| §4 order bound | C | FALSE | FALSE | **1** | x1 only |
+| §4 order bound | C | FALSE | FALSE | **5** | x1 only |
+| §5 `run_ppidyom` grid | A, B, C, D, X | FALSE, TRUE | FALSE, TRUE | 3 | x1, x2 |
+
+Full `run_ppidyom` grid (§5) covers 5 × 2 × 2 = 20 parameter combinations × 2 sequences = 40 checks.
+
+#### What is NOT covered
+
+| Gap | Notes |
+|---|---|
+| LTM / ltm+ / both / both+ model types | ppm package has no LTM; STM only |
+| `idyom_base = TRUE` | always uses ppm-compatible shrinking base |
+| Backoff mode (`ppm_type = "backoff"`) | ppm package uses interpolation only |
+---
+
+### `test-idyom-comparison.R` — detailed coverage
+
+Compares ppidyom against ground-truth IDyOM (Common Lisp) output from
+a pre-generated fixture CSV.  All tests use `N = 3`, `idyom_base = TRUE`,
+`ltm_start_token = FALSE`, `b = 7`.  STM with `stm_exclusion = TRUE` also
+gets a three-way ppidyom ↔ ppm ↔ IDyOM comparison.
+
+#### What IS covered
+* OFAT: one-factor-at-a-time
+
+| Model | Parameter combinations | Sequences |
+|---|---|---|
+| `stm` | escape ∈ {a,b,c,d,x} × stm_exclusion ∈ {0,1} × stm_update_exclusion ∈ {0,1} | x1, x2 |
+| `ltm` | escape ∈ {a,b,c,d,x} × ltm_exclusion ∈ {0,1} | x1, x2 |
+| `ltm+` | spot-check: escape=c, ltm_exclusion=1 | x1, x2 |
+| `both` | OFAT on stm/ltm escape and stm/ltm exclusion flags | x1, x2 |
+| `both+` | spot-check: escape=c, exclusion=1 | x1, x2 |
+
+Total: 32 IDyOM configurations × 2 sequences = 64 comparison tests.
+IDyOM's AX escape is invoked as `:x` (not `:ax` — see §6 of `vignette("implementation-discrepancy")`).
+
+#### What is NOT covered
+
+| Gap | Notes |
+|---|---|
+| N ≠ 3 | fixture only uses order-bound=3 |
+| `ltm_update_exclusion = TRUE` | fixture holds `ltm_update_exclusion = 0` throughout |
+| `b ≠ 7` | fixture always uses IDyOM's default b=7 |
+| `idyom_base = FALSE` | always uses IDyOM-compatible base; ppm-compatible base not cross-checked for LTM |
+| Backoff mode | IDyOM supports `mixtures=nil`; not in fixture |
+| STM, `stm_exclusion = FALSE` vs ppm | three-way check only runs when `stm_exclusion = TRUE` (the only setting where all three agree on the base distribution) |
+| More than one training sequence | fixture trains on a single fixed sequence |
+
+---
+
+## 4. IDyOM Comparison Tests (Ground-Truth Validation)
+
+The test file `tests/testthat/test-idyom-comparison.R` validates ppidyom against
+real IDyOM (Common Lisp) output. This is a three-way check for STM:
+
+```
+ppidyom  ↔  ppm package  ↔  IDyOM (Lisp)
+```
+
+and a two-way check for LTM / ltm+ / both / both+:
+
+```
+ppidyom  ↔  IDyOM (Lisp)
+```
+
+The comparison requires a pre-generated reference CSV. You only need to regenerate
+it when you change the toy sequences or add new parameter combinations.
+
+### 4.1 Prerequisites
+
+- **Docker** — install from https://docs.docker.com/get-docker/
+
+No local Lisp or IDyOM installation is needed; Docker handles everything.
+
+### 4.2 Generate the IDyOM reference fixture (run once)
+
+From the repo root:
+
+```bash
+bash inst/validation/run_idyom_docker.sh
+```
+
+This will:
+1. Build a Docker image with SBCL + IDyOM + Python 3 (takes ~5 min the first time; cached afterwards).
+2. Run `inst/validation/generate_idyom_reference.py` inside the container.
+3. Write `tests/testthat/fixtures/idyom_reference_ic.csv`.
+
+The script supports **checkpointing** — if interrupted, re-running it skips already-completed parameter combinations.
+
+### 4.3 Run the comparison tests
+
+After the fixture CSV exists, run normally:
+
+```r
+devtools::test(filter = "idyom")
+```
+
+Tests are skipped automatically (with an informative message) if the fixture is absent,
+so `devtools::test()` remains safe to run without Docker.
+
+### 4.4 Parameter grid
+* OFAT: one-factor-at-a-time
+
+The fixture covers **32 IDyOM runs × 2 sequences = 64 total runs**:
+
+| Model | Combos | What's varied |
+|-------|--------|---------------|
+| `stm`  | 8 | baseline + 4 escape methods + exclusion + update_exclusion + both |
+| `ltm`  | 8 | same OFAT pattern on the LTM side |
+| `ltm+` | 3 | spot-check of online updating |
+| `both` | 10 | OFAT on STM+LTM interpolation + key interactions |
+| `both+`| 3 | spot-check of online updating in both+ |
+
+To add more combinations, edit `generate_efficient_grid()` in
+`inst/validation/generate_idyom_reference.py` and re-run the Docker script.
+No R code changes are needed — the test file reads all configs directly from the CSV.
+
+### 4.5 What the Dockerfile installs
+
+`inst/validation/Dockerfile` installs:
+- `sbcl` — Steel Bank Common Lisp (the Lisp compiler IDyOM runs on)
+- `quicklisp` — Common Lisp package manager (downloads IDyOM automatically)
+- `idyom` — Pearce's IDyOM system from GitHub
+- `python3` + `pandas` — to run the generator script and parse `.dat` outputs
+
+---
+
 ## Typical Development Loop
 
 ```

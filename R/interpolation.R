@@ -60,7 +60,8 @@ library(data.table)
 ppm_interpolated <- function(
     x, N, alphabet, order_counts,
     escape_func = escape_C,
-    exclusion = TRUE
+    exclusion = TRUE,
+    idyom_base = FALSE
 ) {
   T <- length(x)
   alpha_len <- length(alphabet)
@@ -71,19 +72,36 @@ ppm_interpolated <- function(
     dt_orders <- ltm_to_timestep_counts(x, N, alphabet, order_counts)
   }
 
-  # Base (order -1) distribution: uniform over alphabet, but denominator
-  # shrinks by 1 per unique symbol already seen in x[1..t-1].  This matches
-  # IDyOM's order-(-1) model. Renormalization at the end makes the exact
-  # magnitude irrelevant; the shrinking denominator only matters when some
-  # orders contribute zero (all-zero context) so the ratio between seen and
-  # unseen symbols is set entirely by the base.
+  # Base (order -1) distribution.
+  #
+  # IDyOM ppm-star.lisp order-minus1-probability:
+  #   exclusion=FALSE → 1 / |alphabet|
+  #   exclusion=TRUE  → 1 / (|alphabet| + 1 - t_root)
+  #     where t_root = distinct types at the model's order-0 context.
+  #
+  # For STM: t_root at timestep t = distinct symbols seen in x[1..t-1]
+  #   (matches the shrinking denominator in Harrison's ppm package).
+  # For LTM: t_root is fixed from training data (constant across timesteps).
+  # For ltm+: t_root grows from the pre-trained LTM state.
+  #
+  # In all cases, dt_orders[[1]]$t already holds the correct per-timestep
+  # t_root: use it directly instead of tracking seen_symbols separately.
+  #
+  # idyom_base=FALSE: always use Harrison's shrinking 1/(|alphabet|+1-|seen|).
+  t_root_by_t <- dt_orders[[1]][, .(t_root = t[1]), by = index]$t_root
+
   base_prob <- numeric(T * alpha_len)
   seen_symbols <- character(0)
   for (t in seq_len(T)) {
     if (t > 1) seen_symbols <- unique(c(seen_symbols, x[t - 1]))
-    denom_base <- length(alphabet) + 1 - length(seen_symbols)
+    p_base <- if (idyom_base && !exclusion)
+      1.0 / length(alphabet)
+    else if (idyom_base && exclusion)
+      1.0 / (length(alphabet) + 1L - t_root_by_t[t])
+    else
+      1.0 / (length(alphabet) + 1L - length(seen_symbols))
     idx <- ((t - 1) * alpha_len + 1):(t * alpha_len)
-    base_prob[idx] <- 1 / denom_base
+    base_prob[idx] <- p_base
   }
 
   # All vectors are length (T × |alphabet|): one entry per (timestep, symbol) pair.

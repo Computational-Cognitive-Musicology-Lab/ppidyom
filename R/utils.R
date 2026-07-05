@@ -12,7 +12,9 @@ run_ppidyom <- function(
     ltm_exclusion = TRUE,
     stm_update_exclusion = TRUE,
     ltm_update_exclusion = FALSE,
-    b = 1
+    b = 1,
+    idyom_base = FALSE,
+    ltm_start_token = TRUE
 ) {
   model_type <- match.arg(model_type)
   ppm_type   <- match.arg(ppm_type)
@@ -25,7 +27,8 @@ run_ppidyom <- function(
     stm_exclusion = stm_exclusion,
     ltm_exclusion = ltm_exclusion,
     stm_update_exclusion = stm_update_exclusion,
-    ltm_update_exclusion = ltm_update_exclusion
+    ltm_update_exclusion = ltm_update_exclusion,
+    ltm_start_token = ltm_start_token
   )
 
   has_ltm <- model_type %in% c("ltm","both","ltm+","both+")
@@ -52,7 +55,8 @@ run_ppidyom <- function(
       ppm_type = ppm_type,
       stm_lambda = stm_lambda,
       ltm_lambda = ltm_lambda,
-      b = b
+      b = b,
+      idyom_base = idyom_base
     )
     pred[, seq_id := i]
     results_list[[i]] <- pred

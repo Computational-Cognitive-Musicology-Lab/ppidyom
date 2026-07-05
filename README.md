@@ -168,7 +168,7 @@ For example, for the final `I`, the probability of of that chord being `I` given
 Why? `IV V I` has been heard twice before, while `IV V` has been heard three times before.
 
 
-> Notice that if you want to know the posterior probability of a chord, taking into account that you've now seen it, just add 1 to the numerator and denominator.
+> When counts are zero at a given order (a context never seen before), we need a way to assign non-zero probability.  PPM handles this with **escape probabilities** that blend contributions across all orders — from the highest available down to a uniform prior.  This is what ppidyom implements via interpolation (or backoff).
 
 ### Why use the "count matrix"?
 
@@ -176,27 +176,34 @@ The nice things about the count-matrix approach include that
 
 1) Have more data? It is easy to just add more counts! This allows us to flexibility model and update prior knowledge.
 2) Similarly, we can easily add "escape probabilities" and other things we need to the table.
-3) If we've never seen a N-gram before, we can easily "back off" to the smaller N-grams.
+3) If we've never seen an N-gram before, we can interpolate (or back off) to smaller N-grams.  This is the core of PPM: escape probabilities weight contributions across orders so even unseen contexts get probability mass.
 4) It is fast. Using the `data.table` package, we can compute the count matrix very fast, even for large sequences.
 
 
 ## Dev Testing
+
 This project uses **`testthat`** for testing. All tests live under `tests/testthat/`.
 
 See [README_DEV.md](README_DEV.md) for the full developer setup and build workflow.
 
 ### Run tests
+
 From the R console (after `devtools::load_all()`):
 ```r
 devtools::test()
 ```
 To run a specific test file:
 ```r
-devtools::test(filter = "counts")   # test-counts.R
-devtools::test(filter = "escape")   # test-escape.R
+devtools::test(filter = "counts")          # test-counts.R
+devtools::test(filter = "escape")          # test-escape.R
+devtools::test(filter = "ppm-comparison")  # test-ppm-comparison.R
+devtools::test(filter = "idyom")           # test-idyom-comparison.R
 ```
 
+See [README_DEV.md](README_DEV.md) for the full test coverage tables, including what conditions each file covers and what is not yet tested.
+
 ### Run scalability timing tests
+
 Scalability tests are disabled by default to avoid slowing down routine test runs.
 
 To enable them:
