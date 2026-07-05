@@ -153,7 +153,13 @@ if (requireNamespace("humdrumR", quietly = TRUE) &&
     ppm_type   = "interpolation",
     stm_lambda = "C",
     ltm_lambda = "C",
-    b          = 1
+    stm_exclusion = TRUE,
+    ltm_exclusion = TRUE,
+    stm_update_exclusion = TRUE,
+    ltm_update_exclusion = FALSE,
+    b = 1,
+    idyom_base = FALSE,
+    ltm_start_token = TRUE
   )
 
   # Combined STM + LTM
@@ -164,6 +170,12 @@ if (requireNamespace("humdrumR", quietly = TRUE) &&
     ppm_type   = "interpolation",
     stm_lambda = "C",
     ltm_lambda = "C",
-    b          = 1
+    stm_exclusion = TRUE,
+    ltm_exclusion = TRUE,
+    stm_update_exclusion = TRUE,
+    ltm_update_exclusion = FALSE,
+    b = 1,
+    idyom_base = FALSE,
+    ltm_start_token = TRUE
   )
 }
