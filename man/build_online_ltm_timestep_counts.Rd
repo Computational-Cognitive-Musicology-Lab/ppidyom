@@ -38,3 +38,4 @@ timestep, then updates the LTM with x[t].  This matches IDyOM's online-update
 semantics, where prediction at position t uses only the training corpus plus
 x[1:t-1], not x[t:T].
 }
+\keyword{internal}

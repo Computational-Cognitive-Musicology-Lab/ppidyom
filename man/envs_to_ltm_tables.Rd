@@ -22,3 +22,4 @@ After running build_online_ltm_timestep_counts, the updated environments
 are not directly accessible.  This helper rebuilds them and converts to the
 data.table list format used by counts_ltm (index = -1L rows).
 }
+\keyword{internal}

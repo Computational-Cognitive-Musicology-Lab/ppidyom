@@ -37,3 +37,4 @@ we must derive the counts associated with each timestep's context.
 The result matches the structure expected by PPM implementations
 (`ppm_backoff`, `ppm_interpolated`, etc.).
 }
+\keyword{internal}

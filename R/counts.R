@@ -6,6 +6,7 @@ library(data.table)
 #' @param x Character vector of symbols/events.
 #' @param N Maximum N-gram order.
 #' @return A `data.table` with columns LagN..Lag0 and index.
+#' @export
 lag_matrix <- function(x, N = 3) {
   dt <- data.table::as.data.table(lapply(N:0, function(n) data.table::shift(x, n)))
   data.table::setnames(dt, paste0("Lag", N:0))
@@ -18,6 +19,7 @@ lag_matrix <- function(x, N = 3) {
 #' @param dt_lag Lag matrix from lag_matrix()
 #' @param N Maximum n-gram order
 #' @return List of length N+1, each element is a character vector of context IDs
+#' @keywords internal
 precompute_contexts <- function(dt_lag, N) {
 
   context_list <- vector("list", N + 1)
@@ -50,6 +52,7 @@ precompute_contexts <- function(dt_lag, N) {
 #' @param prior List of data.tables from a previous count_tables() call
 #' @param N Maximum n-gram order
 #' @return counts_ltm with prior counts loaded into the environments
+#' @keywords internal
 apply_prior_ltm <- function(counts_ltm, prior, N) {
 
   if (length(prior) == 0) return(counts_ltm)
@@ -107,7 +110,7 @@ apply_prior_ltm <- function(counts_ltm, prior, N) {
 #'
 #' env[["A_B"]]
 #'
-#' @export
+#' @keywords internal
 update_env <- function(env, ctx, sym, sign = +1) {
   v <- env[[ctx]]
 
@@ -352,7 +355,7 @@ count_tables <- function(
 #' The tables contain one row per `(timestep, event)` pair and can be
 #' directly passed to probability computation routines.
 #'
-#' @export
+#' @keywords internal
 ltm_to_timestep_counts <- function(x, N, alphabet, order_counts) {
 
   dt_orders <- vector("list", N + 1)
@@ -431,7 +434,7 @@ is_stm <- function(order_counts) {
 #' @return List of length N+1, each a data.table with columns
 #'   index, context_id, Event, Ce, C, t, t1 — same format as STM tables, with
 #'   index in 1..T.
-#' @export
+#' @keywords internal
 build_online_ltm_timestep_counts <- function(x, N, alphabet, init_ltm,
                                               ltm_update_exclusion = FALSE,
                                               ltm_start_token = TRUE) {
@@ -500,6 +503,7 @@ build_online_ltm_timestep_counts <- function(x, N, alphabet, init_ltm,
 #' @param alphabet Character vector of all symbols
 #' @return List of N+1 data.tables, each with columns
 #'   index=-1L, context_id, Event, Ce, C, t, t1.
+#' @keywords internal
 envs_to_ltm_tables <- function(envs, N, alphabet) {
   lapply(0:N, function(n) {
     env      <- envs[[n + 1]]

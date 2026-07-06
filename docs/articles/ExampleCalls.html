@@ -130,7 +130,7 @@ statistics; as patterns repeat, higher orders take over.</p>
 <span><span class="co">#   )</span></span>
 <span><span class="co">#   ppm::model_seq(mod, factor(x, levels = alphabet))$information_content</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom-class.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
 <span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>  stm_exclusion        <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -157,7 +157,7 @@ predictions.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># ppm::(escape="a", exclusion=TRUE, update_exclusion=FALSE)</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom-class.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
 <span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>  stm_exclusion        <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -256,7 +256,7 @@ numerical effect here; all three implementations agree.</p>
 <span><span class="co">#   (idyom:idyom &lt;db-id&gt; '(cpitch) '(cpitch) :texture :melody :models :stm</span></span>
 <span><span class="co">#     :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom-class.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
 <span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>  stm_exclusion        <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -285,7 +285,7 @@ values.</strong></p>
 <code class="sourceCode R"><span><span class="co"># IDyOM call:</span></span>
 <span><span class="co">#   :stmo '(:escape :c :order-bound 3 :exclusion nil :update-exclusion nil)</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom-class.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
 <span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>  stm_exclusion        <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -325,7 +325,7 @@ training.</p>
 <span></span>
 <span><span class="va">train_seq</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"C"</span>,<span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"C"</span>,<span class="st">"A"</span>,<span class="st">"C"</span>,<span class="st">"B"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom-class.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N               <span class="op">=</span> <span class="va">N</span>,</span>
 <span>  alphabet        <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>  ltm_exclusion   <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -360,7 +360,7 @@ three IDyOM-specific flags are required.</p>
 <span><span class="co">#     :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil)</span></span>
 <span><span class="co">#     :ltmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom-class.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
 <span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>  stm_exclusion        <span class="op">=</span> <span class="cn">TRUE</span>,</span>

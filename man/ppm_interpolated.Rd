@@ -78,3 +78,4 @@ Expanded (method C for concreteness):
         + ...
         + (∏ esc_k) · base(s)
 }
+\keyword{internal}

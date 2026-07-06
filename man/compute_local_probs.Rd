@@ -18,3 +18,4 @@ Data.table with columns: index, Event, prob_local, esc
 \description{
 Compute Local Probabilities for a Single Order; Used by Backoff PPM
 }
+\keyword{internal}

@@ -49,12 +49,14 @@ env <- new.env()
 
 # add observations
 update_env(env, "A_B", "C", +1)
+#> Error in update_env(env, "A_B", "C", +1): could not find function "update_env"
 update_env(env, "A_B", "C", +1)
+#> Error in update_env(env, "A_B", "C", +1): could not find function "update_env"
 
 # decrement
 update_env(env, "A_B", "C", -1)
+#> Error in update_env(env, "A_B", "C", -1): could not find function "update_env"
 
 env[["A_B"]]
-#> C 
-#> 1 
+#> NULL
 ```

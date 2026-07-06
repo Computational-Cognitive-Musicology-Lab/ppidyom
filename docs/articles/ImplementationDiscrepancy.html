@@ -275,7 +275,7 @@ agree.</p>
 <span><span class="va">alphabet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"C"</span><span class="op">)</span></span>
 <span><span class="va">N</span>        <span class="op">&lt;-</span> <span class="fl">3L</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom-class.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span>N <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>,</span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span>N <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>                     stm_exclusion <span class="op">=</span> <span class="cn">FALSE</span>, stm_update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ic_ppm_compat</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">predict_sequence</span><span class="op">(</span></span>
@@ -350,7 +350,7 @@ LTM, so only ppidyom and IDyOM differ here.</p>
 </table>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># IDyOM-compatible LTM (used in all IDyOM comparison tests)</span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom-class.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N               <span class="op">=</span> <span class="fl">3L</span>,</span>
 <span>  alphabet        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"C"</span><span class="op">)</span>,</span>
 <span>  ltm_start_token <span class="op">=</span> <span class="cn">FALSE</span></span>
