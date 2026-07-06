@@ -1,5 +1,4 @@
 library(data.table)
-#' @import data.table
 
 #' Generate Lagged N-gram Matrix
 #'
@@ -7,7 +6,6 @@ library(data.table)
 #' @param x Character vector of symbols/events.
 #' @param N Maximum N-gram order.
 #' @return A `data.table` with columns LagN..Lag0 and index.
-#' @export
 lag_matrix <- function(x, N = 3) {
   dt <- data.table::as.data.table(lapply(N:0, function(n) data.table::shift(x, n)))
   data.table::setnames(dt, paste0("Lag", N:0))

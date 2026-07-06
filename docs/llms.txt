@@ -1,0 +1,91 @@
+![](ppidyom_logo.svg)
+
+Welcome to the main website of ppidyom!
+
+## What is ppidyom?
+
+**ppidyom** is an R package for applying *partial predictive matching*
+(PPM) algorithms to musical data. PPM algorithms are a sophisticated
+form of N-gram model, where musical events (notes, chords, etc.) are
+predicted based on the previous music. This (probabilistic) predictions
+can then be used as the basis for information theory metrics, like
+information content and entropy.
+
+**ppidyom** is similar to the widely used
+[IDyOM](https://www.marcus-pearce.com/idyom/) (Pearce, 2005) and
+[ppm](https://github.com/pmcharrison/ppm) (Harrison, et al. 2020)
+softwares. The goal of the **ppidyom** project is to make
+partial-predictive-modeling faster, easier, and more transparent than
+these existing systems. In particular, **ppidyom** is designed to work
+within the [humdrumR](https://humdrumR.ccml.gtcmt.gatech.edu) package
+framework, making a complete system for musicological analysis.
+
+#### What does ppidyom stand for?
+
+**P**artial **P**redictive **I**nformation **Dy**namics of **M**usic.
+It’s an homage/mash-up of IDyOM and ppm!
+
+## What is partial predictive matching?
+
+PPM models originated in the field of computational linguistics. PPM
+models are a form of N-gram model, where each sequential musical event
+(note, chord, etc.) is predicted based on the N-previous events. In a
+PPM model, N-grams of various lengths are “blended” to create the final
+prediction.
+
+PPM model implementations can also incorporate:
+
+- Long-term and short-term models.
+
+# Package index
+
+## Section
+
+These tools .
+
+### XXX
+
+- [`build_online_ltm_timestep_counts()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/build_online_ltm_timestep_counts.md)
+  : Build Per-Timestep LTM Count Tables with Online Update
+- [`compute_local_probs()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/compute_local_probs.md)
+  : Compute Local Probabilities for a Single Order; Used by Backoff PPM
+- [`count_tables()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/count_tables.md)
+  : Compute Count Tables for STM and LTM with Optional Prior
+- [`lag_matrix()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/lag_matrix.md)
+  : Generate Lagged N-gram Matrix
+- [`ppidyom-class`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom-class.md)
+  [`ppidyom`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom-class.md)
+  : Initialize a new PPM counter Train on a single sequence (incremental
+  LTM update)
+- [`apply_prior_ltm()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/apply_prior_ltm.md)
+  : Seed LTM environments from previously accumulated count tables
+- [`envs_to_ltm_tables()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/envs_to_ltm_tables.md)
+  : Convert online-update environments to LTM data.table format
+- [`precompute_contexts()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/precompute_contexts.md)
+  : Precompute context identifiers for all orders
+- [`ltm_to_timestep_counts()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ltm_to_timestep_counts.md)
+  : Expand LTM Count Tables to Timestep-Aligned Order Tables
+- [`ppm_backoff()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppm_backoff.md)
+  : Compute PPM Probabilities for all symbols with Backoff
+- [`ppm_interpolated()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppm_interpolated.md)
+  : Compute PPM Probabilities for all symbols with Interpolation
+- [`update_env()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/update_env.md)
+  : Update a Sparse Context Count Environment
+
+# Articles
+
+### Basics
+
+- [Overview: Motivation, Design, and
+  Applications](https://ppidyom.ccml.gtcmt.gatech.edu/articles/Overview.md):
+- [Example Calls: Matching ppm and
+  IDyOM](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ExampleCalls.md):
+
+### Replication
+
+How can we replicate outputs of IDyOM and PPM
+
+- [Implementation Differences: ppm, IDyOM, and
+  ppidyom](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md):
+- [Parameter Correspondence: ppidyom, ppm, and
+  IDyOM](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.md):

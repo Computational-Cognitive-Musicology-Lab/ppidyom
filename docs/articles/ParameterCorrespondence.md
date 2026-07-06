@@ -1,0 +1,289 @@
+# Parameter Correspondence: ppidyom, ppm, and IDyOM
+
+This vignette maps every tunable parameter across the three
+implementations. For each parameter, we first explain what it controls
+conceptually — in terms of what kind of listener or memory it represents
+— then give the technical definition, and finally the parameter names in
+each package.
+
+For the algorithmic discrepancies that go beyond parameter naming see
+`vignette("implementation-discrepancy")`.
+
+------------------------------------------------------------------------
+
+## Model type
+
+**What it represents:** PPM models a listener who hears a musical
+sequence event by event and forms expectations about what comes next.
+The model type determines what *memory* that listener draws on:
+
+- A listener recalling only the current piece — counting how often each
+  pattern has occurred so far in this sequence → **STM** (short-term
+  model)
+- A listener drawing entirely on accumulated musical experience, encoded
+  from a training corpus before the current piece began → **LTM**
+  (long-term model)
+- A listener using both simultaneously, blending them according to how
+  confident each is → **both** / **both+**
+
+The LTM is built by calling `train_sequence()` on a corpus before
+prediction begins. In `both`/`both+` models the STM and LTM
+distributions are combined using an entropy-weighted geometric mean (see
+§8 for the blend exponent).
+
+| ppidyom `model_type` | ppm equivalent     | IDyOM `:models` | Notes                                                      |
+|----------------------|--------------------|-----------------|------------------------------------------------------------|
+| `"stm"`              | `new_ppm_simple()` | `:stm`          | memory of the current sequence only                        |
+| `"ltm"`              | —                  | `:ltm`          | memory of training corpus only; no update during test      |
+| `"ltm+"`             | —                  | `:ltm+`         | LTM counts grow as the test sequence is processed          |
+| `"both"`             | —                  | `:both`         | entropy-weighted blend of STM and LTM                      |
+| `"both+"`            | —                  | `:both+`        | entropy-weighted blend with simultaneous LTM online update |
+
+ppm has no LTM or mixture support.
+
+------------------------------------------------------------------------
+
+## Escape method
+
+**What it controls:** When the model has never observed a particular
+context–symbol pair (zero count), it cannot assign probability from that
+context alone. Instead it *escapes* — falling back to shorter contexts
+that have more data. The escape method determines how aggressively this
+happens: how much probability mass flows down to lower-order models at
+each level.
+
+Escaping more means relying on general patterns; escaping less means
+staying closer to the specific context even when counts are thin.
+
+Every escape method answers: *given that we have observed C total events
+in context c, with t distinct following symbols, what fraction of
+probability mass should escape to the next-shorter context?*
+
+| ppidyom | ppm    | IDyOM  | Escape probability                      | Notes                                             |
+|---------|--------|--------|-----------------------------------------|---------------------------------------------------|
+| `"A"`   | `"a"`  | `:a`   | `1 / (C + 1)`                           | very conservative; escapes rarely                 |
+| `"B"`   | `"b"`  | `:b`   | `t / C`                                 | escapes in proportion to novelty                  |
+| `"C"`   | `"c"`  | `:c`   | `t / (C + t)` — Witten-Bell             | **default**; balances novelty and count stability |
+| `"D"`   | `"d"`  | `:d`   | `t / (2C)`                              | absolute discounting with d = 0.5                 |
+| `"X"`   | `"ax"` | `:x` ¹ | `(t₁ + 1) / (C + t₁ + 1)` — Moffat 1990 | escapes based on singleton count                  |
+
+*C* = total events in this context; *t* = distinct symbols seen after
+this context; *t₁* = singletons (symbols seen exactly once).
+
+ppidyom uses uppercase letters; ppm and IDyOM use lowercase. See
+[`R/escape.R`](https://ppidyom.ccml.gtcmt.gatech.edu/R/escape.R) for the
+exact formulas.
+
+> ¹ **AX note:** IDyOM’s internal AX keyword is `:x`, not `:ax`; calling
+> IDyOM with `:ax` silently falls back to `:c` behaviour (an IDyOM bug).
+> The IDyOM comparison fixture uses `:x` to correctly invoke the AX
+> branch. See `vignette("implementation-discrepancy")` §6.
+
+------------------------------------------------------------------------
+
+## Order bound
+
+**What it controls:** The length of the context window — how many
+preceding events the model uses when predicting the next one. A longer
+window can capture longer-range patterns (e.g. “what note usually
+follows this exact 5-note run?”), but at the cost of sparser statistics:
+long specific patterns are rarely repeated exactly, so the model will
+escape to shorter contexts more often.
+
+In practice, N = 3–5 is common in music modelling. High orders produce
+precise predictions for frequently observed patterns but escape
+frequently for anything unusual; low orders are more conservative and
+general.
+
+| ppidyom               | ppm           | IDyOM                               |
+|-----------------------|---------------|-------------------------------------|
+| `N` (constructor arg) | `order_bound` | `:order-bound` in `:stmo` / `:ltmo` |
+
+All three use the same semantics: contexts longer than *N* are
+truncated.
+
+IDyOM additionally supports `order-bound = nil`, which activates
+*shortest-deterministic state selection* — the model automatically finds
+the longest reliable context without a fixed bound. ppidyom and ppm
+always require an explicit integer bound.
+
+------------------------------------------------------------------------
+
+## Exclusion
+
+**What it controls:** Suppose the order-3 model already assigns high
+probability to a specific symbol (say, “G”). When the probability mass
+that *escapes* from order 3 flows down to order 2, should order 2
+compete over the *full* alphabet, or only over the symbols not yet
+well-predicted?
+
+With exclusion **on**, lower-order models only distribute their escaped
+mass over symbols that haven’t been assigned non-zero probability by any
+higher-order context. This prevents lower orders from “double-covering”
+symbols already handled above, concentrating the remaining mass more
+sharply.
+
+Exclusion does not set any symbol’s probability to zero; it only affects
+the *denominator* (context count) used to compute the escape weight at
+each level.
+
+| ppidyom                           | ppm         | IDyOM (stmo/ltmo) | Default                                      |
+|-----------------------------------|-------------|-------------------|----------------------------------------------|
+| `stm_exclusion` / `ltm_exclusion` | `exclusion` | `:exclusion`      | ppidyom: `TRUE`; ppm: `FALSE`; IDyOM: `TRUE` |
+
+> **Base-distribution interaction:** the exclusion flag also controls
+> which order −1 formula IDyOM uses. See
+> `vignette("implementation-discrepancy")` §1–2 for the full
+> explanation.
+
+------------------------------------------------------------------------
+
+## Update exclusion
+
+**What it controls:** Should the model update its counts with the
+current event *before* or *after* predicting it? In online sequential
+modelling, the default is to update first and predict from the updated
+model. Update exclusion reverses this for *first occurrences*: the first
+time a symbol appears in a given context, that observation is excluded
+from the count table the model uses to predict it.
+
+The practical effect: with `update_exclusion = TRUE`, observing a symbol
+for the first time in a given context does not immediately boost that
+symbol’s predicted probability for the next identical context. The count
+only contributes from the second occurrence onward. This prevents a form
+of circular self-prediction.
+
+| ppidyom                                         | ppm                | IDyOM (stmo/ltmo)   | Default                                                             |
+|-------------------------------------------------|--------------------|---------------------|---------------------------------------------------------------------|
+| `stm_update_exclusion` / `ltm_update_exclusion` | `update_exclusion` | `:update-exclusion` | ppidyom: `TRUE` (stm) / `FALSE` (ltm); ppm: `FALSE`; IDyOM: `FALSE` |
+
+------------------------------------------------------------------------
+
+## LTM beginning-of-sequence token (`ltm_start_token`)
+
+**What it controls:** When building the long-term model from a training
+corpus, should position 1 of each training sequence contribute to the
+count tables? At that position there is no prior context — the preceding
+N−1 events are undefined — so it can only be counted as an unconditional
+observation.
+
+IDyOM’s answer is no: it silently skips positions where the context
+window would extend before the start of the sequence. This is a
+practical choice — sequence beginnings represent a special, structurally
+specific context that may not generalise well. It also means the total
+count at order 0 (the root of the suffix tree) is lower, which affects
+the base prior.
+
+| ppidyom `ltm_start_token` | Behaviour                                                        | Matches        |
+|---------------------------|------------------------------------------------------------------|----------------|
+| `TRUE` (default)          | all positions counted, including those with no preceding context | Harrison’s ppm |
+| `FALSE`                   | positions with undefined context (NA lags) are skipped           | **IDyOM**      |
+
+``` r
+# IDyOM-compatible LTM
+model <- ppidyom$new(
+  N               = 3L,
+  alphabet        = c("A","B","C"),
+  ltm_start_token = FALSE
+)
+```
+
+ppm has no LTM and therefore no equivalent parameter.
+
+------------------------------------------------------------------------
+
+## Probability type
+
+**What it controls:** When a given context order has no observations,
+there are two strategies for assigning probability to the current event:
+
+- **Interpolation** blends predictions from *all* orders simultaneously.
+  Every order contributes — high orders via their counts, low orders via
+  the mass that escapes from above. The result is a smooth distribution
+  even for unseen contexts.
+- **Backoff** finds the highest order that *does* have observations and
+  uses only that, renormalising its distribution to sum to 1. All lower
+  orders are ignored unless every higher order has zero counts.
+
+Interpolation (the default in ppm and IDyOM) generally gives smoother IC
+profiles; backoff is more “winner-takes-all.”
+
+| ppidyom `ppm_type` | ppm                             | IDyOM `ppm-mixtures` slot      |
+|--------------------|---------------------------------|--------------------------------|
+| `"interpolation"`  | only option in `new_ppm_simple` | `mixtures = t` (TRUE, default) |
+| `"backoff"`        | —                               | `mixtures = nil` (FALSE)       |
+
+------------------------------------------------------------------------
+
+## Base distribution (order −1)
+
+**What it controls:** Every PPM model needs an ultimate fallback prior —
+the distribution that catches all probability mass that escapes every
+context order. At this lowest level (order −1), every symbol receives an
+equal share. But *how large* that share is depends on how many symbols
+are considered “possible.”
+
+This choice has a surprisingly large effect on IC values, especially at
+the beginning of a sequence (when counts are thin and escaping is
+frequent) and in LTM prediction (where the base is fixed from training
+rather than growing with the test sequence).
+
+| ppidyom `idyom_base` | exclusion    | Formula                                                                                     | Matches           |
+|----------------------|--------------|---------------------------------------------------------------------------------------------|-------------------|
+| `FALSE` (default)    | any          | `1 / (|α| + 1 − |seen in x[1..t-1]|)` — shrinks as the test sequence grows                  | ppm               |
+| `TRUE`               | OFF          | `1 / |alphabet|` — flat uniform over all symbols                                            | IDyOM excl=OFF    |
+| `TRUE`               | ON, STM      | `1 / (|α| + 1 − t_root_STM)` where `t_root` = distinct symbols seen so far                  | IDyOM STM excl=ON |
+| `TRUE`               | ON, LTM/ltm+ | `1 / (|α| + 1 − t_root_LTM)` where `t_root` = distinct symbols in **training data** (fixed) | IDyOM LTM excl=ON |
+
+The `FALSE` (ppm-compatible) and STM `idyom_base = TRUE` rows are
+numerically identical: `t_root_STM` equals the number of distinct
+symbols seen in the test sequence so far by construction. The LTM row
+differs critically: IDyOM’s base is fixed by the training corpus, not
+the test sequence. For a LTM trained on all three symbols, the base
+prior is `1/(3+1-3) = 1.0` — a constant.
+
+Full explanation with IDyOM source:
+`vignette("implementation-discrepancy")` §1–2.
+
+------------------------------------------------------------------------
+
+## Mixture weight exponent *b* (`both` / `both+` models)
+
+**What it controls:** When blending STM and LTM predictions, how
+strongly should the model that is *more certain* (lower entropy)
+dominate? This is controlled by the exponent *b* in the entropy-based
+weighting formula.
+
+With b = 1, the blend is relatively equal — both models contribute
+proportionally to their confidence. With b = 7 (IDyOM’s default), the
+lower-entropy model almost completely takes over; the blend becomes
+nearly winner-take-all.
+
+$$w_{i} \propto \left( \frac{H_{i}}{H_{\max}} \right)^{-b},\quad H_{\max} = \log_{2}|alphabet|$$
+
+| ppidyom `b`           | IDyOM default                   | Effect                                                  |
+|-----------------------|---------------------------------|---------------------------------------------------------|
+| `1` (ppidyom default) | —                               | gentle weighting; both models contribute noticeably     |
+| `7`                   | **IDyOM default** (Pearce 2005) | sharp weighting; lower-entropy model strongly dominates |
+
+Pass `b = 7` to `predict_sequence()` or `run_ppidyom()` to match IDyOM’s
+default behaviour. All `both`/`both+` IDyOM comparison tests use
+`b = 7`.
+
+ppm does not support mixture models.
+
+------------------------------------------------------------------------
+
+## Quick-reference matrix
+
+| Concept                  | ppidyom                                         | ppm (`new_ppm_simple`)   | IDyOM (`:stmo` / `:ltmo`)      |
+|--------------------------|-------------------------------------------------|--------------------------|--------------------------------|
+| max context length       | `N`                                             | `order_bound`            | `:order-bound`                 |
+| escape method            | `stm_lambda` / `ltm_lambda` ∈ {A,B,C,D,X}       | `escape` ∈ {a,b,c,d,ax}  | `:escape` ∈ {:a,:b,:c,:d,:x} ¹ |
+| exclusion                | `stm_exclusion` / `ltm_exclusion`               | `exclusion`              | `:exclusion`                   |
+| update exclusion         | `stm_update_exclusion` / `ltm_update_exclusion` | `update_exclusion`       | `:update-exclusion`            |
+| LTM start token          | `ltm_start_token`                               | —                        | implicit (always skips)        |
+| base distribution        | `idyom_base` flag                               | always shrinking         | depends on `exclusion`         |
+| interpolation vs backoff | `ppm_type`                                      | always interpolation     | `mixtures` slot                |
+| mixture exponent         | `b` (default 1)                                 | —                        | implicit b = 7                 |
+| shortest deterministic   | — (not implemented)                             | `shortest_deterministic` | auto when `order-bound = nil`  |
