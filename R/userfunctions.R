@@ -19,7 +19,7 @@ ppidyom <- function(...) {
 
 
 #' @exportS3Method
-ppidyom.default <- function(..., maxN = 10, alphabet = do.call('paste', expand.grid(...)), 
+ppidyom.default <- function(..., maxN = 10, alphabet = do.call('paste', expand.grid(lapply(list(...), unique))), 
 														model_type = c("stm", "ltm", "both", "ltm+", "both+"), ppm_type = c("interpolation", "backoff"),
 														shortTermArgs = list(), longTermArgs = list(), 
 														longTermGroups = list(), shortTermGroups = list(),
@@ -55,31 +55,43 @@ ppidyom.default <- function(..., maxN = 10, alphabet = do.call('paste', expand.g
 
 
 	# train
-	for (group in paste(data$longTerm, data$shortTerm)) model$train_sequence(data[paste(longTerm, shortTerm) == group, Tokens])
+	for (group in unique(paste(data$longTerm, data$shortTerm))) {
+		print(group)
+		model$train_sequence(data[paste(longTerm, shortTerm) == group, Tokens])
+	}
 
+	output <- list()
+	for (lg in unique(longTermGroups)) {
+		print(lg)
 
-	data[, {
-			.SD[, model$detrain_sequence(Tokens), by = shortTerm]
+		for (sg in data[longTerm == lg, unique(shortTerm)]) {
+			model$detrain_sequence(data[longTerm == lg & shortTerm == sg, Tokens])
+		}
 
-			.SD[ , {
-					result <- model$predict_sequence(Tokens, model_type = model_type, ppm_type = ppm_type, 
-																					 stm_lambda = shortTermArgs$lambda, ltm_lambda = longTermArgs$lambda, 
-																					 b = b, idyom_base = idyom_base)
-					moel$train_sequence(Tokens)
-					result
-			}, by = shortTerm]
-	}, by = longTerm]
+		result <- list()
 
+		
+		for (sg in data[longTerm == lg, unique(shortTerm)]) {
+			print(sg)
+			result <- c(result, list(model$predict_sequence(data[longTerm == lg & shortTerm == sg, Tokens])))
+		}
 
+		for (sg in data[longTerm == lg, unique(shortTerm)]) {
+			model$train_sequence(data[longTerm == lg & shortTerm == sg, Tokens])
+		}
 
+		output <- c(output, list(do.call('rbind', result)))
+
+	}
+	do.call('rbind', output) |> pull(IC)
 
 
 }
 
-
-#' @exportS3Metho
+#' @exportS3Method
 ppidyom.humdrumR <- function(humdrumR, ...) {
-	TRUE
+
+	humdrumR |> mutate(ICppidyom = ppidyom(., longTermGroups = list(Piece), shortTermGroups = list(Spine, Path)))
 
 }
 
