@@ -1,0 +1,63 @@
+url: https://ppidyom.ccml.gtcmt.gatech.edu
+home: 
+  sidebar:
+    structure: [links, license, community, citation, authors, dev, toc]
+  links:
+  - text: R language official website
+    href: https://www.r-project.org
+  - text: Computational and Cognitive Musicology Lab
+    href: https://ccml.gtcmt.gatech.edu/
+  - text: Georgia Tech Center for Music Technology
+    href: https://gtcmt.gatech.edu/
+  - text: HumdrumR 
+    href: https://humdrumR.ccml.gtcmt.gatech.edu/
+navbar:
+  structure: 
+    left: [news, reference, articles, GUI]
+    right: [github, search]
+  components:
+    news:
+      text: News
+      href: news/index.html
+footer:
+  structure:
+    left: logo
+    right: ccml
+  components:
+    logo: <a href="https://humdrumR.ccml.gtcmt.gatech.edu"><img src="ppidyom_logo.svg" alt="humdrumR" style="height:120px;"></a>
+    ccml: Developed by Nat Condit-Schultz and Ling Qi<br/>[Georgia Tech](https://gatech.edu)<br/>[School of Music](https://music.gatech.edu)<br/>[Computational and Cognitive Musicology Lab](https://ccml.gtcmt.gatech.edu)</span>
+  
+template:
+  includes:
+    before_title: <a href="https://gatech.edu"><img src="gt-logo.svg" alt="Georgia Tech" style="height:50px; padding-right:20px;"/></a> <a href="https://ccml.gtcmt.gatech.edu"><img src="CCMLbanner.png" alt="CCMLab" style="height:80px; padding-right:20px;"/></a>
+  bootstrap: 5
+  bootswatch: flatly
+articles:
+- title: Basics
+  navbar: Basics
+  contents:
+  - Overview
+  - ExampleCalls
+- title: Replication
+  desc: How can we replicate outputs of IDyOM and PPM
+  navbar: R/Background
+  contents:
+  - ImplementationDiscrepancy
+  - ParameterCorrespondence
+reference:
+- title: "Section "
+  desc: "These tools ."
+- subtitle: "XXX "
+  contents:
+  - build_online_ltm_timestep_counts
+  - compute_local_probs
+  - count_tables
+  - lag_matrix
+  - ppidyom-class
+  - apply_prior_ltm
+  - envs_to_ltm_tables
+  - precompute_contexts
+  - ltm_to_timestep_counts
+  - ppm_backoff
+  - ppm_interpolated
+  - update_env
