@@ -20,6 +20,7 @@ Suggests:
     knitr,
     rmarkdown,
     ppm
+		humdrumR
 Remotes:
     pmcharrison/ppm
 VignetteBuilder: knitr

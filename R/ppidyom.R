@@ -1,8 +1,8 @@
 library(data.table)
 
 
-ppidyom <- setRefClass(
-  "ppidyom",
+ppidyomModel <- setRefClass(
+  "ppidyomModel",
 
   fields = list(
     N = "numeric",
