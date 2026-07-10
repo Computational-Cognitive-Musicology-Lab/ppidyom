@@ -6,7 +6,22 @@
 \usage{
 ppidyom(...)
 }
+\arguments{
+\item{...}{***One or more input vectors, all the same length.***}
+
+\item{maxN}{***Maximum N-gram length to compute.***
+Defaults to 10.}
+
+\item{alphabet}{***The set of possible input values. By default, cartesian product of input vectors.***}
+
+\item{shortTermArgs}{***List of arguments for short-term ppm algorithm. See details.***}
+
+\item{longTermArgs}{***List of arguments for long-term ppm algorithm. See details.***}
+
+\item{longTermGroups}{***Groups for long term training (usually pieces).***}
+
+\item{shortTermGroups}{***Groups for short term (local) application (usually parts within a piece).***}
+}
 \description{
-This function calls ppidyom on arbitrary vectors of data,
-or humdrumR data.
+This function calls ppidyom on arbitrary vectors of data, or humdrumR data.
 }

@@ -91,7 +91,14 @@ ppidyom.default <- function(..., maxN = 10, alphabet = do.call('paste', expand.g
 #' @exportS3Method
 ppidyom.humdrumR <- function(humdrumR, ...) {
 
-	humdrumR |> mutate(ICppidyom = ppidyom(., longTermGroups = list(Piece), shortTermGroups = list(Spine, Path)))
+	quos <- rlang::enquos(...)
+
+	ns <- names(quos)
+	if (is.null(ns)) ns <- character(length(quos))
+
+	if (!any(ns == '')) quos <- c(rlang::quo(.), quos)
+
+	rlang::eval_tidy(rlang::expr(within(humdrumR, ICppidyom <- ppidyom.default(!!!quos), dataTypes = 'D')))
 
 }
 
