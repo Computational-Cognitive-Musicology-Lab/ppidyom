@@ -1,8 +1,11 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/404.html</loc></url>
 <url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/README_DEV.html</loc></url>
+<url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/algorithm.html</loc></url>
 <url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/articles/ExampleCalls.html</loc></url>
 <url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.html</loc></url>
+<url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/articles/InfoTheory.html</loc></url>
+<url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/articles/NGrams.html</loc></url>
 <url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/articles/Overview.html</loc></url>
 <url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.html</loc></url>
 <url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/articles/example-calls.html</loc></url>
@@ -21,6 +24,7 @@
 <url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/reference/ltm_to_timestep_counts.html</loc></url>
 <url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom-class.html</loc></url>
 <url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom.html</loc></url>
+<url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyomModel-class.html</loc></url>
 <url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppm_backoff.html</loc></url>
 <url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppm_interpolated.html</loc></url>
 <url><loc>https://ppidyom.ccml.gtcmt.gatech.edu/reference/precompute_contexts.html</loc></url>
