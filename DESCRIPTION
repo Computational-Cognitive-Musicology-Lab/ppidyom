@@ -19,7 +19,7 @@ Suggests:
     testthat,
     knitr,
     rmarkdown,
-    ppm
+    ppm,
 		humdrumR
 Remotes:
     pmcharrison/ppm

@@ -1,0 +1,17 @@
+---
+title: "Information Theory Fundamentals: Entropy and Information Content"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Information Theory Fundamentals: Entropy and Information Content}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+library(ppidyom)
+library(data.table)
+```
+
+
+Explain what IC and Entropy are.
