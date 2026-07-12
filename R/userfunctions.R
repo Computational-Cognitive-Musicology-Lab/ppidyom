@@ -90,9 +90,17 @@ ppidyom.default <- function(..., maxN = 5, alphabet = do.call('paste', expand.gr
 		model$train_sequence(data[paste(longTerm, shortTerm) == group, Tokens])
 	}
 
+	lt_groups <- unique(longTermGroups)
+	n_lt      <- length(lt_groups)
+	t0        <- proc.time()[["elapsed"]]
+
+	message(sprintf("ppidyom: %d long-term group(s), N=%d, model=%s, ppm=%s, alphabet=%d",
+	                n_lt, maxN, model_type, ppm_type, length(alphabet)))
+
 	output <- list()
-	for (lg in unique(longTermGroups)) {
-		print(lg)
+	for (i in seq_along(lt_groups)) {
+		lg <- lt_groups[i]
+    print(lg)
 
 		for (sg in data[longTerm == lg, unique(shortTerm)]) {
 			model$detrain_sequence(data[longTerm == lg & shortTerm == sg, Tokens])
@@ -112,6 +120,9 @@ ppidyom.default <- function(..., maxN = 5, alphabet = do.call('paste', expand.gr
 
 		output <- c(output, list(do.call('rbind', result)))
 
+		elapsed <- proc.time()[["elapsed"]] - t0
+		eta     <- if (i < n_lt) elapsed / i * (n_lt - i) else 0
+		message(sprintf("  [%d/%d] %.1fs elapsed, %.1fs remaining", i, n_lt, elapsed, eta))
 	}
 	do.call('rbind', output) |> pull(IC)
 
@@ -217,7 +228,8 @@ run_ppidyom <- function(
   model_type <- match.arg(model_type)
   ppm_type   <- match.arg(ppm_type)
 
-  if (is.null(alphabet)) {
+  alphabet_inferred <- is.null(alphabet)
+  if (alphabet_inferred) {
     alphabet <- unique(unlist(seq_list, use.names = FALSE))
   }
   model <- ppidyomModel$new(
@@ -238,7 +250,14 @@ run_ppidyom <- function(
     }
   }
 
-  results_list <- vector("list", length(seq_list))
+  n_seqs       <- length(seq_list)
+  results_list <- vector("list", n_seqs)
+  t0           <- proc.time()[["elapsed"]]
+
+  message(sprintf("run_ppidyom: %d sequences, N=%d, model=%s, ppm=%s, alphabet=%d%s",
+                  n_seqs, N, model_type, ppm_type,
+                  length(alphabet),
+                  if (alphabet_inferred) " (inferred)" else " (user-supplied)"))
 
   # For each test sequence, detrain itself, predict, and retrain itself
   for(i in seq_along(seq_list)) {
@@ -262,6 +281,11 @@ run_ppidyom <- function(
     if(has_ltm) {
       model$train_sequence(x)
     }
+
+    elapsed <- proc.time()[["elapsed"]] - t0
+    eta     <- if (i < n_seqs) elapsed / i * (n_seqs - i) else 0
+    message(sprintf("  [%d/%d] %.1fs elapsed, %.1fs remaining",
+                    i, n_seqs, elapsed, eta))
   }
 
   results_list

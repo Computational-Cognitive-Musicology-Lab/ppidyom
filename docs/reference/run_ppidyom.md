@@ -165,6 +165,10 @@ res_stm <- ppidyom:::run_ppidyom(
   seq_list = list(seq1, seq2, seq3), N = 3, model_type = "stm",
   stm_exclusion = FALSE, stm_update_exclusion = FALSE
 )
+#> run_ppidyom: 3 sequences, N=3, model=stm, ppm=interpolation, alphabet=3 (inferred)
+#>   [1/3] 0.0s elapsed, 0.0s remaining
+#>   [2/3] 0.0s elapsed, 0.0s remaining
+#>   [3/3] 0.0s elapsed, 0.0s remaining
 data.table::rbindlist(res_stm)
 #>     index  Event          P         IC   Entropy seq_id
 #>     <int> <char>      <num>      <num>     <num>  <int>
@@ -198,6 +202,10 @@ data.table::rbindlist(res_stm)
 res_both <- ppidyom:::run_ppidyom(
   seq_list = list(seq1, seq2, seq3), N = 3, model_type = "both"
 )
+#> run_ppidyom: 3 sequences, N=3, model=both, ppm=interpolation, alphabet=3 (inferred)
+#>   [1/3] 0.1s elapsed, 0.2s remaining
+#>   [2/3] 0.2s elapsed, 0.1s remaining
+#>   [3/3] 0.2s elapsed, 0.0s remaining
 data.table::rbindlist(res_both)
 #>     index  Event         P        IC  Entropy seq_id
 #>     <int> <char>     <num>     <num>    <num>  <int>
