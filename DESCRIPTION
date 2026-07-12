@@ -19,8 +19,8 @@ Suggests:
     testthat,
     knitr,
     rmarkdown,
-    ppm
-		humdrumR
+    ppm,
+    humdrumR
 Remotes:
     pmcharrison/ppm
 VignetteBuilder: knitr

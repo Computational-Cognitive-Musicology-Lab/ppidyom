@@ -306,15 +306,15 @@ devtools::check()      # full check (optional but recommended)
 | `R/counts.R` | Count accumulation: builds the sparse count tables (Ce, C, t, t1) for all n-gram orders, for both STM and LTM. Also handles the lag matrix, context key generation, prior seeding, and update-exclusion logic. |
 | `R/interpolation.R` | Probability computation (interpolated PPM): consumes count tables, applies the weighted sum across orders, handles the exclusion mechanism. |
 | `R/backoff.R` | Probability computation (backoff PPM): consumes count tables, cascades through orders assigning probability mass to seen symbols. |
-| `R/ppidyom.R` | The main `ppidyom` R5 Reference Class: wraps LTM state and calls `count_tables`, `ppm_interpolated`/`ppm_backoff`, and `detrain_sequence`. Also contains `combine_models` for STM+LTM blending. |
-| `R/utils.R` | Top-level user function `run_ppidyom`: runs leave-one-out or train-all evaluation over a corpus using the `ppidyom` class. |
+| `R/ppidyom.R` | The `ppidyomModel` R5 Reference Class: wraps LTM state and calls `count_tables`, `ppm_interpolated`/`ppm_backoff`, and `detrain_sequence`. Also contains `combine_models` for STM+LTM blending. (Renamed from `ppidyom` to free up that name for the user-facing generic below.) |
+| `R/userfunctions.R` | User-facing entry points: `ppidyom()` (S3 generic, exported), `ppidyom.default()` (runs on plain vectors), `ppidyom.humdrumR()` (runs on a humdrumR corpus via `within()`), and `run_ppidyom()` (leave-one-out / train-all evaluation over a list of sequences using `ppidyomModel`). |
 
 ### Dependency graph
 
 ```
 escape.R  ──────────────────────────────────────────┐
                                                     ▼
-counts.R  ──► interpolation.R ──────────────► ppidyom.R ──► utils.R
+counts.R  ──► interpolation.R ──────────────► ppidyom.R ──► userfunctions.R
           └─► backoff.R ───────────────────────────►┘
 ```
 

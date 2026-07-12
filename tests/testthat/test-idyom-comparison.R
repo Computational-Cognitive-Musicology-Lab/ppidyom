@@ -46,7 +46,7 @@ idyom2ppm <- c(a = "a", b = "b", c = "c", d = "d", x = "ax")
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 make_model <- function(cfg) {
-  ppidyom$new(
+  ppidyomModel$new(
     N                    = N,
     alphabet             = alphabet,
     stm_exclusion        = as.logical(cfg$stm_exclusion),

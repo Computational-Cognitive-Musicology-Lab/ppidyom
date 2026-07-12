@@ -67,7 +67,7 @@ statistics; as patterns repeat, higher orders take over.
 #   )
 #   ppm::model_seq(mod, factor(x, levels = alphabet))$information_content
 
-model <- ppidyom$new(
+model <- ppidyomModel$new(
   N                    = N,
   alphabet             = alphabet,
   stm_exclusion        = FALSE,
@@ -94,7 +94,7 @@ by higher-order predictions.
 ```{r ppm-stm-a-excl}
 # ppm::(escape="a", exclusion=TRUE, update_exclusion=FALSE)
 
-model <- ppidyom$new(
+model <- ppidyomModel$new(
   N                    = N,
   alphabet             = alphabet,
   stm_exclusion        = TRUE,
@@ -170,7 +170,7 @@ implementations agree.
 #   (idyom:idyom <db-id> '(cpitch) '(cpitch) :texture :melody :models :stm
 #     :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))
 
-model <- ppidyom$new(
+model <- ppidyomModel$new(
   N                    = N,
   alphabet             = alphabet,
   stm_exclusion        = TRUE,
@@ -198,7 +198,7 @@ beginning of the sequence, before all alphabet symbols have been observed.
 # IDyOM call:
 #   :stmo '(:escape :c :order-bound 3 :exclusion nil :update-exclusion nil)
 
-model <- ppidyom$new(
+model <- ppidyomModel$new(
   N                    = N,
   alphabet             = alphabet,
   stm_exclusion        = FALSE,
@@ -238,7 +238,7 @@ beginning-of-sequence positions during training.
 
 train_seq <- c("A","B","C","A","B","C","A","C","B")
 
-model <- ppidyom$new(
+model <- ppidyomModel$new(
   N               = N,
   alphabet        = alphabet,
   ltm_exclusion   = TRUE,
@@ -275,7 +275,7 @@ flags are required.
 #     :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil)
 #     :ltmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))
 
-model <- ppidyom$new(
+model <- ppidyomModel$new(
   N                    = N,
   alphabet             = alphabet,
   stm_exclusion        = TRUE,
@@ -314,36 +314,35 @@ result[data.table(index = seq_along(x), Event = x), on = .(index, Event)][
 
 ---
 
-## HumdrumR integration (planned)
+## HumdrumR integration (early / basic)
 
-ppidyom is designed to integrate with
+ppidyom now integrates with
 [HumdrumR](https://github.com/Computational-Cognitive-Musicology-Lab/humdrumR),
-the symbolic music analysis framework for R.  The planned workflow will allow
-you to pass a Humdrum score directly into ppidyom without any manual format
-conversion:
+the symbolic music analysis framework for R, via an S3 method on the generic
+`ppidyom()`. This is a first-pass implementation — the interface may still
+change.
 
 ```r
-# Planned API — not yet implemented
-# library(humdrumR)
-#
-# h <- readHumdrum("my_score.krn")
-#
-# # ppidyom will accept HumdrumR objects directly:
-# ic_results <- h |>
-#   select_viewpoint("cpitch") |>
-#   run_ppidyom(
-#     N               = 3L,
-#     model_type      = "both+",
-#     stm_lambda      = "C",
-#     ltm_lambda      = "C",
-#     b               = 7,
-#     ltm_start_token = FALSE,
-#     idyom_base      = TRUE
-#   )
+library(humdrumR)
+
+h <- readHumdrum("*.krn")
+
+# ppidyom() dispatches on the humdrumR object and evaluates its other
+# arguments as viewpoint expressions inside the corpus (like within()):
+h |> pitch() |> ppidyom(model_type = "both+")
 ```
 
-The current `run_ppidyom` function operates on plain R lists of character
-vectors (one per sequence).  The HumdrumR wrapper will handle the extraction
-of the chosen viewpoint (e.g. chromatic pitch, scale degree, interval) and
-convert the results back into a HumdrumR-compatible data object, enabling IC
-analysis as part of a broader corpus analysis pipeline.
+`ppidyom()` is a generic with two methods:
+
+- **`ppidyom.default(...)`** — takes one or more plain vectors (all the same
+  length) and returns an IC vector. This is the same computation `run_ppidyom`
+  performs, but organized around long-term/short-term *grouping* (e.g. by
+  `Piece`) rather than a list of pre-split sequences.
+- **`ppidyom.humdrumR(humdrumR, ...)`** — evaluates `...` as field expressions
+  inside the humdrumR object (via `within()`) and calls `ppidyom.default()`
+  on the result, attaching the IC values back onto the corpus as a new field.
+
+`run_ppidyom()` (used throughout this vignette) still operates on plain R
+lists of character vectors and remains the lower-level building block; the
+new `ppidyom()` generic is the higher-level, HumdrumR-aware entry point built
+on top of the same `ppidyomModel` class.

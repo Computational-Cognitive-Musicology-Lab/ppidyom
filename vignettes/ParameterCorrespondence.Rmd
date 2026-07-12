@@ -180,7 +180,7 @@ of the suffix tree) is lower, which affects the base prior.
 
 ```r
 # IDyOM-compatible LTM
-model <- ppidyom$new(
+model <- ppidyomModel$new(
   N               = 3L,
   alphabet        = c("A","B","C"),
   ltm_start_token = FALSE
