@@ -19,7 +19,8 @@ run_ppidyom <- function(
   model_type <- match.arg(model_type)
   ppm_type   <- match.arg(ppm_type)
 
-  if (is.null(alphabet)) {
+  alphabet_inferred <- is.null(alphabet)
+  if (alphabet_inferred) {
     alphabet <- unique(unlist(seq_list, use.names = FALSE))
   }
   model <- ppidyom$new(
@@ -40,15 +41,19 @@ run_ppidyom <- function(
     }
   }
 
-  results_list <- vector("list", length(seq_list))
+  n_seqs       <- length(seq_list)
+  results_list <- vector("list", n_seqs)
+  t0           <- proc.time()[["elapsed"]]
 
-  # For each test sequence, detrain itself, predict, and retrain itself
+  message(sprintf("run_ppidyom: %d sequences, N=%d, model=%s, ppm=%s, alphabet=%d%s",
+                  n_seqs, N, model_type, ppm_type,
+                  length(alphabet),
+                  if (alphabet_inferred) " (inferred)" else " (user-supplied)"))
+
   for(i in seq_along(seq_list)) {
     x <- seq_list[[i]]
-    # Leave-one-out option
-    if(has_ltm) {
-      model$detrain_sequence(x)
-    }
+    if(has_ltm) model$detrain_sequence(x)
+
     pred <- model$predict_sequence(
       x,
       model_type = model_type,
@@ -61,9 +66,12 @@ run_ppidyom <- function(
     pred[, seq_id := i]
     results_list[[i]] <- pred
 
-    if(has_ltm) {
-      model$train_sequence(x)
-    }
+    if(has_ltm) model$train_sequence(x)
+
+    elapsed <- proc.time()[["elapsed"]] - t0
+    eta     <- if (i < n_seqs) elapsed / i * (n_seqs - i) else 0
+    message(sprintf("  [%d/%d] %.1fs elapsed, %.1fs remaining",
+                    i, n_seqs, elapsed, eta))
   }
 
   results_list

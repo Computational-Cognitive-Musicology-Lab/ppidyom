@@ -25,7 +25,7 @@ compare_results <- function(a, b, by = c("index", "Event"), tolerance = 1.5e-8) 
 # Naive leave-one-out: retrain from scratch for each held-out sequence.
 # O(n^2) in corpus size — used as a correctness reference and scaling baseline.
 manual_ppidyom <- function(seq_list, N, alphabet, model_type, ppm_type,
-                            stm_lambda, ltm_lambda, b) {
+                            stm_lambda, ltm_lambda = "C", b = 1) {
   results <- vector("list", length(seq_list))
   for (i in seq_along(seq_list)) {
     model <- ppidyom$new(N = N, alphabet = alphabet)

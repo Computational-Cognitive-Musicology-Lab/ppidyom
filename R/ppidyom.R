@@ -219,7 +219,8 @@ ppidyom <- setRefClass(
           )
         else
           ppm_backoff(x, .self$N, .self$alphabet, stm_order_counts,
-                      escape_func = stm_lambda_func)
+                      escape_func = stm_lambda_func,
+                      exclusion = .self$stm_exclusion, idyom_base = idyom_base)
       }
 
       P_ltm <- NULL
@@ -232,7 +233,8 @@ ppidyom <- setRefClass(
           )
         else
           ppm_backoff(x, .self$N, .self$alphabet, ltm_order_counts,
-                      escape_func = ltm_lambda_func)
+                      escape_func = ltm_lambda_func,
+                      exclusion = .self$ltm_exclusion, idyom_base = idyom_base)
       }
 
       result_all_symbols <- if (model_type == "stm")

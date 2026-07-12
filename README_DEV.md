@@ -173,25 +173,26 @@ gets a three-way ppidyom ↔ ppm ↔ IDyOM comparison.
 | Model | Parameter combinations | Sequences |
 |---|---|---|
 | `stm` | escape ∈ {a,b,c,d,x} × stm_exclusion ∈ {0,1} × stm_update_exclusion ∈ {0,1} | x1, x2 |
-| `ltm` | escape ∈ {a,b,c,d,x} × ltm_exclusion ∈ {0,1} | x1, x2 |
-| `ltm+` | spot-check: escape=c, ltm_exclusion=1 | x1, x2 |
-| `both` | OFAT on stm/ltm escape and stm/ltm exclusion flags | x1, x2 |
-| `both+` | spot-check: escape=c, exclusion=1 | x1, x2 |
+| `ltm` | OFAT: escape × ltm_exclusion × ltm_update_exclusion (all combos) | x1, x2 |
+| `ltm+` | spot-check: exclusion, update_exclusion | x1, x2 |
+| `both` | OFAT on stm/ltm escape, exclusion, update_exclusion | x1, x2 |
+| `both+` | spot-check: exclusion | x1, x2 |
+| backoff (`mixtures=nil`) | stm/ltm/ltm+/both/both+ baselines; stm+exclusion variant | x1, x2 |
+| `b = 1` | both (baseline + excl=T) + both+ baseline | x1, x2 |
 
-Total: 32 IDyOM configurations × 2 sequences = 64 comparison tests.
+All LTM models are pretrained on two training sequences (the "multi" corpus).
+Total: 41 IDyOM configurations × 2 sequences = 82 comparison tests.
 IDyOM's AX escape is invoked as `:x` (not `:ax` — see §6 of `vignette("implementation-discrepancy")`).
+
+**Note:** The IDyOM `b` parameter is set via `(mvs:set-ltm-stm-bias N)` in the fixture generator.
 
 #### What is NOT covered
 
 | Gap | Notes |
 |---|---|
 | N ≠ 3 | fixture only uses order-bound=3 |
-| `ltm_update_exclusion = TRUE` | fixture holds `ltm_update_exclusion = 0` throughout |
-| `b ≠ 7` | fixture always uses IDyOM's default b=7 |
 | `idyom_base = FALSE` | always uses IDyOM-compatible base; ppm-compatible base not cross-checked for LTM |
-| Backoff mode | IDyOM supports `mixtures=nil`; not in fixture |
-| STM, `stm_exclusion = FALSE` vs ppm | three-way check only runs when `stm_exclusion = TRUE` (the only setting where all three agree on the base distribution) |
-| More than one training sequence | fixture trains on a single fixed sequence |
+| STM excl=OFF vs ppm | three-way check only when `stm_exclusion = TRUE` and `mixtures = TRUE` (only setting where all three agree) |
 
 ---
 
@@ -248,19 +249,23 @@ so `devtools::test()` remains safe to run without Docker.
 ### 4.4 Parameter grid
 * OFAT: one-factor-at-a-time
 
-The fixture covers **32 IDyOM runs × 2 sequences = 64 total runs**:
+All LTM models are pretrained on two training sequences.
+The fixture covers **41 IDyOM configurations × 2 sequences = 82 total runs**:
 
 | Model | Combos | What's varied |
 |-------|--------|---------------|
 | `stm`  | 8 | baseline + 4 escape methods + exclusion + update_exclusion + both |
-| `ltm`  | 8 | same OFAT pattern on the LTM side |
+| `ltm`  | 8 | OFAT: escape × exclusion × update_exclusion |
 | `ltm+` | 3 | spot-check of online updating |
 | `both` | 10 | OFAT on STM+LTM interpolation + key interactions |
 | `both+`| 3 | spot-check of online updating in both+ |
+| backoff | 6 | `mixtures=False` for stm/ltm/ltm+/both/both+ + stm excl=T |
+| b=1 | 3 | both (2 combos) + both+ with mixture exponent b=1 |
 
-To add more combinations, edit `generate_efficient_grid()` in
+To add more combinations, edit `generate_grid()` in
 `inst/validation/generate_idyom_reference.py` and re-run the Docker script.
-No R code changes are needed — the test file reads all configs directly from the CSV.
+The R test file reads all configs directly from the fixture CSV and requires
+no changes when new rows are added.
 
 ### 4.5 What the Dockerfile installs
 
