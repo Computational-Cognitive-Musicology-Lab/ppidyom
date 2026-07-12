@@ -56,7 +56,7 @@ library(data.table)
 #'   receive contrib mass from this order; only the denominator changes.
 #'
 #' @return data.table with columns: index, Event, P, IC, Entropy
-#' @export
+#' @keywords internal
 ppm_interpolated <- function(
     x, N, alphabet, order_counts,
     escape_func = escape_C,

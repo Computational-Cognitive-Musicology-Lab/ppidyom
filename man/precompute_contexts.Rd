@@ -17,3 +17,4 @@ List of length N+1, each element is a character vector of context IDs
 \description{
 Precompute context identifiers for all orders
 }
+\keyword{internal}

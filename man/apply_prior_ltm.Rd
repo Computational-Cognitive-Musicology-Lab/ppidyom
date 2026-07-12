@@ -28,3 +28,4 @@ whether a symbol was already "seen" in a context, which controls the
 ltm_update_exclusion early-stop logic.  Storing Ce = 0 entries as keys
 would cause false "already seen" hits and premature stopping.
 }
+\keyword{internal}

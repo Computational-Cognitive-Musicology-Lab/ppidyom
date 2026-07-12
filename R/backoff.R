@@ -8,7 +8,7 @@ library(data.table)
 #'   Signature: `function(t, t1)` returning `list(subtract, esc_numer)`.
 #'
 #' @return Data.table with columns: index, Event, prob_local, esc
-#' @export
+#' @keywords internal
 compute_local_probs <- function(dt, escape_func, normalize = FALSE) {
 
   escape_stats <- escape_func(dt$t, dt$t1)
@@ -86,7 +86,7 @@ compute_local_probs <- function(dt, escape_func, normalize = FALSE) {
 #'   FALSE = Harrison's ppm-compatible shrinking denominator.
 #'
 #' @return data.table with columns: index, Event, P, IC, Entropy
-#' @export
+#' @keywords internal
 ppm_backoff <- function(x, N, alphabet, order_counts, escape_func = escape_C,
                          exclusion = FALSE, idyom_base = FALSE) {
 

@@ -54,3 +54,4 @@ The backoff cascade (p_mass tracks unallocated probability):
   after loop:
     unseen symbols: P(s) = p_mass(s) / |alphabet|
 }
+\keyword{internal}
