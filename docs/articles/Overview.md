@@ -109,11 +109,13 @@ governs how the model behaves.
 ### Transparency and parameter correspondence
 
 Every algorithmic choice that differs between IDyOM and ppm is exposed
-as a named parameter. `vignette("implementation-discrepancy")` documents
-the six divergences, explains the information-theoretic motivation for
-each, and shows exactly which ppidyom flag controls which behaviour.
-`vignette("parameter-correspondence")` maps each ppidyom parameter to
-its IDyOM and ppm equivalents.
+as a named parameter.
+[`vignette("implementation-discrepancy")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md)
+documents the six divergences, explains the information-theoretic
+motivation for each, and shows exactly which ppidyom flag controls which
+behaviour.
+[`vignette("parameter-correspondence")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.md)
+maps each ppidyom parameter to its IDyOM and ppm equivalents.
 
 </div>
 
@@ -149,7 +151,8 @@ an S3 method on the new `ppidyom()` generic. It accepts Humdrum-format
 scores directly and returns IC results attached to the HumdrumR data
 object, enabling PPM-based analysis as part of a broader corpus analysis
 pipeline. This is a first-pass implementation; see
-`vignette("example-calls")` for a usage example.
+[`vignette("example-calls")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ExampleCalls.html#humdrumr-integration-early-basic)
+for a usage example.
 
 ------------------------------------------------------------------------
 
@@ -217,9 +220,10 @@ result[obs, on = .(index, Event)][, .(index, Event, IC, Entropy)]
 </div>
 
 For calls that replicate IDyOM or the ppm package exactly, see
-`vignette("example-calls")`. For a full description of how the
-implementations differ and how to configure ppidyom, see
-`vignette("implementation-discrepancy")`.
+[`vignette("example-calls")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ExampleCalls.md).
+For a full description of how the implementations differ and how to
+configure ppidyom, see
+[`vignette("implementation-discrepancy")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md).
 
 </div>
 

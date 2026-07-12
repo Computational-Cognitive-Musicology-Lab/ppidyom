@@ -72,26 +72,26 @@ timestep-aligned tables compatible with PPM probability computation.</p>
 
 
 <dt id="arg-order-counts">order_counts<a class="anchor" aria-label="anchor" href="#arg-order-counts"></a></dt>
-<dd><p>List of LTM count tables for orders `0..N`.
-Each element must be a `data.table` containing:
-`context_id`, `Event`, `Ce`, `C`, `t`, `t1`.</p></dd>
+<dd><p>List of LTM count tables for orders <code>0..N</code>.
+Each element must be a <code>data.table</code> containing:
+<code>context_id</code>, <code>Event</code>, <code>Ce</code>, <code>C</code>, <code>t</code>, <code>t1</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list of length `N + 1`.
-Each element is a `data.table` with columns:
-`index`, `context_id`, `Event`, `Ce`, `C`, `t`, `t1`.</p>
-<p>The tables contain one row per `(timestep, event)` pair and can be
+    <p>A list of length <code>N + 1</code>.
+Each element is a <code>data.table</code> with columns:
+<code>index</code>, <code>context_id</code>, <code>Event</code>, <code>Ce</code>, <code>C</code>, <code>t</code>, <code>t1</code>.</p>
+<p>The tables contain one row per <code>(timestep, event)</code> pair and can be
 directly passed to probability computation routines.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>LTM count tables contain counts aggregated over a training corpus
-(typically with `index = -1`). For prediction on a new sequence `x`,
+(typically with <code>index = -1</code>). For prediction on a new sequence <code>x</code>,
 we must derive the counts associated with each timestep's context.</p>
 <p>The result matches the structure expected by PPM implementations
-(`ppm_backoff`, `ppm_interpolated`, etc.).</p>
+(<code>ppm_backoff</code>, <code>ppm_interpolated</code>, etc.).</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

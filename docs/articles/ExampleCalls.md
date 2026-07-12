@@ -20,8 +20,9 @@ that listener has:
 This vignette shows the exact calls needed to replicate Harrison’s
 **ppm** package and IDyOM (Common Lisp). The two differ in several
 subtle ways that are explained in
-`vignette("implementation-discrepancy")`; the full parameter map is in
-`vignette("parameter-correspondence")`.
+[`vignette("implementation-discrepancy")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md);
+the full parameter map is in
+[`vignette("parameter-correspondence")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.md).
 
 ------------------------------------------------------------------------
 

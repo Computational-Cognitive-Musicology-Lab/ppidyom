@@ -23,8 +23,8 @@ These tools .
 <div class="section level2">
 
 -   `ppidyom()` : Calculate information dynamics using PPIDyOM
--   `ppidyomModel-class` `ppidyomModel` : Initialize a new PPM counter
-    Train on a single sequence (incremental LTM update)
+-   `ppidyomModel` : Initialize a new PPM counter
+-   `run_ppidyom()` : Run PPM over a corpus of sequences
 -   `count_tables()` : Compute Count Tables for STM and LTM with
     Optional Prior
 -   `lag_matrix()` : Generate Lagged N-gram Matrix

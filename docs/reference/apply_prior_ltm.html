@@ -81,7 +81,7 @@ accumulating counts on top of them.</p>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Only symbols with Ce &gt; 0 are stored as environment keys.  This is critical:
-`update_env_and_build_stm_tables` uses `sym <!-- %in% names(env[[ctx]])` to test -->
+<code>update_env_and_build_stm_tables</code> uses <code>sym %in% names(env[[ctx]])</code> to test
 whether a symbol was already "seen" in a context, which controls the
 ltm_update_exclusion early-stop logic.  Storing Ce = 0 entries as keys
 would cause false "already seen" hits and premature stopping.</p>

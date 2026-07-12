@@ -6,6 +6,8 @@ library(data.table)
 #' @param x Character vector of symbols/events.
 #' @param N Maximum N-gram order.
 #' @return A `data.table` with columns LagN..Lag0 and index.
+#' @examples
+#' lag_matrix(c("A", "B", "A", "C", "A"), N = 2)
 #' @export
 lag_matrix <- function(x, N = 3) {
   dt <- data.table::as.data.table(lapply(N:0, function(n) data.table::shift(x, n)))
@@ -238,7 +240,10 @@ update_env_and_build_stm_tables <- function(
 #' @param x Character vector of symbols/events.
 #' @param N Maximum N-gram order.
 #' @param alphabet Character vector of all possible symbols.
-#' @param model_type Character: one of `"stm"`, `"ltm"`, `"both"`.
+#' @param model_type Character:
+#'   - `"stm"` — counts per timestep within `x`.
+#'   - `"ltm"` — counts per context, accumulated across calls via `prior`.
+#'   - `"both"` — compute both.
 #' @param prior Optional: previously accumulated LTM tables (list of length N+1).
 #'   Used to initialize/accumulate counts for LTM or `both` type.
 #' @param stm_update_exclusion Logical; apply update exclusion in STM (default TRUE).
@@ -250,6 +255,13 @@ update_env_and_build_stm_tables <- function(
 #' @return A list with elements depending on `model_type`:
 #'   - `$stm`: list of length N+1, each a data.table of counts per timestep (if `model_type` includes `"stm"`).
 #'   - `$ltm`: list of length N+1, each a data.table of counts per context (if `model_type` includes `"ltm"`).
+#' @examples
+#' x <- c("A", "B", "A", "C", "A")
+#' counts <- count_tables(x, N = 1, alphabet = c("A", "B", "C"), model_type = "both")
+#' # STM: order-1 counts (context = previous symbol) at every timestep
+#' counts$stm[[2]]
+#' # LTM: order-1 counts per context, accumulated across all of x
+#' counts$ltm[[2]]
 #' @export
 count_tables <- function(
   x, N, alphabet,
@@ -419,10 +431,10 @@ is_stm <- function(order_counts) {
 
 #' Build Per-Timestep LTM Count Tables with Online Update
 #'
-#' For ltm+/both+ models: records the LTM state BEFORE observing x[t] at each
-#' timestep, then updates the LTM with x[t].  This matches IDyOM's online-update
+#' For ltm+/both+ models: records the LTM state BEFORE observing `x[t]` at each
+#' timestep, then updates the LTM with `x[t]`.  This matches IDyOM's online-update
 #' semantics, where prediction at position t uses only the training corpus plus
-#' x[1:t-1], not x[t:T].
+#' `x[1:t-1]`, not `x[t:T]`.
 #'
 #' @param x Character vector of events (the prediction sequence).
 #' @param N Maximum n-gram order.

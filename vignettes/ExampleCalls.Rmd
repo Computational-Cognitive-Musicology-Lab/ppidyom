@@ -28,8 +28,8 @@ has:
 
 This vignette shows the exact calls needed to replicate Harrison's **ppm**
 package and IDyOM (Common Lisp).  The two differ in several subtle ways that
-are explained in `vignette("implementation-discrepancy")`; the full parameter
-map is in `vignette("parameter-correspondence")`.
+are explained in [`vignette("implementation-discrepancy")`](ImplementationDiscrepancy.html);
+the full parameter map is in [`vignette("parameter-correspondence")`](ParameterCorrespondence.html).
 
 ---
 

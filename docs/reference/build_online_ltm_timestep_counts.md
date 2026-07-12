@@ -4,10 +4,10 @@
 
 <div class="ref-description section level2">
 
-For ltm+/both+ models: records the LTM state BEFORE observing x\[t\] at
-each timestep, then updates the LTM with x\[t\]. This matches IDyOM's
+For ltm+/both+ models: records the LTM state BEFORE observing `x[t]` at
+each timestep, then updates the LTM with `x[t]`. This matches IDyOM's
 online-update semantics, where prediction at position t uses only the
-training corpus plus x\[1:t-1\], not x\[t:T\].
+training corpus plus `x[1:t-1]`, not `x[t:T]`.
 
 </div>
 
