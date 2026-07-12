@@ -1,4 +1,8 @@
+<div id="main" class="col-md-9" role="main">
+
 # Implementation Differences: ppm, IDyOM, and ppidyom
+
+<div class="section level2">
 
 ## Overview
 
@@ -20,7 +24,13 @@ parameter.
 
 ------------------------------------------------------------------------
 
+</div>
+
+<div class="section level2">
+
 ## 1. Base prior — LTM
+
+<div class="section level3">
 
 ### The concept
 
@@ -36,6 +46,10 @@ With exclusion on, symbols already assigned probability at higher orders
 are conceptually covered. The order −1 prior only needs to distribute
 over the *remaining* symbols — and how many remain depends on whether
 you look at the **training corpus** or the **current test sequence**.
+
+</div>
+
+<div class="section level3">
 
 ### The implementations’ choices
 
@@ -54,6 +68,8 @@ natural STM-style answer. When working with LTM or both-type models, set
 
 The relevant logic in `R/interpolation.R`:
 
+<div id="cb1" class="sourceCode">
+
 ``` r
 # t_root comes from the order-0 count table:
 # for STM: counts observed in the test sequence so far
@@ -68,7 +84,11 @@ else
   1.0 / (length(alphabet) + 1L - length(seen_symbols))     # ppm-compatible
 ```
 
+</div>
+
 IDyOM source (`ppm-star/ppm-star.lisp`, `order-minus1-probability`):
+
+<div id="cb2" class="sourceCode">
 
 ``` lisp
 (defmethod order-minus1-probability ((m ppm) update-exclusion)
@@ -81,9 +101,19 @@ IDyOM source (`ppm-star/ppm-star.lisp`, `order-minus1-probability`):
             0.0)))
 ```
 
+</div>
+
 ------------------------------------------------------------------------
 
+</div>
+
+</div>
+
+<div class="section level2">
+
 ## 2. Base prior — STM, exclusion OFF
+
+<div class="section level3">
 
 ### The concept
 
@@ -97,6 +127,10 @@ This is a design choice. IDyOM uses the flat uniform; ppm uses a
 shrinking denominator. The difference is only visible before all
 alphabet symbols have appeared — after that, both converge.
 
+</div>
+
+<div class="section level3">
+
 ### The implementations’ choices
 
 | exclusion | IDyOM prior                      | ppm prior                          | ppidyom default            |
@@ -108,12 +142,14 @@ Set `idyom_base = TRUE` in `predict_sequence()` to use IDyOM’s flat
 uniform when `exclusion = FALSE`. When `exclusion = TRUE`, all three
 implementations already agree.
 
+<div id="cb3" class="sourceCode">
+
 ``` r
 x        <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
 alphabet <- c("A", "B", "C")
 N        <- 3L
 
-model <- ppidyom$new(N = N, alphabet = alphabet,
+model <- ppidyomModel$new(N = N, alphabet = alphabet,
                      stm_exclusion = FALSE, stm_update_exclusion = FALSE)
 
 ic_ppm_compat <- model$predict_sequence(
@@ -133,9 +169,19 @@ data.frame(
 )
 ```
 
+</div>
+
 ------------------------------------------------------------------------
 
+</div>
+
+</div>
+
+<div class="section level2">
+
 ## 3. LTM beginning-of-sequence positions (`ltm_start_token`)
+
+<div class="section level3">
 
 ### The concept
 
@@ -148,6 +194,10 @@ Piece beginnings are a structurally special context: they often start on
 the tonic, the first beat, with particular melodic shapes. Whether to
 treat this as a generalisable observation (count it) or as too specific
 to generalise (skip it) is a design choice.
+
+</div>
+
+<div class="section level3">
 
 ### The implementations’ choices
 
@@ -164,18 +214,30 @@ prior — will be lower than with `TRUE`.
 | `TRUE` (default)          | all positions, including those with undefined context | Harrison’s ppm approach |
 | `FALSE`                   | positions with NA lags are skipped                    | **IDyOM**               |
 
+<div id="cb4" class="sourceCode">
+
 ``` r
 # IDyOM-compatible LTM (used in all IDyOM comparison tests)
-model <- ppidyom$new(
+model <- ppidyomModel$new(
   N               = 3L,
   alphabet        = c("A","B","C"),
   ltm_start_token = FALSE
 )
 ```
 
+</div>
+
 ------------------------------------------------------------------------
 
+</div>
+
+</div>
+
+<div class="section level2">
+
 ## 4. STM+LTM mixture normalisation (`sums-to-one-p`)
+
+<div class="section level3">
 
 ### The concept
 
@@ -189,11 +251,17 @@ and 1.0, treat it as already normalised and skip the division. Without
 this shortcut, division by a number like 0.99999… introduces small but
 systematic differences in the output.
 
+</div>
+
+<div class="section level3">
+
 ### The implementations’ choices
 
 ppm has no mixture support, so this does not apply.
 
 IDyOM source (`ppm-star.lisp`, `normalise-distribution`):
+
+<div id="cb5" class="sourceCode">
 
 ``` lisp
 (defun sums-to-one-p (distribution)
@@ -208,7 +276,11 @@ IDyOM source (`ppm-star.lisp`, `normalise-distribution`):
                 distribution))))
 ```
 
+</div>
+
 ppidyom’s `combine_models` replicates this exactly:
+
+<div id="cb6" class="sourceCode">
 
 ``` r
 # R/ppidyom.R — combine_models
@@ -218,11 +290,21 @@ dt[, P     := if (Z[1] > 0.999 && Z[1] < 1.0) P_raw else P_raw / Z,
     by = index]
 ```
 
+</div>
+
 ppidyom matches IDyOM by default for this; no flag is required.
 
 ------------------------------------------------------------------------
 
+</div>
+
+</div>
+
+<div class="section level2">
+
 ## 5. Mixture weight exponent *b*
+
+<div class="section level3">
 
 ### The concept
 
@@ -231,11 +313,15 @@ distribution is more confident — lower entropy means more certain
 predictions. The exponent *b* controls how sharply this
 confidence-weighting operates.
 
-$$w_{i} \propto \left( \frac{H_{i}}{H_{\max}} \right)^{-b},\quad H_{\max} = \log_{2}|alphabet|$$
+$$w\_{i} \\propto \\left( \\frac{H\_{i}}{H\_{\\max}} \\right)^{- b},\\quad H\_{\\max} = \\log\_{2}\|alphabet\|$$
 
 With b = 1, the two models contribute roughly in proportion to their
 confidence. With b = 7 (IDyOM’s default, Pearce 2005), the lower-entropy
 model almost completely dominates — a sharp, near-winner-take-all blend.
+
+</div>
+
+<div class="section level3">
 
 ### The implementations’ choices
 
@@ -244,16 +330,28 @@ ppm has no mixture support, so this does not apply.
 ppidyom defaults to `b = 1`; pass `b = 7` to match IDyOM’s default
 behaviour:
 
+<div id="cb7" class="sourceCode">
+
 ``` r
 model$predict_sequence(x, model_type = "both", b = 7, ...)
 ```
+
+</div>
 
 The `test-idyom-comparison.R` suite always passes `b = 7` when testing
 `both`/`both+` configurations.
 
 ------------------------------------------------------------------------
 
+</div>
+
+</div>
+
+<div class="section level2">
+
 ## 6. Escape method AX — IDyOM bug; call with `:x`
+
+<div class="section level3">
 
 ### The concept
 
@@ -266,6 +364,8 @@ mass should escape to shorter contexts.
 Harrison’s **ppm** and ppidyom implement this directly: escape =
 (t₁ + 1) / (C + t₁ + 1) where t₁ = count of singletons.
 
+<div id="cb8" class="sourceCode">
+
 ``` r
 # R/escape.R — escape_AX
 esc_numer <- t1 + 1L
@@ -273,11 +373,19 @@ weight    <- C / (C + esc_numer)
 escape    <- esc_numer / (C + esc_numer)
 ```
 
+</div>
+
+</div>
+
+<div class="section level3">
+
 ### The IDyOM bug
 
 IDyOM stores AX internally under the keyword `:x`. The
 `set-ppm-parameters` case expression and the singleton-counting branch
 in `type-count` are both keyed on `:x`:
+
+<div id="cb9" class="sourceCode">
 
 ``` lisp
 ;; ppm-star.lisp — set-ppm-parameters
@@ -297,9 +405,15 @@ in `type-count` are both keyed on `:x`:
       count))   ; → 1 + t₁, but only reached when escape = :x, not :ax
 ```
 
+</div>
+
 When IDyOM is called with `:escape :ax` (the documented keyword), the
 singleton branch never executes — `:ax` silently produces the same
 values as `:c`. **The correct call is `:x`.**
+
+</div>
+
+<div class="section level3">
 
 ### How ppidyom handles this
 
@@ -309,6 +423,12 @@ so the AX singleton branch actually fires. AX is fully covered in both
 the IDyOM and ppm comparison suites.
 
 ------------------------------------------------------------------------
+
+</div>
+
+</div>
+
+<div class="section level2">
 
 ## Summary
 
@@ -325,3 +445,7 @@ ppidyom’s default behaviour and required flags:
 
 For working code examples see `vignette("example-calls")`. For the full
 parameter map see `vignette("parameter-correspondence")`.
+
+</div>
+
+</div>

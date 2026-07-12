@@ -1,3 +1,5 @@
+<div id="main" class="col-md-9" role="main">
+
 # Parameter Correspondence: ppidyom, ppm, and IDyOM
 
 This vignette maps every tunable parameter across the three
@@ -11,20 +13,22 @@ For the algorithmic discrepancies that go beyond parameter naming see
 
 ------------------------------------------------------------------------
 
+<div class="section level2">
+
 ## Model type
 
 **What it represents:** PPM models a listener who hears a musical
 sequence event by event and forms expectations about what comes next.
 The model type determines what *memory* that listener draws on:
 
-- A listener recalling only the current piece — counting how often each
-  pattern has occurred so far in this sequence → **STM** (short-term
-  model)
-- A listener drawing entirely on accumulated musical experience, encoded
-  from a training corpus before the current piece began → **LTM**
-  (long-term model)
-- A listener using both simultaneously, blending them according to how
-  confident each is → **both** / **both+**
+-   A listener recalling only the current piece — counting how often
+    each pattern has occurred so far in this sequence → **STM**
+    (short-term model)
+-   A listener drawing entirely on accumulated musical experience,
+    encoded from a training corpus before the current piece began →
+    **LTM** (long-term model)
+-   A listener using both simultaneously, blending them according to how
+    confident each is → **both** / **both+**
 
 The LTM is built by calling `train_sequence()` on a corpus before
 prediction begins. In `both`/`both+` models the STM and LTM
@@ -42,6 +46,10 @@ distributions are combined using an entropy-weighted geometric mean (see
 ppm has no LTM or mixture support.
 
 ------------------------------------------------------------------------
+
+</div>
+
+<div class="section level2">
 
 ## Escape method
 
@@ -81,6 +89,10 @@ exact formulas.
 
 ------------------------------------------------------------------------
 
+</div>
+
+<div class="section level2">
+
 ## Order bound
 
 **What it controls:** The length of the context window — how many
@@ -108,6 +120,10 @@ the longest reliable context without a fixed bound. ppidyom and ppm
 always require an explicit integer bound.
 
 ------------------------------------------------------------------------
+
+</div>
+
+<div class="section level2">
 
 ## Exclusion
 
@@ -138,6 +154,10 @@ each level.
 
 ------------------------------------------------------------------------
 
+</div>
+
+<div class="section level2">
+
 ## Update exclusion
 
 **What it controls:** Should the model update its counts with the
@@ -159,6 +179,10 @@ of circular self-prediction.
 
 ------------------------------------------------------------------------
 
+</div>
+
+<div class="section level2">
+
 ## LTM beginning-of-sequence token (`ltm_start_token`)
 
 **What it controls:** When building the long-term model from a training
@@ -179,31 +203,39 @@ the base prior.
 | `TRUE` (default)          | all positions counted, including those with no preceding context | Harrison’s ppm |
 | `FALSE`                   | positions with undefined context (NA lags) are skipped           | **IDyOM**      |
 
+<div id="cb1" class="sourceCode">
+
 ``` r
 # IDyOM-compatible LTM
-model <- ppidyom$new(
+model <- ppidyomModel$new(
   N               = 3L,
   alphabet        = c("A","B","C"),
   ltm_start_token = FALSE
 )
 ```
 
+</div>
+
 ppm has no LTM and therefore no equivalent parameter.
 
 ------------------------------------------------------------------------
+
+</div>
+
+<div class="section level2">
 
 ## Probability type
 
 **What it controls:** When a given context order has no observations,
 there are two strategies for assigning probability to the current event:
 
-- **Interpolation** blends predictions from *all* orders simultaneously.
-  Every order contributes — high orders via their counts, low orders via
-  the mass that escapes from above. The result is a smooth distribution
-  even for unseen contexts.
-- **Backoff** finds the highest order that *does* have observations and
-  uses only that, renormalising its distribution to sum to 1. All lower
-  orders are ignored unless every higher order has zero counts.
+-   **Interpolation** blends predictions from *all* orders
+    simultaneously. Every order contributes — high orders via their
+    counts, low orders via the mass that escapes from above. The result
+    is a smooth distribution even for unseen contexts.
+-   **Backoff** finds the highest order that *does* have observations
+    and uses only that, renormalising its distribution to sum to 1. All
+    lower orders are ignored unless every higher order has zero counts.
 
 Interpolation (the default in ppm and IDyOM) generally gives smoother IC
 profiles; backoff is more “winner-takes-all.”
@@ -214,6 +246,10 @@ profiles; backoff is more “winner-takes-all.”
 | `"backoff"`        | —                               | `mixtures = nil` (FALSE)       |
 
 ------------------------------------------------------------------------
+
+</div>
+
+<div class="section level2">
 
 ## Base distribution (order −1)
 
@@ -247,6 +283,10 @@ Full explanation with IDyOM source:
 
 ------------------------------------------------------------------------
 
+</div>
+
+<div class="section level2">
+
 ## Mixture weight exponent *b* (`both` / `both+` models)
 
 **What it controls:** When blending STM and LTM predictions, how
@@ -259,7 +299,7 @@ proportionally to their confidence. With b = 7 (IDyOM’s default), the
 lower-entropy model almost completely takes over; the blend becomes
 nearly winner-take-all.
 
-$$w_{i} \propto \left( \frac{H_{i}}{H_{\max}} \right)^{-b},\quad H_{\max} = \log_{2}|alphabet|$$
+$$w\_{i} \\propto \\left( \\frac{H\_{i}}{H\_{\\max}} \\right)^{- b},\\quad H\_{\\max} = \\log\_{2}\|alphabet\|$$
 
 | ppidyom `b`           | IDyOM default                   | Effect                                                  |
 |-----------------------|---------------------------------|---------------------------------------------------------|
@@ -274,6 +314,10 @@ ppm does not support mixture models.
 
 ------------------------------------------------------------------------
 
+</div>
+
+<div class="section level2">
+
 ## Quick-reference matrix
 
 | Concept                  | ppidyom                                         | ppm (`new_ppm_simple`)   | IDyOM (`:stmo` / `:ltmo`)      |
@@ -287,3 +331,7 @@ ppm does not support mixture models.
 | interpolation vs backoff | `ppm_type`                                      | always interpolation     | `mixtures` slot                |
 | mixture exponent         | `b` (default 1)                                 | —                        | implicit b = 7                 |
 | shortest deterministic   | — (not implemented)                             | `shortest_deterministic` | auto when `order-bound = nil`  |
+
+</div>
+
+</div>

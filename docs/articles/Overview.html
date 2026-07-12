@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Overview: Motivation, Design, and Applications • ppidyom</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
 <meta property="og:title" content="Overview: Motivation, Design, and Applications">
@@ -32,13 +32,13 @@
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="../news/index.html">News</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item dropdown">
+<li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Basics</h6></li>
-    <li><a class="dropdown-item" href="../articles/example-calls.html">Example Calls: Matching ppm and IDyOM</a></li>
-    <li><a class="dropdown-item" href="../articles/overview.html">Overview: Motivation, Design, and Applications</a></li>
+    <li><a class="dropdown-item" href="../articles/Overview.html">Overview: Motivation, Design, and Applications</a></li>
+    <li><a class="dropdown-item" href="../articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>R/Background</h6></li>
     <li><a class="dropdown-item" href="../articles/ImplementationDiscrepancy.html">Implementation Differences: ppm, IDyOM, and ppidyom</a></li>
@@ -67,7 +67,7 @@
             
       
 
-      <div class="d-none name"><code>overview.Rmd</code></div>
+      <div class="d-none name"><code>Overview.Rmd</code></div>
     </div>
 
     
@@ -227,13 +227,16 @@ processes sequences with vectorised operations. This makes it
 substantially faster than the IDyOM CLI on large corpora.</p>
 </div>
 <div class="section level3">
-<h3 id="humdrumr-integration-in-development">HumdrumR integration (in development)<a class="anchor" aria-label="anchor" href="#humdrumr-integration-in-development"></a>
+<h3 id="humdrumr-integration-early-basic">HumdrumR integration (early / basic)<a class="anchor" aria-label="anchor" href="#humdrumr-integration-early-basic"></a>
 </h3>
-<p>ppidyom is designed to integrate with <a href="https://github.com/Computational-Cognitive-Musicology-Lab/humdrumR" class="external-link">HumdrumR</a>,
-the symbolic music analysis framework for R. The planned integration
-will allow ppidyom to accept Humdrum-format scores directly and return
-IC results as HumdrumR data objects, enabling PPM-based analysis as part
-of a broader corpus analysis pipeline.</p>
+<p>ppidyom now integrates with <a href="https://github.com/Computational-Cognitive-Musicology-Lab/humdrumR" class="external-link">HumdrumR</a>,
+the symbolic music analysis framework for R, via
+<code>ppidyom.humdrumR()</code> — an S3 method on the new
+<code><a href="../reference/ppidyom.html">ppidyom()</a></code> generic. It accepts Humdrum-format scores
+directly and returns IC results attached to the HumdrumR data object,
+enabling PPM-based analysis as part of a broader corpus analysis
+pipeline. This is a first-pass implementation; see
+<code>vignette("example-calls")</code> for a usage example.</p>
 <hr>
 </div>
 </div>
@@ -279,7 +282,7 @@ replication studies and cross-implementation comparison.</p>
 <span><span class="va">N</span>        <span class="op">&lt;-</span> <span class="fl">3L</span>   <span class="co"># order bound: consider up to 3-event contexts</span></span>
 <span></span>
 <span><span class="co"># STM model with default IDyOM-compatible settings</span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom-class.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span>N <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, stm_exclusion <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyomModel-class.html">ppidyomModel</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span>N <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, stm_exclusion <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">predict_sequence</span><span class="op">(</span></span>
 <span>  <span class="va">melody</span>,</span>
@@ -293,7 +296,7 @@ replication studies and cross-implementation comparison.</p>
 <span><span class="va">obs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span>index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">melody</span><span class="op">)</span>, Event <span class="op">=</span> <span class="va">melody</span><span class="op">)</span></span>
 <span><span class="va">result</span><span class="op">[</span><span class="va">obs</span>, on <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span>, <span class="va">IC</span>, <span class="va">Entropy</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
 <p>For calls that replicate IDyOM or the ppm package exactly, see
-<code><a href="../articles/example-calls.html">vignette("example-calls")</a></code>. For a full description of how
+<code>vignette("example-calls")</code>. For a full description of how
 the implementations differ and how to configure ppidyom, see
 <code>vignette("implementation-discrepancy")</code>.</p>
 </div>

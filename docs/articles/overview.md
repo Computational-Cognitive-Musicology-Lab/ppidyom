@@ -1,4 +1,8 @@
+<div id="main" class="col-md-9" role="main">
+
 # Overview: Motivation, Design, and Applications
+
+<div class="section level2">
 
 ## Why model musical expectation?
 
@@ -14,10 +18,10 @@ anticipated, IC is low. Averaged over a sequence, this gives **entropy**
 — a measure of how predictable a passage is overall. These quantities
 have been linked empirically to:
 
-- melodic expectancy ratings (Pearce et al., 2010; Pearce, 2018)
-- perceived tension and resolution (Farbood, 2012)
-- neural responses to music (EEG, fMRI)
-- cross-cultural differences in tonal stability
+-   melodic expectancy ratings (Pearce et al., 2010; Pearce, 2018)
+-   perceived tension and resolution (Farbood, 2012)
+-   neural responses to music (EEG, fMRI)
+-   cross-cultural differences in tonal stability
 
 **PPM** (Prediction by Partial Matching) is the statistical model
 underlying most of this research. It processes a musical sequence event
@@ -27,6 +31,10 @@ is a per-event IC trajectory that can be compared against listener data,
 neural recordings, or other models.
 
 ------------------------------------------------------------------------
+
+</div>
+
+<div class="section level2">
 
 ## How PPM works
 
@@ -39,19 +47,23 @@ prior that covers any event not seen at all.
 
 Two kinds of memory can be involved:
 
-- **Short-term memory (STM)**: counts built from the current sequence
-  only. Predictions sharpen as patterns repeat within a single piece.
-- **Long-term memory (LTM)**: counts pre-built from a training corpus.
-  The model brings prior musical knowledge to each new sequence.
-- **Both / both+**: the model blends LTM knowledge with growing STM
-  counts, weighting each source by how confident it currently is (lower
-  entropy = higher weight).
+-   **Short-term memory (STM)**: counts built from the current sequence
+    only. Predictions sharpen as patterns repeat within a single piece.
+-   **Long-term memory (LTM)**: counts pre-built from a training corpus.
+    The model brings prior musical knowledge to each new sequence.
+-   **Both / both+**: the model blends LTM knowledge with growing STM
+    counts, weighting each source by how confident it currently is
+    (lower entropy = higher weight).
 
 The escape fraction at each order is controlled by the **escape method**
 (A, B, C, D, or AX). Different methods trade off between relying on the
 current context and falling back quickly to shorter histories.
 
 ------------------------------------------------------------------------
+
+</div>
+
+<div class="section level2">
 
 ## Existing implementations and their gaps
 
@@ -82,11 +94,17 @@ This makes it difficult to:
 
 ------------------------------------------------------------------------
 
+</div>
+
+<div class="section level2">
+
 ## What ppidyom offers
 
 ppidyom is a new R implementation of PPM covering all four memory
 configurations (STM, LTM, both, both+) and exposing every parameter that
 governs how the model behaves.
+
+<div class="section level3">
 
 ### Transparency and parameter correspondence
 
@@ -97,6 +115,10 @@ each, and shows exactly which ppidyom flag controls which behaviour.
 `vignette("parameter-correspondence")` maps each ppidyom parameter to
 its IDyOM and ppm equivalents.
 
+</div>
+
+<div class="section level3">
+
 ### Benchmarking
 
 ppidyom is validated against both IDyOM (Common Lisp) and ppm (R) using
@@ -104,37 +126,53 @@ a pre-generated reference fixture. Over 240 tests confirm that ppidyom
 produces numerically identical IC values when configured to match either
 implementation.
 
+</div>
+
+<div class="section level3">
+
 ### Speed
 
 ppidyom builds count tables with `data.table` and processes sequences
 with vectorised operations. This makes it substantially faster than the
 IDyOM CLI on large corpora.
 
-### HumdrumR integration (in development)
+</div>
 
-ppidyom is designed to integrate with
+<div class="section level3">
+
+### HumdrumR integration (early / basic)
+
+ppidyom now integrates with
 [HumdrumR](https://github.com/Computational-Cognitive-Musicology-Lab/humdrumR),
-the symbolic music analysis framework for R. The planned integration
-will allow ppidyom to accept Humdrum-format scores directly and return
-IC results as HumdrumR data objects, enabling PPM-based analysis as part
-of a broader corpus analysis pipeline.
+the symbolic music analysis framework for R, via `ppidyom.humdrumR()` —
+an S3 method on the new `ppidyom()` generic. It accepts Humdrum-format
+scores directly and returns IC results attached to the HumdrumR data
+object, enabling PPM-based analysis as part of a broader corpus analysis
+pipeline. This is a first-pass implementation; see
+`vignette("example-calls")` for a usage example.
 
 ------------------------------------------------------------------------
+
+</div>
+
+</div>
+
+<div class="section level2">
 
 ## Applications
 
 PPM-based IC analysis has been applied to a wide range of questions:
 
-- **Melodic expectancy** — does high IC predict moments listeners rate
-  as surprising? (Pearce et al., 2010)
-- **Tension and resolution** — do IC peaks correlate with felt tension?
-  (Farbood, 2012)
-- **Cross-cultural comparison** — do listeners from different musical
-  backgrounds assign different IC to the same passage?
-- **Computational stylistics** — does IC profile distinguish composers
-  or historical periods?
-- **Neuroimaging** — does BOLD signal or EEG amplitude track per-note
-  IC?
+-   **Melodic expectancy** — does high IC predict moments listeners rate
+    as surprising? (Pearce et al., 2010)
+-   **Tension and resolution** — do IC peaks correlate with felt
+    tension? (Farbood, 2012)
+-   **Cross-cultural comparison** — do listeners from different musical
+    backgrounds assign different IC to the same passage?
+-   **Computational stylistics** — does IC profile distinguish composers
+    or historical periods?
+-   **Neuroimaging** — does BOLD signal or EEG amplitude track per-note
+    IC?
 
 ppidyom’s full LTM support and configurable parameters make it suitable
 for any of these use cases. The ability to replicate both IDyOM and ppm
@@ -143,7 +181,13 @@ studies and cross-implementation comparison.
 
 ------------------------------------------------------------------------
 
+</div>
+
+<div class="section level2">
+
 ## Quick start
+
+<div id="cb1" class="sourceCode">
 
 ``` r
 library(ppidyom)
@@ -155,7 +199,7 @@ alphabet <- c("A", "B", "C")
 N        <- 3L   # order bound: consider up to 3-event contexts
 
 # STM model with default IDyOM-compatible settings
-model <- ppidyom$new(N = N, alphabet = alphabet, stm_exclusion = TRUE)
+model <- ppidyomModel$new(N = N, alphabet = alphabet, stm_exclusion = TRUE)
 
 result <- model$predict_sequence(
   melody,
@@ -170,7 +214,13 @@ obs <- data.table(index = seq_along(melody), Event = melody)
 result[obs, on = .(index, Event)][, .(index, Event, IC, Entropy)]
 ```
 
+</div>
+
 For calls that replicate IDyOM or the ppm package exactly, see
-[`vignette("example-calls")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/example-calls.md).
-For a full description of how the implementations differ and how to
-configure ppidyom, see `vignette("implementation-discrepancy")`.
+`vignette("example-calls")`. For a full description of how the
+implementations differ and how to configure ppidyom, see
+`vignette("implementation-discrepancy")`.
+
+</div>
+
+</div>

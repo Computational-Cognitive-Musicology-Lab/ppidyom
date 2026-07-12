@@ -1,11 +1,21 @@
+<div id="main" class="col-md-9" role="main">
+
 # Compute PPM Probabilities for all symbols with Interpolation
+
+<div class="ref-description section level2">
 
 Implements the interpolated variant of PPM (Prediction by Partial
 Matching). Every order from N down to 0 contributes a share of
 probability mass, with any leftover mass falling through to a base
 (uniform) distribution.
 
+</div>
+
+<div class="section level2">
+
 ## Usage
+
+<div class="sourceCode">
 
 ``` r
 ppm_interpolated(
@@ -19,46 +29,61 @@ ppm_interpolated(
 )
 ```
 
+</div>
+
+</div>
+
+<div class="section level2">
+
 ## Arguments
 
-- x:
+-   x:
 
-  Character vector of events
+    Character vector of events
 
-- N:
+-   N:
 
-  Maximum order
+    Maximum order
 
-- alphabet:
+-   alphabet:
 
-  Character vector of full alphabet
+    Character vector of full alphabet
 
-- order_counts:
+-   order_counts:
 
-  List of length N+1 containing count tables for orders 0..N. Each
-  element must be a \`data.table\` with columns: \`index\`,
-  \`context_id\`, \`Event\`, \`Ce\`, \`C\`, \`t\`, \`t1\`. - For
-  \*\*STM\*\*, \`index\` corresponds to the timestep. - For \*\*LTM\*\*,
-  \`index\` is constantly -1; \`ltm_to_timestep_counts\` maps them to
-  per-timestep tables before the loop.
+    List of length N+1 containing count tables for orders 0..N. Each
+    element must be a \`data.table\` with columns: \`index\`,
+    \`context_id\`, \`Event\`, \`Ce\`, \`C\`, \`t\`, \`t1\`. - For
+    \*\*STM\*\*, \`index\` corresponds to the timestep. - For
+    \*\*LTM\*\*, \`index\` is constantly -1; \`ltm_to_timestep_counts\`
+    maps them to per-timestep tables before the loop.
 
-- escape_func:
+-   escape_func:
 
-  Escape function from escape.R (e.g., \`escape_C\`). Signature:
-  \`function(t, t1)\` returning \`list(subtract, esc_numer)\`. Method C
-  is the standard choice and matches ppm package defaults.
+    Escape function from escape.R (e.g., \`escape_C\`). Signature:
+    \`function(t, t1)\` returning \`list(subtract, esc_numer)\`. Method
+    C is the standard choice and matches ppm package defaults.
 
-- exclusion:
+-   exclusion:
 
-  Logical. If TRUE, applies exclusion (Cleary & Witten 1984). Symbols
-  already seen at a higher order are excluded from C when computing
-  denom and esc at lower orders. Effect: denom shrinks → esc increases →
-  more mass flows to truly unseen symbols. Excluded symbols can still
-  receive contrib mass from this order; only the denominator changes.
+    Logical. If TRUE, applies exclusion (Cleary & Witten 1984). Symbols
+    already seen at a higher order are excluded from C when computing
+    denom and esc at lower orders. Effect: denom shrinks → esc increases
+    → more mass flows to truly unseen symbols. Excluded symbols can
+    still receive contrib mass from this order; only the denominator
+    changes.
+
+</div>
+
+<div class="section level2">
 
 ## Value
 
 data.table with columns: index, Event, P, IC, Entropy
+
+</div>
+
+<div class="section level2">
 
 ## Details
 
@@ -87,3 +112,7 @@ Expanded (method C for concreteness):
 P(s) = Ce_N(s)/(C_N+t_N) + \[t_N/(C_N+t_N)\] · Ce_N-1(s)/(C_N-1+t_N-1) +
 \[t_N/(C_N+t_N)\] · \[t_N-1/(...)\] · Ce_N-2(s)/(...) + ... + (∏ esc_k)
 · base(s)
+
+</div>
+
+</div>

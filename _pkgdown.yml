@@ -50,5 +50,6 @@ reference:
 - subtitle: "XXX "
   contents:
   - ppidyom
+  - ppidyomModel-class
   - count_tables
   - lag_matrix
