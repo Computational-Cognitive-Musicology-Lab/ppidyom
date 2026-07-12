@@ -171,6 +171,6 @@ result[obs, on = .(index, Event)][, .(index, Event, IC, Entropy)]
 ```
 
 For calls that replicate IDyOM or the ppm package exactly, see
-`vignette("example-calls")`. For a full description of how the
-implementations differ and how to configure ppidyom, see
-`vignette("implementation-discrepancy")`.
+[`vignette("example-calls")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/example-calls.md).
+For a full description of how the implementations differ and how to
+configure ppidyom, see `vignette("implementation-discrepancy")`.

@@ -37,8 +37,8 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Basics</h6></li>
-    <li><a class="dropdown-item" href="../articles/Overview.html">Overview: Motivation, Design, and Applications</a></li>
-    <li><a class="dropdown-item" href="../articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/example-calls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/overview.html">Overview: Motivation, Design, and Applications</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>R/Background</h6></li>
     <li><a class="dropdown-item" href="../articles/ImplementationDiscrepancy.html">Implementation Differences: ppm, IDyOM, and ppidyom</a></li>
@@ -67,7 +67,7 @@
             
       
 
-      <div class="d-none name"><code>Overview.Rmd</code></div>
+      <div class="d-none name"><code>overview.Rmd</code></div>
     </div>
 
     
@@ -279,7 +279,7 @@ replication studies and cross-implementation comparison.</p>
 <span><span class="va">N</span>        <span class="op">&lt;-</span> <span class="fl">3L</span>   <span class="co"># order bound: consider up to 3-event contexts</span></span>
 <span></span>
 <span><span class="co"># STM model with default IDyOM-compatible settings</span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span>N <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, stm_exclusion <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom-class.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span>N <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, stm_exclusion <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">predict_sequence</span><span class="op">(</span></span>
 <span>  <span class="va">melody</span>,</span>
@@ -293,7 +293,7 @@ replication studies and cross-implementation comparison.</p>
 <span><span class="va">obs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span>index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">melody</span><span class="op">)</span>, Event <span class="op">=</span> <span class="va">melody</span><span class="op">)</span></span>
 <span><span class="va">result</span><span class="op">[</span><span class="va">obs</span>, on <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span>, <span class="va">IC</span>, <span class="va">Entropy</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
 <p>For calls that replicate IDyOM or the ppm package exactly, see
-<code>vignette("example-calls")</code>. For a full description of how
+<code><a href="../articles/example-calls.html">vignette("example-calls")</a></code>. For a full description of how
 the implementations differ and how to configure ppidyom, see
 <code>vignette("implementation-discrepancy")</code>.</p>
 </div>
