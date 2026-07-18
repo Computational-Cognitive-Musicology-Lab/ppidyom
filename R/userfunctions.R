@@ -86,7 +86,7 @@ ppidyom.default <- function(..., maxN = 5, alphabet = do.call('paste', expand.gr
 
 	# train
 	for (group in unique(paste(data$longTerm, data$shortTerm))) {
-		print(group)
+		# cat('training', group, '\n')
 		model$train_sequence(data[paste(longTerm, shortTerm) == group, Tokens])
 	}
 
@@ -100,9 +100,10 @@ ppidyom.default <- function(..., maxN = 5, alphabet = do.call('paste', expand.gr
 	output <- list()
 	for (i in seq_along(lt_groups)) {
 		lg <- lt_groups[i]
-    print(lg)
+    # cat('i is', i, 'in lt_groups\n')
 
 		for (sg in data[longTerm == lg, unique(shortTerm)]) {
+			# cat('detrain', sg, "\n")
 			model$detrain_sequence(data[longTerm == lg & shortTerm == sg, Tokens])
 		}
 
@@ -110,11 +111,12 @@ ppidyom.default <- function(..., maxN = 5, alphabet = do.call('paste', expand.gr
 
 		
 		for (sg in data[longTerm == lg, unique(shortTerm)]) {
-			print(sg)
+			# cat('predict', sg, "\n")
 			result <- c(result, list(model$predict_sequence(data[longTerm == lg & shortTerm == sg, Tokens])))
 		}
 
 		for (sg in data[longTerm == lg, unique(shortTerm)]) {
+			# cat('retrain ', sg, '\n')
 			model$train_sequence(data[longTerm == lg & shortTerm == sg, Tokens])
 		}
 
@@ -139,7 +141,7 @@ ppidyom.humdrumR <- function(humdrumR, ...) {
 
 	if (!any(ns == '')) quos <- c(rlang::quo(.), quos)
 
-	rlang::eval_tidy(rlang::expr(within(humdrumR, ICppidyom <- ppidyom.default(!!!quos), dataTypes = 'D')))
+	rlang::eval_tidy(rlang::expr(within(humdrumR, ICppidyom <- ppidyom.default(!!!quos, shortTermGroups = list(Spine, Piece), longTermGroups = list(Piece)), dataTypes = 'D')))
 
 }
 
