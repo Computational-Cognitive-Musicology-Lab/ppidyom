@@ -24,7 +24,7 @@ footer:
     left: logo
     right: ccml
   components:
-    logo: <a href="https://humdrumR.ccml.gtcmt.gatech.edu"><img src="ppidyom_logo.svg" alt="humdrumR" style="height:120px;"></a>
+    logo: <a href="https://ppidyom.ccml.gtcmt.gatech.edu"><img src="ppidyom_logo.svg" alt="ppidyom logo" style="height:120px;"></a>
     ccml: Developed by Nat Condit-Schultz and Ling Qi<br/>[Georgia Tech](https://gatech.edu)<br/>[School of Music](https://music.gatech.edu)<br/>[Computational and Cognitive Musicology Lab](https://ccml.gtcmt.gatech.edu)</span>
   
 template:
@@ -34,30 +34,30 @@ template:
   bootswatch: flatly
 articles:
 - title: Basics
-  navbar: Basics
+  navbar: Theory
   contents:
   - Overview
+  - NGrams
+  - InfoTheory
+- title: Usage
+  navbar: Usage
+  contents:
   - ExampleCalls
-- title: Replication
-  desc: How can we replicate outputs of IDyOM and PPM
-  navbar: R/Background
+  - HumdrumRCalls
+- title: Algorithm Details
+  desc: Details of how algorithm can be controlled
+  navbar: Algorithm Parameters
   contents:
   - ImplementationDiscrepancy
   - ParameterCorrespondence
+  - Defaults
 reference:
 - title: "Section "
   desc: "These tools ."
 - subtitle: "XXX "
   contents:
-  - build_online_ltm_timestep_counts
-  - compute_local_probs
+  - ppidyom
+  - ppidyomModel
+  - run_ppidyom
   - count_tables
   - lag_matrix
-  - ppidyom-class
-  - apply_prior_ltm
-  - envs_to_ltm_tables
-  - precompute_contexts
-  - ltm_to_timestep_counts
-  - ppm_backoff
-  - ppm_interpolated
-  - update_env

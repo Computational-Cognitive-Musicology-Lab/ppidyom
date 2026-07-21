@@ -15,7 +15,7 @@ test_that("detrain_sequence restores LTM state after training", {
   # ---------------------------
   # Model
   # ---------------------------
-  model <- ppidyom$new(N = max_order, alphabet = alphabet)
+  model <- ppidyomModel$new(N = max_order, alphabet = alphabet)
 
   # Train first sequence
   model$train_sequence(train_seq1)
@@ -66,7 +66,7 @@ test_that("detrain_sequence restores LTM state with ltm_update_exclusion=TRUE", 
   alphabet    <- c("A", "B", "C")
   max_order   <- 3
 
-  model <- ppidyom$new(
+  model <- ppidyomModel$new(
     N = max_order, alphabet = alphabet,
     ltm_update_exclusion = TRUE
   )

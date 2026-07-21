@@ -41,9 +41,14 @@ for d in (INPUT_DIR, OUTPUT_DIR, os.path.dirname(FIXTURE_PATH)):
 PITCH_MAP  = {"A": 60, "B": 62, "C": 64}
 LETTER_MAP = {v: k for k, v in PITCH_MAP.items()}   # 60→"A", 62→"B", 64→"C"
 
-x1            = ["A", "B", "A", "C", "A", "B", "A", "C", "A"]
-x2            = ["B", "A", "B", "C", "A"]
-LTM_TRAIN_SEQ = ["A", "B", "C", "A", "B", "C", "A", "C", "B"]   # pretraining corpus
+x1             = ["A", "B", "A", "C", "A", "B", "A", "C", "A"]
+x2             = ["B", "A", "B", "C", "A"]
+LTM_TRAIN_SEQ  = ["A", "B", "C", "A", "B", "C", "A", "C", "B"]
+LTM_TRAIN_SEQ2 = ["B", "C", "A", "B", "A", "C", "A", "B", "C"]
+
+# All LTM models are pretrained on both training sequences.
+# IDyOM imports them as a single dataset (one melody per line).
+TRAIN_SEQS = [LTM_TRAIN_SEQ, LTM_TRAIN_SEQ2]
 
 TEST_SEQS = {"x1": x1, "x2": x2}
 
@@ -52,41 +57,46 @@ def to_pitches(seq):
     return [PITCH_MAP[s] for s in seq]
 
 
-def write_idyom_txt(pitches, path):
-    """
-    Write in IDyOM :txt format.
-    text2db reads each LINE as one melody, with pitches space-separated.
-    A single file → single melody → all pitches on one line.
-    """
+def write_idyom_txt(seqs, path):
+    """Write in IDyOM :txt format — one melody per line, pitches space-separated."""
     with open(path, "w") as f:
-        f.write(" ".join(str(p) for p in pitches) + "\n")
+        for pitches in seqs:
+            f.write(" ".join(str(p) for p in pitches) + "\n")
 
 
 TRAIN_FILE = os.path.join(INPUT_DIR, "train.txt")
-write_idyom_txt(to_pitches(LTM_TRAIN_SEQ), TRAIN_FILE)
+write_idyom_txt([to_pitches(s) for s in TRAIN_SEQS], TRAIN_FILE)
+
 for label, seq in TEST_SEQS.items():
-    write_idyom_txt(to_pitches(seq), os.path.join(INPUT_DIR, f"{label}.txt"))
+    write_idyom_txt([to_pitches(seq)], os.path.join(INPUT_DIR, f"{label}.txt"))
 
 # ── LISP command template ─────────────────────────────────────────────────────
-# %s slots (16 total, in order):
+# %s slots (19 total, in order):
 #  1. train file path (quoted)         2. train_id
 #  3. test file path (quoted)          4. test_id
-#  5. test_id  (idyom dataset arg)
-#  6. models keyword (stm/ltm/ltm+/both/both+)
-#  7. train_id (pretraining-ids)
-#  8. stm escape                       9. stm exclusion (t/nil)
-# 10. stm update-exclusion (t/nil)
-# 11. ltm escape                      12. ltm exclusion (t/nil)
-# 13. ltm update-exclusion (t/nil)
-# 14. output path (quoted)
-# 15. train_id (delete-dataset)       16. test_id (delete-dataset)
+#  5. b (mixture exponent, via global setf)
+#  6. test_id  (idyom dataset arg)     7. models keyword
+#  8. train_id (pretraining-ids)
+#  9. stm escape                      10. stm exclusion (t/nil)
+# 11. stm update-exclusion (t/nil)   12. stm mixtures (t/nil)
+# 13. ltm escape                     14. ltm exclusion (t/nil)
+# 15. ltm update-exclusion (t/nil)   16. ltm mixtures (t/nil)
+# 17. output path (quoted)
+# 18. train_id (delete-dataset)      19. test_id (delete-dataset)
+#
+# mixtures t   → interpolated PPM (default)
+# mixtures nil → backoff PPM  (ppidyom ppm_type="backoff")
+#
+# The b parameter (STM+LTM entropy-weighting exponent) is mvs::*ltm-stm-bias*,
+# default 7.  Set via the provided setter before calling idyom:idyom.
 LISP_TEMPLATE = """\
 (start-idyom)
 (idyom-db:import-data :txt %s "TRAIN_DATASET" %s)
 (idyom-db:import-data :txt %s "TEST_DATASET" %s)
+(mvs:set-ltm-stm-bias %s)
 (idyom:idyom %s '(cpitch) '(cpitch) :k 1 :models :%s :detail 3 :pretraining-ids '(%s)
-:stmo '(:escape :%s :order-bound 3 :exclusion %s :update-exclusion %s)
-:ltmo '(:escape :%s :order-bound 3 :exclusion %s :update-exclusion %s)
+:stmo '(:escape :%s :order-bound 3 :exclusion %s :update-exclusion %s :mixtures %s)
+:ltmo '(:escape :%s :order-bound 3 :exclusion %s :update-exclusion %s :mixtures %s)
 :output-path %s :overwrite nil :use-resampling-set-cache? nil :use-ltms-cache? nil)
 (idyom-db:delete-dataset %s)
 (idyom-db:delete-dataset %s)
@@ -97,8 +107,8 @@ ESCAPE_METHODS  = ("c", "a", "b", "d", "x")
 BASELINE_ESCAPE = "c"
 
 
-def lisp_bool(b):
-    return "t" if b else "nil"
+def lisp_bool(v):
+    return "t" if v else "nil"
 
 
 def generate_dataset_ids():
@@ -107,11 +117,12 @@ def generate_dataset_ids():
     return int(f"66{unique}"), int(f"77{unique}")
 
 
-def baseline(model, stm_escape="c", ltm_escape="c"):
+def baseline(model, stm_escape="c", ltm_escape="c", mixtures=True, b=7):
     return dict(
         model=model, stm_escape=stm_escape, ltm_escape=ltm_escape,
         stm_exclusion=False, stm_update_exclusion=False,
         ltm_exclusion=False, ltm_update_exclusion=False,
+        mixtures=mixtures, b=b,
     )
 
 
@@ -144,8 +155,7 @@ def generate_ltm_grid(model="ltm"):
 
 
 def generate_ltm_plus_grid():
-    """Spot-check online-update mechanism = 3 combos.
-    Escape-method correctness already covered by the ltm section."""
+    """Spot-check online-update mechanism = 3 combos."""
     b = baseline("ltm+", ltm_escape=BASELINE_ESCAPE)
     return [b, {**b, "ltm_exclusion": True}, {**b, "ltm_update_exclusion": True}]
 
@@ -171,18 +181,53 @@ def generate_both_plus_grid():
     return [b, {**b, "ltm_exclusion": True}, {**b, "stm_exclusion": True}]
 
 
+def generate_backoff_grid():
+    """Spot-check backoff PPM (mixtures=nil in IDyOM) = 6 combos.
+    Covers STM/LTM/both/both+ to confirm ppidyom ppm_type='backoff' matches."""
+    configs = []
+    # STM: baseline + exclusion variant
+    b_stm = baseline("stm", stm_escape=BASELINE_ESCAPE, mixtures=False)
+    configs += [b_stm, {**b_stm, "stm_exclusion": True}]
+    # LTM: baseline
+    configs += [baseline("ltm", ltm_escape=BASELINE_ESCAPE, mixtures=False)]
+    # both: baseline
+    configs += [baseline("both",
+                         stm_escape=BASELINE_ESCAPE, ltm_escape=BASELINE_ESCAPE,
+                         mixtures=False)]
+    # both+: baseline
+    configs += [baseline("both+",
+                         stm_escape=BASELINE_ESCAPE, ltm_escape=BASELINE_ESCAPE,
+                         mixtures=False)]
+    # ltm+: baseline
+    configs += [baseline("ltm+", ltm_escape=BASELINE_ESCAPE, mixtures=False)]
+    return configs  # 6 combos
+
+
+def generate_b_sweep_grid():
+    """Spot-check mixture exponent b != 7 for both/both+ = 3 combos.
+    b=7 is IDyOM's default (Pearce 2005); b=1 gives equal weighting."""
+    b_both  = baseline("both",  stm_escape=BASELINE_ESCAPE, ltm_escape=BASELINE_ESCAPE, b=1)
+    b_both2 = {**b_both, "stm_exclusion": True, "ltm_exclusion": True}
+    b_bothp = baseline("both+", stm_escape=BASELINE_ESCAPE, ltm_escape=BASELINE_ESCAPE, b=1)
+    return [b_both, b_both2, b_bothp]  # 3 combos
+
+
 def generate_grid():
     return (
-        generate_stm_grid()         # 8
-        + generate_ltm_grid()       # 8
-        + generate_ltm_plus_grid()  # 3
-        + generate_both_grid()      # 10
-        + generate_both_plus_grid() # 3
-    )  # 32 total
+        generate_stm_grid()          # 8
+        + generate_ltm_grid()        # 8
+        + generate_ltm_plus_grid()   # 3
+        + generate_both_grid()       # 10
+        + generate_both_plus_grid()  # 3
+        + generate_backoff_grid()    # 6
+        + generate_b_sweep_grid()    # 3
+    )  # 41 total
 
 
 def params_to_tag(p):
     model_tag = p["model"].replace("+", "plus")
+    mix       = "t" if p.get("mixtures", True) else "f"
+    b_val     = int(p.get("b", 7))
     return (
         f"m-{model_tag}"
         f"_se_esc-{p['stm_escape']}"
@@ -191,6 +236,8 @@ def params_to_tag(p):
         f"_le_esc-{p['ltm_escape']}"
         f"_le-{int(p['ltm_exclusion'])}"
         f"_lu-{int(p['ltm_update_exclusion'])}"
+        f"_mix-{mix}"
+        f"_b-{b_val}"
     )
 
 
@@ -207,20 +254,26 @@ def run_one(seq_label, params):
         return out_dir, tag, 0
 
     train_id, test_id = generate_dataset_ids()
-    test_file = os.path.join(INPUT_DIR, f"{seq_label}.txt")
+    test_file  = os.path.join(INPUT_DIR, f"{seq_label}.txt")
+    train_file = TRAIN_FILE
+    b_val      = params.get("b", 7)
+    mixtures   = params.get("mixtures", True)
 
     lisp = LISP_TEMPLATE % (
-        f'"{TRAIN_FILE}"',  train_id,
+        f'"{train_file}"',  train_id,
         f'"{test_file}"',   test_id,
+        b_val,
         test_id,
         params["model"],
         train_id,
         params["stm_escape"],
         lisp_bool(params["stm_exclusion"]),
         lisp_bool(params["stm_update_exclusion"]),
+        lisp_bool(mixtures),
         params["ltm_escape"],
         lisp_bool(params["ltm_exclusion"]),
         lisp_bool(params["ltm_update_exclusion"]),
+        lisp_bool(mixtures),
         f'"{out_dir}"',
         train_id, test_id,
     )
@@ -278,6 +331,8 @@ def parse_dat(out_dir, seq_label, params, tag):
             "stm_update_exclusion": params["stm_update_exclusion"],
             "ltm_exclusion":        params["ltm_exclusion"],
             "ltm_update_exclusion": params["ltm_update_exclusion"],
+            "mixtures":             params.get("mixtures", True),
+            "b":                    params.get("b", 7),
         })
     return rows
 
@@ -285,7 +340,7 @@ def parse_dat(out_dir, seq_label, params, tag):
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    grid = generate_grid()
+    grid   = generate_grid()
     n_runs = len(grid) * len(TEST_SEQS)
     print(f"Grid: {len(grid)} configs × {len(TEST_SEQS)} sequences = {n_runs} runs\n")
 

@@ -38,13 +38,19 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Basics</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Theory</h6></li>
     <li><a class="dropdown-item" href="articles/Overview.html">Overview: Motivation, Design, and Applications</a></li>
-    <li><a class="dropdown-item" href="articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="articles/NGrams.html">N-grams 101</a></li>
+    <li><a class="dropdown-item" href="articles/InfoTheory.html">Information Theory Fundamentals: Entropy and Information Content</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>R/Background</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Usage</h6></li>
+    <li><a class="dropdown-item" href="articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="articles/HumdrumRCalls.html">Using ppidyom with humdrumR</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Algorithm Parameters</h6></li>
     <li><a class="dropdown-item" href="articles/ImplementationDiscrepancy.html">Implementation Differences: ppm, IDyOM, and ppidyom</a></li>
     <li><a class="dropdown-item" href="articles/ParameterCorrespondence.html">Parameter Correspondence: ppidyom, ppm, and IDyOM</a></li>
+    <li><a class="dropdown-item" href="articles/Defaults.html">Our default values: don't let us be a black box</a></li>
   </ul>
 </li>
       </ul>
@@ -64,8 +70,8 @@
 <div class="section level2">
 <h2 id="what-is-ppidyom">What is ppidyom?<a class="anchor" aria-label="anchor" href="#what-is-ppidyom"></a>
 </h2>
-<p><strong>ppidyom</strong> is an R package for applying <em>partial predictive matching</em> (PPM) algorithms to musical data. PPM algorithms are a sophisticated form of N-gram model, where musical events (notes, chords, etc.) are predicted based on the previous music. This (probabilistic) predictions can then be used as the basis for information theory metrics, like information content and entropy.</p>
-<p><strong>ppidyom</strong> is similar to the widely used <a href="https://www.marcus-pearce.com/idyom/" class="external-link">IDyOM</a> (Pearce, 2005) and <a href="https://github.com/pmcharrison/ppm" class="external-link">ppm</a> (Harrison, et al. 2020) softwares. The goal of the <strong>ppidyom</strong> project is to make partial-predictive-modeling faster, easier, and more transparent than these existing systems. In particular, <strong>ppidyom</strong> is designed to work within the <a href="https://humdrumR.ccml.gtcmt.gatech.edu" class="external-link">humdrumR</a> package framework, making a complete system for musicological analysis.</p>
+<p><strong>ppidyom</strong> is an R package for applying <em>partial predictive matching</em> (PPM) algorithms to musical data. PPM algorithms are a sophisticated form of N-gram model, which predict consequent musical events (notes, chords, etc.) sequentially based on the immediate context of antecedent musical events. For example, if I hear the sequence of notes “G B D F,” a PPM algorithm would come up with a prediction for how probable it is for the next note to be “E.” These (probabilistic) predictions can then be used as the basis for information theory metrics, like <em>information content</em> and <em>entropy</em>.</p>
+<p><strong>ppidyom</strong> is similar to the widely used <a href="https://www.marcus-pearce.com/idyom/" class="external-link">IDyOM</a> (Pearce, 2005) and <a href="https://github.com/pmcharrison/ppm" class="external-link">ppm</a> (Harrison, et al. 2020) softwares. The goal of the <strong>ppidyom</strong> project is to make partial-predictive-modeling (à la IDyOM) faster, easier, and more transparent than ever. In particular, <strong>ppidyom</strong> is designed to work within the <a href="https://humdrumR.ccml.gtcmt.gatech.edu" class="external-link">humdrumR</a> package framework, making is super easy to apply ppm-model predictions to any of the <a href="https://github.com/search?q=topic%3Ahumdrum+topic%3Adigital-scores+&amp;type=repositories" class="external-link">tens of thousands</a> of scores encoded in the <a href="https://github.com/search?q=topic%3Ahumdrum+topic%3Adigital-scores+&amp;type=repositories" class="external-link">humdrum syntax</a>.</p>
 <div class="section level4">
 <h4 id="what-does-ppidyom-stand-for">What does ppidyom stand for?<a class="anchor" aria-label="anchor" href="#what-does-ppidyom-stand-for"></a>
 </h4>
@@ -75,10 +81,11 @@
 <div class="section level2">
 <h2 id="what-is-partial-predictive-matching">What is partial predictive matching?<a class="anchor" aria-label="anchor" href="#what-is-partial-predictive-matching"></a>
 </h2>
-<p>PPM models originated in the field of computational linguistics. PPM models are a form of N-gram model, where each sequential musical event (note, chord, etc.) is predicted based on the N-previous events. In a PPM model, N-grams of various lengths are “blended” to create the final prediction.</p>
+<p>PPM models originated in the field of computational linguistics. PPM models are a form of N-gram model, where each sequential musical event (note, chord, etc.) is predicted based on the N-previous events. In a basic N-gram models, we use one fixed value for N, like <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>=</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">N=5</annotation></semantics></math> to create “5-grams.” In a PPM model, N-grams of various lengths are “blended” to create the final prediction.</p>
 <p>PPM model implementations can also incorporate:</p>
 <ul>
-<li>Long-term and short-term models.</li>
+<li>Methods for blending “long-term” knowledge (learned from many pieces) and “short-term” knowledge (learned dynamically within a piece).</li>
+<li>Different approaches to dealing with never-seen-before events.</li>
 </ul>
 </div>
 
@@ -129,7 +136,7 @@
 
 
     <footer><div class="pkgdown-footer-left">
-  <p><a href="https://humdrumR.ccml.gtcmt.gatech.edu" class="external-link"><img src="ppidyom_logo.svg" alt="humdrumR" style="height:120px;"></a></p>
+  <p><a href="https://ppidyom.ccml.gtcmt.gatech.edu"><img src="ppidyom_logo.svg" alt="ppidyom logo" style="height:120px;"></a></p>
 </div>
 
 <div class="pkgdown-footer-right">

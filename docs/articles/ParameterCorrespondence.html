@@ -36,13 +36,19 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Basics</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Theory</h6></li>
     <li><a class="dropdown-item" href="../articles/Overview.html">Overview: Motivation, Design, and Applications</a></li>
-    <li><a class="dropdown-item" href="../articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/NGrams.html">N-grams 101</a></li>
+    <li><a class="dropdown-item" href="../articles/InfoTheory.html">Information Theory Fundamentals: Entropy and Information Content</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>R/Background</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Usage</h6></li>
+    <li><a class="dropdown-item" href="../articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/HumdrumRCalls.html">Using ppidyom with humdrumR</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Algorithm Parameters</h6></li>
     <li><a class="dropdown-item" href="../articles/ImplementationDiscrepancy.html">Implementation Differences: ppm, IDyOM, and ppidyom</a></li>
     <li><a class="dropdown-item" href="../articles/ParameterCorrespondence.html">Parameter Correspondence: ppidyom, ppm, and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/Defaults.html">Our default values: don't let us be a black box</a></li>
   </ul>
 </li>
       </ul>
@@ -78,7 +84,7 @@ conceptually — in terms of what kind of listener or memory it represents
 — then give the technical definition, and finally the parameter names in
 each package.</p>
 <p>For the algorithmic discrepancies that go beyond parameter naming see
-<code>vignette("implementation-discrepancy")</code>.</p>
+<a href="ImplementationDiscrepancy.html"><code>vignette("implementation-discrepancy")</code></a>.</p>
 <hr>
 <div class="section level2">
 <h2 id="model-type">Model type<a class="anchor" aria-label="anchor" href="#model-type"></a>
@@ -234,8 +240,8 @@ formulas.</p>
 <code>:x</code>, not <code>:ax</code>; calling IDyOM with
 <code>:ax</code> silently falls back to <code>:c</code> behaviour (an
 IDyOM bug). The IDyOM comparison fixture uses <code>:x</code> to
-correctly invoke the AX branch. See
-<code>vignette("implementation-discrepancy")</code> §6.</p>
+correctly invoke the AX branch. See <a href="ImplementationDiscrepancy.html#escape-method-ax-idyom-bug-call-with-x"><code>vignette("implementation-discrepancy")</code>
+§6</a>.</p>
 </blockquote>
 <hr>
 </div>
@@ -323,9 +329,8 @@ escape weight at each level.</p>
 </table>
 <blockquote>
 <p><strong>Base-distribution interaction:</strong> the exclusion flag
-also controls which order −1 formula IDyOM uses. See
-<code>vignette("implementation-discrepancy")</code> §1–2 for the full
-explanation.</p>
+also controls which order −1 formula IDyOM uses. See <a href="ImplementationDiscrepancy.html#base-prior-ltm"><code>vignette("implementation-discrepancy")</code>
+§1–2</a> for the full explanation.</p>
 </blockquote>
 <hr>
 </div>
@@ -414,7 +419,7 @@ context</td>
 </table>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># IDyOM-compatible LTM</span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom-class.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyomModel.html">ppidyomModel</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N               <span class="op">=</span> <span class="fl">3L</span>,</span>
 <span>  alphabet        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"C"</span><span class="op">)</span>,</span>
 <span>  ltm_start_token <span class="op">=</span> <span class="cn">FALSE</span></span>
@@ -540,8 +545,8 @@ the test sequence so far by construction. The LTM row differs
 critically: IDyOM’s base is fixed by the training corpus, not the test
 sequence. For a LTM trained on all three symbols, the base prior is
 <code>1/(3+1-3) = 1.0</code> — a constant.</p>
-<p>Full explanation with IDyOM source:
-<code>vignette("implementation-discrepancy")</code> §1–2.</p>
+<p>Full explanation with IDyOM source: <a href="ImplementationDiscrepancy.html#base-prior-ltm"><code>vignette("implementation-discrepancy")</code>
+§1–2</a>.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -587,7 +592,7 @@ w_i \propto \left(\frac{H_i}{H_{\max}}\right)^{-b}, \quad H_{\max} = \log_2 |alp
 </tbody>
 </table>
 <p>Pass <code>b = 7</code> to <code>predict_sequence()</code> or
-<code>run_ppidyom()</code> to match IDyOM’s default behaviour. All
+<code><a href="../reference/run_ppidyom.html">run_ppidyom()</a></code> to match IDyOM’s default behaviour. All
 <code>both</code>/<code>both+</code> IDyOM comparison tests use
 <code>b = 7</code>.</p>
 <p>ppm does not support mixture models.</p>
@@ -687,7 +692,7 @@ w_i \propto \left(\frac{H_i}{H_{\max}}\right)^{-b}, \quad H_{\max} = \log_2 |alp
 
 
     <footer><div class="pkgdown-footer-left">
-  <p><a href="https://humdrumR.ccml.gtcmt.gatech.edu" class="external-link"><img src="ppidyom_logo.svg" alt="humdrumR" style="height:120px;"></a></p>
+  <p><a href="https://ppidyom.ccml.gtcmt.gatech.edu"><img src="ppidyom_logo.svg" alt="ppidyom logo" style="height:120px;"></a></p>
 </div>
 
 <div class="pkgdown-footer-right">

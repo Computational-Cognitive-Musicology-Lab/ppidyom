@@ -1,0 +1,79 @@
+# Our default values: don't let us be a black box
+
+There is not one correct way to model music or music perception.
+Treating words/notes/chords as a sequence of “symbols” which are grouped
+into subsequences (“N-grams”) is one approach, but it is not the only
+approach or the “correct” approach. Modeling our expectations as
+probabilities, “information content,” or entropy is one approach, but it
+is not the only approach or the “correct” approach. Using a convenient
+corpus of musical scores as the “training dataset” to represent the past
+experience (enculturation) of a hypothetical listener is one approach,
+but it is not the only approach of the “correct” approach. The specific
+*prediction by partial matching* (PPM) is one specific approach to
+N-gram modeling, but it also has *many* specific variations, some of
+which are implemented as various arguments to `ppidyom` functions. None
+of these variations are obviously the “correct” approach for addressing
+any particular research question.
+
+All of these approaches have been shown to be useful in lots of music
+research, but that doesn’t mean they are the only or correct way of
+doing research. They all make certain assumptions which are certainly
+wrong (or at least oversimplifications).
+
+When we, as researchers, decide to make use of existing research methods
+that have been widely used before—like for example, PPM modeling of
+sequences of “symbols” in convenient musical datasets—, it can be easy
+to forget to regard the method critically—as an imperfect convenience,
+not an absolute truth. If we use a sophisticated system, like ppidyom or
+IDyOM, to model *entropy* in music, we can’t regard the model output as
+“*the* uncertainty of the music”—the calculation is based on particular
+assumptions, particular parameters, particular training data, etc. It is
+one particular *estimate* of the entropy, which itself (may) correlate
+with a listeners cognitive uncertainty while listening to the music.
+
+## Default values
+
+When you go to use a software like `ppidyom`, you don’t necessarily want
+to have to do extensive background reading on different
+escape-probability and interpolation algorithms before you see some
+numbers. It is nice if the software just works out of the box, easy, and
+simple. `ppidyom` is no exception:
+
+``` r
+library(ppidyom)
+library(humdrumR)
+
+chorales <- readHumdrum(humdrumRroot, 'HumdrumData/BachChorales/*krn')
+
+
+chorales |> solfa(simple = TRUE) |> ppidyom()
+```
+
+It worked! But, how *exactly* did it work?
+
+One of the peeves that motivated the creation of `ppidyom` is that
+papers get published using, for example, IDyOM or ppm, without
+mentioning details of the implementation. Presumably, researchers are
+simply relying on the default values. What are those values? Are they
+optimal for the research you’re doing? We have [done the
+work](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ExampleCalls.html)
+to suss out the default values of IDyOM and ppm. This is not to say that
+the developers of these systems have documented any of these details
+themselves—the point here is that researchers tend to use the default
+values, whether or not they are the right values for them.
+
+### Our defaults
+
+Below are the default values used by
+[`ppidyom()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom.md).
+If you use
+[`ppidyom()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom.md)
+without specifying your own parameter details, it would be appropriate
+to note the following details in your report. Some of these details are
+specific to the humdrumR implementation/usage.
+
+- Maximum N-gram length: 10xxx
+- Escape method:
+- “Long-term”/“Short-term” training method:
+  - “Leave-one-out” cross validation by `Piece` field in a humdrumR
+    corpus.

@@ -20,13 +20,19 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Basics</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Theory</h6></li>
     <li><a class="dropdown-item" href="../articles/Overview.html">Overview: Motivation, Design, and Applications</a></li>
-    <li><a class="dropdown-item" href="../articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/NGrams.html">N-grams 101</a></li>
+    <li><a class="dropdown-item" href="../articles/InfoTheory.html">Information Theory Fundamentals: Entropy and Information Content</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>R/Background</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Usage</h6></li>
+    <li><a class="dropdown-item" href="../articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/HumdrumRCalls.html">Using ppidyom with humdrumR</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Algorithm Parameters</h6></li>
     <li><a class="dropdown-item" href="../articles/ImplementationDiscrepancy.html">Implementation Differences: ppm, IDyOM, and ppidyom</a></li>
     <li><a class="dropdown-item" href="../articles/ParameterCorrespondence.html">Parameter Correspondence: ppidyom, ppm, and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/Defaults.html">Our default values: don't let us be a black box</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -58,17 +64,24 @@
 
       <dl><dt>
 
-          <code><a href="build_online_ltm_timestep_counts.html">build_online_ltm_timestep_counts()</a></code>
+          <code><a href="ppidyom.html">ppidyom()</a></code>
 
         </dt>
-        <dd>Build Per-Timestep LTM Count Tables with Online Update</dd>
+        <dd>Calculate information dynamics using PPIDyOM</dd>
 
         <dt>
 
-          <code><a href="compute_local_probs.html">compute_local_probs()</a></code>
+          <code><a href="ppidyomModel.html">ppidyomModel</a></code>
 
         </dt>
-        <dd>Compute Local Probabilities for a Single Order; Used by Backoff PPM</dd>
+        <dd>Initialize a new PPM counter</dd>
+
+        <dt>
+
+          <code><a href="run_ppidyom.html">run_ppidyom()</a></code>
+
+        </dt>
+        <dd>Run PPM over a corpus of sequences</dd>
 
         <dt>
 
@@ -83,69 +96,13 @@
 
         </dt>
         <dd>Generate Lagged N-gram Matrix</dd>
-
-        <dt>
-
-          <code><a href="ppidyom-class.html">ppidyom-class</a></code> <code><a href="ppidyom-class.html">ppidyom</a></code>
-
-        </dt>
-        <dd>Initialize a new PPM counter Train on a single sequence (incremental LTM update)</dd>
-
-        <dt>
-
-          <code><a href="apply_prior_ltm.html">apply_prior_ltm()</a></code>
-
-        </dt>
-        <dd>Seed LTM environments from previously accumulated count tables</dd>
-
-        <dt>
-
-          <code><a href="envs_to_ltm_tables.html">envs_to_ltm_tables()</a></code>
-
-        </dt>
-        <dd>Convert online-update environments to LTM data.table format</dd>
-
-        <dt>
-
-          <code><a href="precompute_contexts.html">precompute_contexts()</a></code>
-
-        </dt>
-        <dd>Precompute context identifiers for all orders</dd>
-
-        <dt>
-
-          <code><a href="ltm_to_timestep_counts.html">ltm_to_timestep_counts()</a></code>
-
-        </dt>
-        <dd>Expand LTM Count Tables to Timestep-Aligned Order Tables</dd>
-
-        <dt>
-
-          <code><a href="ppm_backoff.html">ppm_backoff()</a></code>
-
-        </dt>
-        <dd>Compute PPM Probabilities for all symbols with Backoff</dd>
-
-        <dt>
-
-          <code><a href="ppm_interpolated.html">ppm_interpolated()</a></code>
-
-        </dt>
-        <dd>Compute PPM Probabilities for all symbols with Interpolation</dd>
-
-        <dt>
-
-          <code><a href="update_env.html">update_env()</a></code>
-
-        </dt>
-        <dd>Update a Sparse Context Count Environment</dd>
       </dl></div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p><a href="https://humdrumR.ccml.gtcmt.gatech.edu" class="external-link"><img src="ppidyom_logo.svg" alt="humdrumR" style="height:120px;"></a></p>
+  <p><a href="https://ppidyom.ccml.gtcmt.gatech.edu"><img src="ppidyom_logo.svg" alt="ppidyom logo" style="height:120px;"></a></p>
 </div>
 
 <div class="pkgdown-footer-right">

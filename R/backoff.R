@@ -8,7 +8,7 @@ library(data.table)
 #'   Signature: `function(t, t1)` returning `list(subtract, esc_numer)`.
 #'
 #' @return Data.table with columns: index, Event, prob_local, esc
-#' @export
+#' @keywords internal
 compute_local_probs <- function(dt, escape_func, normalize = FALSE) {
 
   escape_stats <- escape_func(dt$t, dt$t1)
@@ -34,31 +34,39 @@ compute_local_probs <- function(dt, escape_func, normalize = FALSE) {
 
 #' Compute PPM Probabilities for all symbols with Backoff
 #'
-#' Implements a vectorized PPM backoff.  Starting from the highest order,
-#' each order assigns probability to symbols it has seen (Ce > 0); any
-#' probability mass not allocated by that order survives to lower orders.
-#' Symbols not seen at any order receive the remaining mass divided by the
-#' uniform base distribution.
+#' Implements the PPM non-mixture (backoff) model that matches IDyOM's
+#' `:mixtures nil` behaviour.  Each symbol is finalized at the deepest order
+#' whose context has observed it (highest order wins); symbols not seen at any
+#' order receive the accumulated escape mass scaled by the base prior.  The
+#' final per-timestep distribution is renormalized to sum to 1.
 #'
-#' ## How compute_local_probs and the backoff cascade relate
+#' ## Cascade algorithm
 #'
-#' `compute_local_probs` converts raw counts into per-symbol local weights:
+#' esc_mass[t] tracks remaining probability mass for timestep t (starts at 1).
+#' At each order, only symbols not yet finalized AND not excluded are eligible.
 #'
-#'   prob_local(s) = max(Ce(s) - subtract, 0) / denom
-#'                   where denom and subtract come from escape_func
-#'
-#' For escape_C: denom = C + t, subtract = 0, so prob_local(s) = Ce(s)/(C+t).
-#' Summing over all seen symbols: Σ prob_local = C/(C+t) = 1 - esc.
-#'
-#' The backoff cascade (p_mass tracks unallocated probability):
-#'
-#'   p_mass starts at 1
 #'   for n = N downto 0:
-#'     for each seen symbol s (Ce_n > 0):
-#'       P(s) = p_mass(s) · prob_local_n(s)   ← allocate a share
-#'       p_mass(s) *= (1 - prob_local_n(s))   ← reduce remaining share
-#'   after loop:
-#'     unseen symbols: P(s) = p_mass(s) / |alphabet|
+#'     for each eligible symbol s (Ce_n(s) > 0, unfixed, not excluded):
+#'       P(s) = esc_mass[t] * prob_local_n(s)    <- finalize at highest order
+#'     esc_mass[t] *= esc_n[t]                   <- remaining mass flows down
+#'     if exclusion: mark all Ce>0 symbols as excluded
+#'   for each symbol s still unset:
+#'     P(s) = esc_mass[t] * base(s)              <- base prior
+#'   normalize P[t] so that sum = 1
+#'
+#' ## Exclusion (Cleary & Witten 1984)
+#'
+#' Same as `ppm_interpolated`: once a symbol has Ce > 0 at any order it is
+#' marked excluded and removed from the context count (ctx) at lower orders.
+#' The escape numerator (esc_numer) uses the ORIGINAL t (including excluded),
+#' matching Harrison's ppm and IDyOM behaviour (see `ppm_interpolated` docs).
+#'
+#' ## Base distribution
+#'
+#' Mirrors `ppm_interpolated`:
+#'   idyom_base + !exclusion  ->  1 / |alphabet|
+#'   idyom_base +  exclusion  ->  1 / (|alphabet| + 1 - t_root)
+#'   !idyom_base              ->  1 / (|alphabet| + 1 - |seen_at_t|)
 #'
 #' @param x Character vector of events
 #' @param N Maximum order
@@ -71,10 +79,16 @@ compute_local_probs <- function(dt, escape_func, normalize = FALSE) {
 #'     them to per-timestep tables first.
 #' @param escape_func Escape function (e.g., `escape_C`).
 #'   Signature: `function(t, t1)` returning `list(subtract, esc_numer)`; see escape.R.
+#' @param exclusion Logical. If TRUE, symbols seen at higher orders are excluded
+#'   from the context count at lower orders (Cleary & Witten 1984).
+#' @param idyom_base Logical. Selects the order-(-1) base distribution.
+#'   TRUE = IDyOM-compatible (1/|alphabet| or shrinking with exclusion);
+#'   FALSE = Harrison's ppm-compatible shrinking denominator.
 #'
 #' @return data.table with columns: index, Event, P, IC, Entropy
-#' @export
-ppm_backoff <- function(x, N, alphabet, order_counts, escape_func=escape_C) {
+#' @keywords internal
+ppm_backoff <- function(x, N, alphabet, order_counts, escape_func = escape_C,
+                         exclusion = FALSE, idyom_base = FALSE) {
 
   T <- length(x)
   alpha_len <- length(alphabet)
@@ -85,39 +99,90 @@ ppm_backoff <- function(x, N, alphabet, order_counts, escape_func=escape_C) {
     dt_orders <- ltm_to_timestep_counts(x, N, alphabet, order_counts)
   }
 
+  # Base (order -1) distribution — same logic as ppm_interpolated.
+  t_root_by_t <- dt_orders[[1]][, .(t_root = t[1]), by = index]$t_root
+  base_prob   <- numeric(T * alpha_len)
+  seen_syms   <- character(0)
+  for (ti in seq_len(T)) {
+    if (ti > 1) seen_syms <- unique(c(seen_syms, x[ti - 1]))
+    p_base <- if (idyom_base && !exclusion)
+      1.0 / alpha_len
+    else if (idyom_base && exclusion)
+      1.0 / (alpha_len + 1L - t_root_by_t[ti])
+    else
+      1.0 / (alpha_len + 1L - length(seen_syms))
+    idx <- ((ti - 1L) * alpha_len + 1L):(ti * alpha_len)
+    base_prob[idx] <- p_base
+  }
+
+  n_rows <- T * alpha_len
   dt_final <- copy(dt_orders[[N + 1]])[, .(index, Event)]
   dt_final[, P := NA_real_]
 
-  # Uniform base: used only for symbols unseen at all orders
-  base_prob <- rep(1 / alpha_len, T * alpha_len)
+  # esc_mass[t]: accumulated escape mass per timestep (product of esc_n for all
+  # orders where the context had data).  Starts at 1.
+  esc_mass    <- rep(1.0, T)
+  is_excluded <- rep(FALSE, n_rows)   # TRUE once Ce > 0 at any higher order
 
-  # p_mass: unallocated probability for each (timestep × symbol) row; starts at 1
-  p_mass <- rep(1, nrow(dt_final))
-
-  # Pre-compute prob_local for every order (avoids recomputing inside the loop)
-  local_probs <- lapply(dt_orders, compute_local_probs, escape_func = escape_func)
-
-  # Cascade: allocate probability from highest order downward
   for (n in N:0) {
-    dt_n <- local_probs[[n + 1]]
+    dt_n      <- dt_orders[[n + 1]]
+    stats     <- escape_func(dt_n$t, dt_n$t1)
+    subtract  <- stats$subtract
+    esc_numer <- stats$esc_numer          # original t-based; NOT modified by exclusion
 
-    seen <- dt_orders[[n + 1]]$Ce > 0   # symbol observed in this context
+    Ce_adj <- pmax(dt_n$Ce - subtract, 0)
 
-    # P is overwritten each time a symbol is seen, so the final P(s) reflects
-    # the contribution from the lowest order where Ce(s) > 0, weighted by the
-    # p_mass remaining after higher orders have taken their share.
-    dt_final[seen, P := p_mass[seen] * dt_n$prob_local[seen]]
-    p_mass[seen]   <- p_mass[seen] * (1 - dt_n$prob_local[seen])
+    if (exclusion) {
+      # ctx: sum Ce_adj for non-excluded symbols only (ppm get_context_count).
+      # esc_numer uses ORIGINAL t (including excluded) — see ppm_interpolated docs.
+      Ce_excl <- ifelse(is_excluded, 0L, dt_n$Ce)
+      ctx     <- ave(pmax(Ce_excl - subtract, 0), dt_n$index, FUN = sum)
+    } else {
+      ctx     <- dt_n$C - subtract * dt_n$t
+    }
+
+    has_ctx    <- ctx > 0
+    denom      <- ctx + esc_numer
+    prob_local <- ifelse(has_ctx & denom > 0, Ce_adj / denom, 0)
+    esc_vec    <- ifelse(has_ctx & denom > 0, esc_numer / denom, NA_real_)
+
+    # Eligible: seen, not yet finalized, and (if exclusion) not already excluded.
+    seen    <- dt_n$Ce > 0
+    unfixed <- is.na(dt_final$P)
+    eligible <- if (exclusion) seen & unfixed & !is_excluded else seen & unfixed
+
+    if (any(eligible)) {
+      t_idx <- dt_n$index[eligible]
+      dt_final[eligible, P := esc_mass[t_idx] * prob_local[eligible]]
+    }
+
+    # Update esc_mass for each timestep that had context data at this order.
+    non_na <- which(!is.na(esc_vec))
+    if (length(non_na) > 0L) {
+      esc_dt   <- data.table(index = dt_n$index[non_na], esc_val = esc_vec[non_na])
+      esc_by_t <- esc_dt[, .(esc_val = esc_val[1L]), by = index]
+      esc_mass[esc_by_t$index] <- esc_mass[esc_by_t$index] * esc_by_t$esc_val
+    }
+
+    # Expand exclusion set: symbols seen at this order become excluded in lower orders.
+    if (exclusion) {
+      is_excluded[!is_excluded & seen] <- TRUE
+    }
   }
 
-  # Symbols with P still NA were never seen at any order; assign remaining mass
+  # Symbols never finalized: base prior scaled by accumulated esc_mass.
   remaining <- is.na(dt_final$P)
-  dt_final[remaining, P := p_mass[remaining] * base_prob[remaining]]
+  if (any(remaining)) {
+    t_idx <- dt_final$index[remaining]
+    dt_final[remaining, P := esc_mass[t_idx] * base_prob[remaining]]
+  }
+
+  # Renormalize per timestep (required: without exclusion the raw cascade sums
+  # to < 1; with exclusion rounding/base-prior interactions still require it).
+  dt_final[, P := P / sum(P), by = index]
 
   dt_final[, IC      := -log2(P)]
   dt_final[, Entropy := -sum(P * log2(P)), by = index]
 
-  # TODO: track which order was chosen for each symbol (model_order column)
   dt_final
 }
-

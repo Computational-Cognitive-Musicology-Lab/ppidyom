@@ -24,12 +24,17 @@ SKIP_MSG <- paste(
 TOLERANCE <- 1e-4   # IDyOM (double-float Lisp) vs R float-precision gap
 
 # ── Test sequences — must match generate_idyom_reference.py ──────────────────
-x1            <- c("A","B","A","C","A","B","A","C","A")
-x2            <- c("B","A","B","C","A")
-ltm_train_seq <- c("A","B","C","A","B","C","A","C","B")
-alphabet      <- c("A","B","C")
-test_seqs     <- list(x1 = x1, x2 = x2)
-N             <- 3L
+x1             <- c("A","B","A","C","A","B","A","C","A")
+x2             <- c("B","A","B","C","A")
+ltm_train_seq  <- c("A","B","C","A","B","C","A","C","B")
+ltm_train_seq2 <- c("B","C","A","B","A","C","A","B","C")
+alphabet       <- c("A","B","C")
+test_seqs      <- list(x1 = x1, x2 = x2)
+N              <- 3L
+
+# All LTM models are pretrained on both training sequences.
+# IDyOM imports them as one dataset; ppidyom calls train_sequence() once per seq.
+train_seqs <- list(ltm_train_seq, ltm_train_seq2)
 
 # IDyOM escape code  →  ppidyom escape name  (used in predict_sequence())
 # Note: IDyOM's AX is invoked as :x (not :ax); the fixture uses "x" accordingly.
@@ -41,7 +46,7 @@ idyom2ppm <- c(a = "a", b = "b", c = "c", d = "d", x = "ax")
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 make_model <- function(cfg) {
-  ppidyom$new(
+  ppidyomModel$new(
     N                    = N,
     alphabet             = alphabet,
     stm_exclusion        = as.logical(cfg$stm_exclusion),
@@ -60,14 +65,23 @@ make_model <- function(cfg) {
 # "implementation-discrepancy" for details on the base-distribution difference).
 ppidyom_predict <- function(x, cfg) {
   model <- make_model(cfg)
-  if (cfg$model != "stm") model$train_sequence(ltm_train_seq)
+
+  if (cfg$model != "stm") {
+    for (train_seq in train_seqs)
+      model$train_sequence(train_seq)
+  }
+
+  # mixtures=TRUE → interpolation (IDyOM default); mixtures=FALSE → backoff
+  ppm_type <- if (isTRUE(as.logical(cfg$mixtures))) "interpolation" else "backoff"
+  b_val    <- if (!is.null(cfg$b) && !is.na(cfg$b)) as.numeric(cfg$b) else 7
+
   res <- model$predict_sequence(
     x,
     model_type = cfg$model,
-    ppm_type   = "interpolation",
+    ppm_type   = ppm_type,
     stm_lambda = idyom2pp[[cfg$stm_escape]],
     ltm_lambda = idyom2pp[[cfg$ltm_escape]],
-    b          = 7,
+    b          = b_val,
     idyom_base = TRUE
   )
   # Filter to observed events (result has one row per symbol per timestep)
@@ -99,9 +113,16 @@ if (file.exists(FIXTURE)) {
 
   ref <- fread(FIXTURE)
 
+  # Backfill columns added after initial fixture generation (for old fixtures).
+  if (!"mixtures" %in% names(ref)) ref[, mixtures := TRUE]
+  if (!"b"        %in% names(ref)) ref[, b        := 7]
+  ref[is.na(mixtures), mixtures := TRUE]
+  ref[is.na(b),        b        := 7]
+
   param_cols <- c("model", "stm_escape", "ltm_escape",
                   "stm_exclusion", "stm_update_exclusion",
-                  "ltm_exclusion", "ltm_update_exclusion")
+                  "ltm_exclusion", "ltm_update_exclusion",
+                  "mixtures", "b")
   configs <- unique(ref[, ..param_cols])
 
   for (i in seq_len(nrow(configs))) {
@@ -113,6 +134,8 @@ if (file.exists(FIXTURE)) {
     se  <- cfg$stm_escape;  le  <- cfg$ltm_escape
     sex <- cfg$stm_exclusion; seu <- cfg$stm_update_exclusion
     lex <- cfg$ltm_exclusion; leu <- cfg$ltm_update_exclusion
+    mix <- cfg$mixtures
+    b_v <- cfg$b
 
     for (sl in names(test_seqs)) {
       x <- test_seqs[[sl]]
@@ -121,16 +144,23 @@ if (file.exists(FIXTURE)) {
         model == m & seq_label == sl &
         stm_escape == se & ltm_escape == le &
         stm_exclusion == sex & stm_update_exclusion == seu &
-        ltm_exclusion == lex & ltm_update_exclusion == leu
+        ltm_exclusion == lex & ltm_update_exclusion == leu &
+        mixtures == mix & b == b_v
       ][order(index)]
 
       label <- sprintf(
-        "model=%s seq=%s se_esc=%s se=%s su=%s le_esc=%s le=%s lu=%s",
+        "model=%s seq=%s se_esc=%s se=%s su=%s le_esc=%s le=%s lu=%s mix=%s b=%s",
         m, sl, se, as.integer(sex), as.integer(seu),
-        le, as.integer(lex), as.integer(leu)
+        le, as.integer(lex), as.integer(leu), mix, b_v
       )
 
       # ── ppidyom vs IDyOM ─────────────────────────────────────────────────
+      # b != 7: prior fixture was generated with the wrong Lisp form
+      # (idyom::*stm-ltm-weight-parameter*) which doesn't exist, so IDyOM
+      # silently used its default b=7 for every b=1 run.  The generator now
+      # uses the correct (mvs:set-ltm-stm-bias N) form; re-run
+      # bash inst/validation/run_idyom_docker.sh to regenerate the fixture,
+      # then remove the skip_if below.
       test_that(paste("ppidyom vs IDyOM:", label), {
         pp <- ppidyom_predict(x, cfg)
         expect_equal(
@@ -146,12 +176,13 @@ if (file.exists(FIXTURE)) {
       })
 
       # ── ppidyom vs ppm (STM only — ppm package has no LTM) ───────────────
-      # Only compare against ppm when stm_exclusion=TRUE: that is the only
-      # setting where all three implementations agree on the base distribution.
-      # When exclusion=FALSE, ppidyom(idyom_base=TRUE) uses 1/|alphabet| for
-      # the order-(-1) prior (matching IDyOM), while ppm always uses the
-      # shrinking denominator.  See vignette("implementation-discrepancy").
-      if (m == "stm" && as.logical(sex)) {
+      # Only compare against ppm when stm_exclusion=TRUE and mixtures=TRUE:
+      # that is the only setting where all three implementations agree on the
+      # base distribution.  When exclusion=FALSE, ppidyom(idyom_base=TRUE)
+      # uses 1/|alphabet| for the order-(-1) prior (matching IDyOM), while
+      # ppm always uses the shrinking denominator.
+      # See vignette("implementation-discrepancy").
+      if (m == "stm" && as.logical(sex) && isTRUE(as.logical(mix))) {
         test_that(paste("ppidyom vs ppm (STM):", label), {
           skip_if_not(
             requireNamespace("ppm", quietly = TRUE),

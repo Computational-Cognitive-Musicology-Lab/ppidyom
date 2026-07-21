@@ -113,7 +113,7 @@ x        <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
 alphabet <- c("A", "B", "C")
 N        <- 3L
 
-model <- ppidyom$new(N = N, alphabet = alphabet,
+model <- ppidyomModel$new(N = N, alphabet = alphabet,
                      stm_exclusion = FALSE, stm_update_exclusion = FALSE)
 
 ic_ppm_compat <- model$predict_sequence(
@@ -166,7 +166,7 @@ prior — will be lower than with `TRUE`.
 
 ``` r
 # IDyOM-compatible LTM (used in all IDyOM comparison tests)
-model <- ppidyom$new(
+model <- ppidyomModel$new(
   N               = 3L,
   alphabet        = c("A","B","C"),
   ltm_start_token = FALSE
@@ -323,5 +323,7 @@ ppidyom’s default behaviour and required flags:
 | both / both+                   | ✓ with flags             | `ltm_start_token = FALSE`, `idyom_base = TRUE`, `b = 7` |
 | AX escape                      | ✓ (call IDyOM with `:x`) | fixture uses `:x`; test maps `"x"` → ppidyom `"X"`      |
 
-For working code examples see `vignette("example-calls")`. For the full
-parameter map see `vignette("parameter-correspondence")`.
+For working code examples see
+[`vignette("example-calls")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ExampleCalls.md).
+For the full parameter map see
+[`vignette("parameter-correspondence")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.md).

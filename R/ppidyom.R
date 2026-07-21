@@ -1,8 +1,8 @@
 library(data.table)
 
 
-ppidyom <- setRefClass(
-  "ppidyom",
+ppidyomModel <- setRefClass(
+  "ppidyomModel",
 
   fields = list(
     N = "numeric",
@@ -18,6 +18,21 @@ ppidyom <- setRefClass(
   methods = list(
 
     #' Initialize a new PPM counter
+    #' @name ppidyomModel
+    #' @rdname ppidyomModel
+    #' @param N Maximum n-gram order (order bound).
+    #' @param alphabet Character vector of all possible symbols/events.
+    #' @param stm_exclusion Logical; when computing STM escape probabilities,
+    #'   exclude symbols already assigned a probability at a higher order
+    #'   (default TRUE).
+    #' @param ltm_exclusion Logical; same as `stm_exclusion`, for LTM (default TRUE).
+    #' @param stm_update_exclusion Logical; stop updating lower-order STM counts
+    #'   once a higher order already matched at this timestep (default TRUE).
+    #' @param ltm_update_exclusion Logical; same as `stm_update_exclusion`, but
+    #'   applied while accumulating LTM counts (default FALSE).
+    #' @param ltm_start_token Logical; count beginning-of-sequence positions
+    #'   when accumulating LTM (default TRUE; set FALSE to match IDyOM).
+    #'
     initialize = function(
       N, alphabet,
       stm_exclusion = TRUE, ltm_exclusion = TRUE,
@@ -34,7 +49,7 @@ ppidyom <- setRefClass(
       .self$ltm_start_token <- ltm_start_token
     },
 
-    #' Train on a single sequence (incremental LTM update)
+    # Train on a single sequence (incremental LTM update)
     #' @param x Character vector sequence to train
     train_sequence = function(x) {
       count_tables <- count_tables(
@@ -53,33 +68,32 @@ ppidyom <- setRefClass(
     },
 
 
-    #' Remove a single sequence from the trained LTM counts
-    #'
-    #' Exactly reverses one call to train_sequence(x), event by event.
-    #'
-    #' ## Why the loop order matters for ltm_update_exclusion
-    #'
-    #' train_sequence increments counts with this per-timestep logic:
-    #'
-    #'   seen = FALSE
-    #'   for n = N downto 0:
-    #'     if !ltm_update_exclusion OR !seen:
-    #'       exists = (ctx_n, sym) already in LTM   [Ce > 0 BEFORE update]
-    #'       Ce_n += 1
-    #'       if exists: seen = TRUE   ← stop updating lower orders
-    #'
-    #' detrain_sequence must undo exactly those increments.  The key is
-    #' reconstructing which orders were actually updated:
-    #'
-    #'   • We know Ce_current (the value NOW, after training).
-    #'   • The Ce before training was Ce_current - 1.
-    #'   • "exists before training" = Ce_before > 0 = Ce_current - 1 > 0
-    #'     = old_ce > 1.
-    #'
-    #' So we mirror the training loop, decrementing Ce at each order and
-    #' stopping (setting seen_ltm=TRUE) whenever old_ce > 1, because that
-    #' is exactly when training would have stopped updating lower orders.
-    #'
+    # Remove a single sequence from the trained LTM counts
+    #
+    # Exactly reverses one call to train_sequence(x), event by event.
+    #
+    # ## Why the loop order matters for ltm_update_exclusion
+    #
+    # train_sequence increments counts with this per-timestep logic:
+    #
+    #   seen = FALSE
+    #   for n = N downto 0:
+    #     if !ltm_update_exclusion OR !seen:
+    #       exists = (ctx_n, sym) already in LTM   [Ce > 0 BEFORE update]
+    #       Ce_n += 1
+    #       if exists: seen = TRUE   ← stop updating lower orders
+    #
+    # detrain_sequence must undo exactly those increments.  The key is
+    # reconstructing which orders were actually updated:
+    #
+    #   • We know Ce_current (the value NOW, after training).
+    #   • The Ce before training was Ce_current - 1.
+    #   • "exists before training" = Ce_before > 0 = Ce_current - 1 > 0
+    #     = old_ce > 1.
+    #
+    # So we mirror the training loop, decrementing Ce at each order and
+    # stopping (setting seen_ltm=TRUE) whenever old_ce > 1, because that
+    # is exactly when training would have stopped updating lower orders.
     #' @param x Character vector sequence to de-train
     detrain_sequence = function(x) {
       N_ord <- .self$N
@@ -108,6 +122,7 @@ ppidyom <- setRefClass(
           if (length(idx) == 0) next
 
           old_ce <- dt_n$Ce[idx]
+					if (is.na(old_ce)) old_ce <- 0 
           if (old_ce <= 0L) next      # nothing to undo
 
           # Decrement Ce and the context-level aggregates
@@ -131,23 +146,49 @@ ppidyom <- setRefClass(
       .self$counts_ltm <- counts_local
     },
 
-    #' Predict IC and entropy for a sequence
+    # Predict IC and entropy for a sequence
     #' @param x Character vector sequence
-    #' @param model_type Model type: "stm", "ltm", "both", "ltm+", "both+"
-    #' @param ppm_type "interpolation" or "backoff"
-    #' @param stm_lambda escape or discount function for STM (default = "C")
-    #' @param ltm_lambda escape or discount function for LTM (default = "C")
-    #' @param b Bias parameter for relative-entropy weighting (used for + models)
-    #' @param idyom_base Logical. If TRUE, use IDyOM-compatible order-(-1) base
-    #'   distribution: 1/|alphabet| when exclusion=FALSE, shrinking denominator
-    #'   when exclusion=TRUE.  If FALSE (default), always use the shrinking
-    #'   denominator (matches Harrison's ppm package).
-    #'   See vignette("implementation-discrepancy") for details.
+    #' @param model_type Which memory component(s) to use:
+    #'   - `"stm"` — short-term memory, `x` only.
+    #'   - `"ltm"` — long-term memory, from prior `train_sequence()` calls.
+    #'   - `"both"` — STM + LTM blended.
+    #'   - `"ltm+"`/`"both+"` — as `"ltm"`/`"both"`, but LTM is updated online
+    #'     after each event of `x`.
+    #' @param ppm_type PPM estimation method:
+    #'   - `"interpolation"` — weighted sum across all n-gram orders.
+    #'   - `"backoff"` — falls through orders from longest to shortest matching context.
+    #' @param stm_lambda Escape/discount method for STM:
+    #'   - `"A"` — very conservative; escapes rarely.
+    #'   - `"B"` — escapes in proportion to novelty.
+    #'   - `"C"` — Witten-Bell (default); balances novelty and count stability.
+    #'   - `"D"` — absolute discounting (d = 0.5).
+    #'   - `"X"` — AX; escapes based on singleton count.
     #'
-    #'   Note: the constructor flag `ltm_start_token` controls whether LTM counts
-    #'   include beginning-of-sequence positions (TRUE, default) or skip them
-    #'   (FALSE, IDyOM-compatible).  See vignette("implementation-discrepancy").
+    #'   See the [Escape method](../articles/ParameterCorrespondence.html#escape-method)
+    #'   section of the [Parameter Correspondence](../articles/ParameterCorrespondence.html)
+    #'   vignette for the exact formulas.
+    #' @param ltm_lambda Escape/discount method for LTM; same options as `stm_lambda`.
+    #' @param b Bias exponent for entropy-weighted blending, used only when
+    #'   `model_type` is `"both"`/`"both+"`; higher values favor whichever of
+    #'   STM/LTM is currently more confident (lower entropy).
+    #' @param idyom_base Logical order-(-1) base distribution:
+    #'   - `TRUE` — IDyOM-compatible: 1/|alphabet| when exclusion=FALSE,
+    #'     shrinking denominator when exclusion=TRUE.
+    #'   - `FALSE` (default) — always the shrinking denominator (matches
+    #'     Harrison's ppm package).
+    #'
+    #'   See the [Implementation Discrepancy](../articles/ImplementationDiscrepancy.html)
+    #'   vignette for details.
+    #'   (Matching IDyOM for LTM also requires the constructor's `ltm_start_token = FALSE`.)
     #' @return data.table with columns: index, Event, P, IC, Entropy
+    #' @examples
+    #' # ppidyomModel is internal; use ::: since this example isn't run via library()
+    #' model <- ppidyom:::ppidyomModel$new(N = 3, alphabet = c("A", "B", "C"), stm_exclusion = TRUE)
+    #' result <- model$predict_sequence(
+    #'   c("A", "B", "A", "C", "A", "B", "A", "C", "A"),
+    #'   model_type = "stm", stm_lambda = "C"
+    #' )
+    #' result[, .(index, Event, P, IC, Entropy)]
     predict_sequence = function(x, model_type = c("stm", "ltm", "both", "ltm+", "both+"),
                                 ppm_type = c("interpolation", "backoff"),
                                 stm_lambda = "C",
@@ -219,7 +260,8 @@ ppidyom <- setRefClass(
           )
         else
           ppm_backoff(x, .self$N, .self$alphabet, stm_order_counts,
-                      escape_func = stm_lambda_func)
+                      escape_func = stm_lambda_func,
+                      exclusion = .self$stm_exclusion, idyom_base = idyom_base)
       }
 
       P_ltm <- NULL
@@ -232,7 +274,8 @@ ppidyom <- setRefClass(
           )
         else
           ppm_backoff(x, .self$N, .self$alphabet, ltm_order_counts,
-                      escape_func = ltm_lambda_func)
+                      escape_func = ltm_lambda_func,
+                      exclusion = .self$ltm_exclusion, idyom_base = idyom_base)
       }
 
       result_all_symbols <- if (model_type == "stm")

@@ -22,14 +22,16 @@ ppm_interpolated(
 \item{alphabet}{Character vector of full alphabet}
 
 \item{order_counts}{List of length N+1 containing count tables for orders
-0..N. Each element must be a `data.table` with columns:
-`index`, `context_id`, `Event`, `Ce`, `C`, `t`, `t1`.
-- For **STM**, `index` corresponds to the timestep.
-- For **LTM**, `index` is constantly -1; `ltm_to_timestep_counts` maps
-  them to per-timestep tables before the loop.}
+0..N. Each element must be a \code{data.table} with columns:
+\code{index}, \code{context_id}, \code{Event}, \code{Ce}, \code{C}, \code{t}, \code{t1}.
+\itemize{
+\item For \strong{STM}, \code{index} corresponds to the timestep.
+\item For \strong{LTM}, \code{index} is constantly -1; \code{ltm_to_timestep_counts} maps
+them to per-timestep tables before the loop.
+}}
 
-\item{escape_func}{Escape function from escape.R (e.g., `escape_C`).
-Signature: `function(t, t1)` returning `list(subtract, esc_numer)`.
+\item{escape_func}{Escape function from escape.R (e.g., \code{escape_C}).
+Signature: \verb{function(t, t1)} returning \code{list(subtract, esc_numer)}.
 Method C is the standard choice and matches ppm package defaults.}
 
 \item{exclusion}{Logical. If TRUE, applies exclusion (Cleary & Witten 1984).
@@ -47,9 +49,9 @@ Every order from N down to 0 contributes a share of probability mass, with
 any leftover mass falling through to a base (uniform) distribution.
 }
 \details{
-## Math
+\subsection{Math}{
 
-At each order n, every symbol receives a contribution:
+\if{html}{\out{<div class="sourceCode">}}\preformatted{At each order n, every symbol receives a contribution:
 
   alpha_n(s) = max(Ce_n(s) - d, 0) / denom_n
 
@@ -73,8 +75,11 @@ mass" (R) that shrinks by the escape probability at each order:
 Expanded (method C for concreteness):
 
   P(s) =  Ce_N(s)/(C_N+t_N)
-        + [t_N/(C_N+t_N)] · Ce_{N-1}(s)/(C_{N-1}+t_{N-1})
-        + [t_N/(C_N+t_N)] · [t_{N-1}/(...)] · Ce_{N-2}(s)/(...)
+        + [t_N/(C_N+t_N)] · Ce_\{N-1\}(s)/(C_\{N-1\}+t_\{N-1\})
+        + [t_N/(C_N+t_N)] · [t_\{N-1\}/(...)] · Ce_\{N-2\}(s)/(...)
         + ...
         + (∏ esc_k) · base(s)
+}\if{html}{\out{</div>}}
 }
+}
+\keyword{internal}

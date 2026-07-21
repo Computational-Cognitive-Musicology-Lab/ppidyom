@@ -6,19 +6,26 @@ Welcome to the main website of ppidyom!
 
 **ppidyom** is an R package for applying *partial predictive matching*
 (PPM) algorithms to musical data. PPM algorithms are a sophisticated
-form of N-gram model, where musical events (notes, chords, etc.) are
-predicted based on the previous music. This (probabilistic) predictions
-can then be used as the basis for information theory metrics, like
-information content and entropy.
+form of N-gram model, which predict consequent musical events (notes,
+chords, etc.) sequentially based on the immediate context of antecedent
+musical events. For example, if I hear the sequence of notes “G B D F,”
+a PPM algorithm would come up with a prediction for how probable it is
+for the next note to be “E.” These (probabilistic) predictions can then
+be used as the basis for information theory metrics, like *information
+content* and *entropy*.
 
 **ppidyom** is similar to the widely used
 [IDyOM](https://www.marcus-pearce.com/idyom/) (Pearce, 2005) and
 [ppm](https://github.com/pmcharrison/ppm) (Harrison, et al. 2020)
 softwares. The goal of the **ppidyom** project is to make
-partial-predictive-modeling faster, easier, and more transparent than
-these existing systems. In particular, **ppidyom** is designed to work
+partial-predictive-modeling (à la IDyOM) faster, easier, and more
+transparent than ever. In particular, **ppidyom** is designed to work
 within the [humdrumR](https://humdrumR.ccml.gtcmt.gatech.edu) package
-framework, making a complete system for musicological analysis.
+framework, making is super easy to apply ppm-model predictions to any of
+the [tens of
+thousands](https://github.com/search?q=topic%3Ahumdrum+topic%3Adigital-scores+&type=repositories)
+of scores encoded in the [humdrum
+syntax](https://github.com/search?q=topic%3Ahumdrum+topic%3Adigital-scores+&type=repositories).
 
 #### What does ppidyom stand for?
 
@@ -30,12 +37,15 @@ It’s an homage/mash-up of IDyOM and ppm!
 PPM models originated in the field of computational linguistics. PPM
 models are a form of N-gram model, where each sequential musical event
 (note, chord, etc.) is predicted based on the N-previous events. In a
-PPM model, N-grams of various lengths are “blended” to create the final
-prediction.
+basic N-gram models, we use one fixed value for N, like $N = 5$ to
+create “5-grams.” In a PPM model, N-grams of various lengths are
+“blended” to create the final prediction.
 
 PPM model implementations can also incorporate:
 
-- Long-term and short-term models.
+- Methods for blending “long-term” knowledge (learned from many pieces)
+  and “short-term” knowledge (learned dynamically within a piece).
+- Different approaches to dealing with never-seen-before events.
 
 # Package index
 
@@ -45,32 +55,16 @@ These tools .
 
 ### XXX
 
-- [`build_online_ltm_timestep_counts()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/build_online_ltm_timestep_counts.md)
-  : Build Per-Timestep LTM Count Tables with Online Update
-- [`compute_local_probs()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/compute_local_probs.md)
-  : Compute Local Probabilities for a Single Order; Used by Backoff PPM
+- [`ppidyom()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom.md)
+  : Calculate information dynamics using PPIDyOM
+- [`ppidyomModel`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyomModel.md)
+  : Initialize a new PPM counter
+- [`run_ppidyom()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/run_ppidyom.md)
+  : Run PPM over a corpus of sequences
 - [`count_tables()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/count_tables.md)
   : Compute Count Tables for STM and LTM with Optional Prior
 - [`lag_matrix()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/lag_matrix.md)
   : Generate Lagged N-gram Matrix
-- [`ppidyom-class`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom-class.md)
-  [`ppidyom`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom-class.md)
-  : Initialize a new PPM counter Train on a single sequence (incremental
-  LTM update)
-- [`apply_prior_ltm()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/apply_prior_ltm.md)
-  : Seed LTM environments from previously accumulated count tables
-- [`envs_to_ltm_tables()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/envs_to_ltm_tables.md)
-  : Convert online-update environments to LTM data.table format
-- [`precompute_contexts()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/precompute_contexts.md)
-  : Precompute context identifiers for all orders
-- [`ltm_to_timestep_counts()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ltm_to_timestep_counts.md)
-  : Expand LTM Count Tables to Timestep-Aligned Order Tables
-- [`ppm_backoff()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppm_backoff.md)
-  : Compute PPM Probabilities for all symbols with Backoff
-- [`ppm_interpolated()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppm_interpolated.md)
-  : Compute PPM Probabilities for all symbols with Interpolation
-- [`update_env()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/update_env.md)
-  : Update a Sparse Context Count Environment
 
 # Articles
 
@@ -78,14 +72,25 @@ These tools .
 
 - [Overview: Motivation, Design, and
   Applications](https://ppidyom.ccml.gtcmt.gatech.edu/articles/Overview.md):
+- [N-grams
+  101](https://ppidyom.ccml.gtcmt.gatech.edu/articles/NGrams.md):
+- [Information Theory Fundamentals: Entropy and Information
+  Content](https://ppidyom.ccml.gtcmt.gatech.edu/articles/InfoTheory.md):
+
+### Usage
+
 - [Example Calls: Matching ppm and
   IDyOM](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ExampleCalls.md):
+- [Using ppidyom with
+  humdrumR](https://ppidyom.ccml.gtcmt.gatech.edu/articles/HumdrumRCalls.md):
 
-### Replication
+### Algorithm Details
 
-How can we replicate outputs of IDyOM and PPM
+Details of how algorithm can be controlled
 
 - [Implementation Differences: ppm, IDyOM, and
   ppidyom](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md):
 - [Parameter Correspondence: ppidyom, ppm, and
   IDyOM](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.md):
+- [Our default values: don't let us be a black
+  box](https://ppidyom.ccml.gtcmt.gatech.edu/articles/Defaults.md):

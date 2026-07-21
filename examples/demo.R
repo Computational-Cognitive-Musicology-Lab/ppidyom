@@ -3,9 +3,11 @@
 # Usage examples for ppidyom.
 # Run after devtools::load_all() (see README_DEV.md for setup).
 #
-# Two sections:
+# Four sections:
 #   1. ABC toy sequence — ppidyom vs ppm package (no special files needed)
-#   2. HumdrumR / kern corpus — real music data (requires humdrumR + kern files)
+#   2. Multi-sequence corpus — run_ppidyom() with leave-one-out (no special files needed)
+#   3. HumdrumR / kern corpus — run_ppidyom() on real music data (requires humdrumR + kern files)
+#   4. HumdrumR / kern corpus — same data via the new ppidyom() generic (requires humdrumR + kern files)
 
 library(data.table)
 devtools::load_all()   # or: library(ppidyom)
@@ -179,3 +181,33 @@ if (requireNamespace("humdrumR", quietly = TRUE) &&
     ltm_start_token = TRUE
   )
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. HUMDRUMR EXAMPLE (NEW API): ppidyom() / ppidyom.humdrumR()
+# ─────────────────────────────────────────────────────────────────────────────
+# Same corpus as section 3, but via the new ppidyom() S3 generic instead of
+# run_ppidyom(). ppidyom.humdrumR() lets you pipe a humdrumR corpus straight
+# into the model: `humdrumdata |> ppidyom()`. The piped field (here, MIDI
+# pitch) becomes the viewpoint vector. Pass `longTermGroups = list(Piece)` to
+# train/leave-one-out per piece (the default, with no groups given, treats the
+# whole corpus as a single sequence).
+#
+# NOTE: ppidyom.default()'s last line calls pull() without importing it, so
+# this only works once dplyr is on the search path — which library(humdrumR)
+# does transitively. A bare `library(ppidyom)` without humdrumR/dplyr loaded
+# will error there; see R/userfunctions.R.
+
+if (requireNamespace("humdrumR", quietly = TRUE) &&
+    length(list.files("tests/data/kern", pattern = "\\.krn$")) > 0) {
+
+  library(humdrumR)
+
+  kern_files <- readHumdrum("tests/data/kern/*.krn")
+
+  # LTM leave-one-out (per piece), via the new generic:
+  kern_files |> midi() |> ppidyom(maxN = 5, model_type = "ltm", longTermGroups = list(Piece))
+
+  # Combined STM + LTM:
+  kern_files |> midi() |> ppidyom(maxN = 5, model_type = "both", longTermGroups = list(Piece))
+}
+

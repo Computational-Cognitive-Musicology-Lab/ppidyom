@@ -36,13 +36,19 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Basics</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Theory</h6></li>
     <li><a class="dropdown-item" href="../articles/Overview.html">Overview: Motivation, Design, and Applications</a></li>
-    <li><a class="dropdown-item" href="../articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/NGrams.html">N-grams 101</a></li>
+    <li><a class="dropdown-item" href="../articles/InfoTheory.html">Information Theory Fundamentals: Entropy and Information Content</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>R/Background</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Usage</h6></li>
+    <li><a class="dropdown-item" href="../articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/HumdrumRCalls.html">Using ppidyom with humdrumR</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Algorithm Parameters</h6></li>
     <li><a class="dropdown-item" href="../articles/ImplementationDiscrepancy.html">Implementation Differences: ppm, IDyOM, and ppidyom</a></li>
     <li><a class="dropdown-item" href="../articles/ParameterCorrespondence.html">Parameter Correspondence: ppidyom, ppm, and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/Defaults.html">Our default values: don't let us be a black box</a></li>
   </ul>
 </li>
       </ul>
@@ -275,16 +281,16 @@ agree.</p>
 <span><span class="va">alphabet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"C"</span><span class="op">)</span></span>
 <span><span class="va">N</span>        <span class="op">&lt;-</span> <span class="fl">3L</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom-class.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span>N <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>,</span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyomModel.html">ppidyomModel</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span>N <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>                     stm_exclusion <span class="op">=</span> <span class="cn">FALSE</span>, stm_update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ic_ppm_compat</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">predict_sequence</span><span class="op">(</span></span>
 <span>  <span class="va">x</span>, model_type <span class="op">=</span> <span class="st">"stm"</span>, stm_lambda <span class="op">=</span> <span class="st">"C"</span>, idyom_base <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span><span class="op">[</span><span class="fu">data.table</span><span class="op">(</span>index<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>,Event<span class="op">=</span><span class="va">x</span><span class="op">)</span>, on<span class="op">=</span><span class="fu">.</span><span class="op">(</span><span class="va">index</span>,<span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">$</span><span class="va">IC</span></span>
+<span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span>index<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>,Event<span class="op">=</span><span class="va">x</span><span class="op">)</span>, on<span class="op">=</span><span class="fu">.</span><span class="op">(</span><span class="va">index</span>,<span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">$</span><span class="va">IC</span></span>
 <span></span>
 <span><span class="va">ic_idyom_compat</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">predict_sequence</span><span class="op">(</span></span>
 <span>  <span class="va">x</span>, model_type <span class="op">=</span> <span class="st">"stm"</span>, stm_lambda <span class="op">=</span> <span class="st">"C"</span>, idyom_base <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span><span class="op">[</span><span class="fu">data.table</span><span class="op">(</span>index<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>,Event<span class="op">=</span><span class="va">x</span><span class="op">)</span>, on<span class="op">=</span><span class="fu">.</span><span class="op">(</span><span class="va">index</span>,<span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">$</span><span class="va">IC</span></span>
+<span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span>index<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>,Event<span class="op">=</span><span class="va">x</span><span class="op">)</span>, on<span class="op">=</span><span class="fu">.</span><span class="op">(</span><span class="va">index</span>,<span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">$</span><span class="va">IC</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  t            <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>,</span>
@@ -350,7 +356,7 @@ LTM, so only ppidyom and IDyOM differ here.</p>
 </table>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># IDyOM-compatible LTM (used in all IDyOM comparison tests)</span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom-class.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyomModel.html">ppidyomModel</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N               <span class="op">=</span> <span class="fl">3L</span>,</span>
 <span>  alphabet        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"C"</span><span class="op">)</span>,</span>
 <span>  ltm_start_token <span class="op">=</span> <span class="cn">FALSE</span></span>
@@ -549,9 +555,8 @@ and ppm comparison suites.</p>
 </tr>
 </tbody>
 </table>
-<p>For working code examples see <code>vignette("example-calls")</code>.
-For the full parameter map see
-<code>vignette("parameter-correspondence")</code>.</p>
+<p>For working code examples see <a href="ExampleCalls.html"><code>vignette("example-calls")</code></a>. For
+the full parameter map see <a href="ParameterCorrespondence.html"><code>vignette("parameter-correspondence")</code></a>.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
@@ -560,7 +565,7 @@ For the full parameter map see
 
 
     <footer><div class="pkgdown-footer-left">
-  <p><a href="https://humdrumR.ccml.gtcmt.gatech.edu" class="external-link"><img src="ppidyom_logo.svg" alt="humdrumR" style="height:120px;"></a></p>
+  <p><a href="https://ppidyom.ccml.gtcmt.gatech.edu"><img src="ppidyom_logo.svg" alt="ppidyom logo" style="height:120px;"></a></p>
 </div>
 
 <div class="pkgdown-footer-right">

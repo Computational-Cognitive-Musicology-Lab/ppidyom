@@ -8,6 +8,7 @@ library(data.table)
 #'
 #' ## Math
 #'
+#' ```
 #' At each order n, every symbol receives a contribution:
 #'
 #'   alpha_n(s) = max(Ce_n(s) - d, 0) / denom_n
@@ -36,6 +37,7 @@ library(data.table)
 #'         + [t_N/(C_N+t_N)] · [t_{N-1}/(...)] · Ce_{N-2}(s)/(...)
 #'         + ...
 #'         + (∏ esc_k) · base(s)
+#' ```
 #'
 #' @param x Character vector of events
 #' @param N Maximum order
@@ -56,7 +58,7 @@ library(data.table)
 #'   receive contrib mass from this order; only the denominator changes.
 #'
 #' @return data.table with columns: index, Event, P, IC, Entropy
-#' @export
+#' @keywords internal
 ppm_interpolated <- function(
     x, N, alphabet, order_counts,
     escape_func = escape_C,

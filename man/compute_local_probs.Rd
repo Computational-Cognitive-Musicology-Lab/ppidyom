@@ -10,7 +10,7 @@ compute_local_probs(dt, escape_func, normalize = FALSE)
 \item{dt}{Data.table for a single order. Columns: index, context_id, Event, Ce, C, t, t1.}
 
 \item{escape_func}{Escape function from escape.R.
-Signature: `function(t, t1)` returning `list(subtract, esc_numer)`.}
+Signature: \verb{function(t, t1)} returning \code{list(subtract, esc_numer)}.}
 }
 \value{
 Data.table with columns: index, Event, prob_local, esc
@@ -18,3 +18,4 @@ Data.table with columns: index, Event, prob_local, esc
 \description{
 Compute Local Probabilities for a Single Order; Used by Backoff PPM
 }
+\keyword{internal}

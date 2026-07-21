@@ -11,15 +11,18 @@ Description: Partial predictive modeling (PPM) has been applied widely to musica
     Our goal is to make PPM for music faster and easier...and in R.
     Other attempts have been made in R, but our approach is more flexible and much faster.
 License: GPL-3
+URL: https://ppidyom.ccml.gtcmt.gatech.edu
 Encoding: UTF-8
 LazyData: true
 Depends: R(>= 4.5), data.table
 RoxygenNote: 7.3.3
+Roxygen: list(markdown = TRUE)
 Suggests:
     testthat,
     knitr,
     rmarkdown,
-    ppm
+    ppm,
+    humdrumR
 Remotes:
     pmcharrison/ppm
 VignetteBuilder: knitr

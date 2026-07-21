@@ -5,3 +5,7 @@
 inst/validation/_idyom_work/
 /doc/
 /Meta/
+
+# knitr cache from vignettes
+vignettes/*_cache/
+vignettes/cache/

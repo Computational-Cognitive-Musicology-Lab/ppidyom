@@ -12,8 +12,11 @@ lag_matrix(x, N = 3)
 \item{N}{Maximum N-gram order.}
 }
 \value{
-A `data.table` with columns LagN..Lag0 and index.
+A \code{data.table} with columns LagN..Lag0 and index.
 }
 \description{
 Creates a lagged representation of a sequence for N-gram modeling.
+}
+\examples{
+lag_matrix(c("A", "B", "A", "C", "A"), N = 2)
 }

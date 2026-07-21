@@ -15,10 +15,11 @@ envs_to_ltm_tables(envs, N, alphabet)
 }
 \value{
 List of N+1 data.tables, each with columns
-  index=-1L, context_id, Event, Ce, C, t, t1.
+index=-1L, context_id, Event, Ce, C, t, t1.
 }
 \description{
 After running build_online_ltm_timestep_counts, the updated environments
 are not directly accessible.  This helper rebuilds them and converts to the
 data.table list format used by counts_ltm (index = -1L rows).
 }
+\keyword{internal}

@@ -7,7 +7,7 @@ conceptually — in terms of what kind of listener or memory it represents
 each package.
 
 For the algorithmic discrepancies that go beyond parameter naming see
-`vignette("implementation-discrepancy")`.
+[`vignette("implementation-discrepancy")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md).
 
 ------------------------------------------------------------------------
 
@@ -77,7 +77,8 @@ exact formulas.
 > ¹ **AX note:** IDyOM’s internal AX keyword is `:x`, not `:ax`; calling
 > IDyOM with `:ax` silently falls back to `:c` behaviour (an IDyOM bug).
 > The IDyOM comparison fixture uses `:x` to correctly invoke the AX
-> branch. See `vignette("implementation-discrepancy")` §6.
+> branch. See [`vignette("implementation-discrepancy")`
+> §6](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.html#escape-method-ax-idyom-bug-call-with-x).
 
 ------------------------------------------------------------------------
 
@@ -133,8 +134,9 @@ each level.
 
 > **Base-distribution interaction:** the exclusion flag also controls
 > which order −1 formula IDyOM uses. See
-> `vignette("implementation-discrepancy")` §1–2 for the full
-> explanation.
+> [`vignette("implementation-discrepancy")`
+> §1–2](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.html#base-prior-ltm)
+> for the full explanation.
 
 ------------------------------------------------------------------------
 
@@ -181,7 +183,7 @@ the base prior.
 
 ``` r
 # IDyOM-compatible LTM
-model <- ppidyom$new(
+model <- ppidyomModel$new(
   N               = 3L,
   alphabet        = c("A","B","C"),
   ltm_start_token = FALSE
@@ -243,7 +245,8 @@ the test sequence. For a LTM trained on all three symbols, the base
 prior is `1/(3+1-3) = 1.0` — a constant.
 
 Full explanation with IDyOM source:
-`vignette("implementation-discrepancy")` §1–2.
+[`vignette("implementation-discrepancy")`
+§1–2](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.html#base-prior-ltm).
 
 ------------------------------------------------------------------------
 
@@ -266,9 +269,10 @@ $$w_{i} \propto \left( \frac{H_{i}}{H_{\max}} \right)^{-b},\quad H_{\max} = \log
 | `1` (ppidyom default) | —                               | gentle weighting; both models contribute noticeably     |
 | `7`                   | **IDyOM default** (Pearce 2005) | sharp weighting; lower-entropy model strongly dominates |
 
-Pass `b = 7` to `predict_sequence()` or `run_ppidyom()` to match IDyOM’s
-default behaviour. All `both`/`both+` IDyOM comparison tests use
-`b = 7`.
+Pass `b = 7` to `predict_sequence()` or
+[`run_ppidyom()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/run_ppidyom.md)
+to match IDyOM’s default behaviour. All `both`/`both+` IDyOM comparison
+tests use `b = 7`.
 
 ppm does not support mixture models.
 
