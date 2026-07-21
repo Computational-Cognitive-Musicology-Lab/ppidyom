@@ -1,0 +1,132 @@
+---
+title: "Using ppidyom with humdrumR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using ppidyom with humdrumR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = TRUE, cache = TRUE, cache.path = 'cache/')
+library(ppidyom)
+library(data.table)
+```
+
+
+
+
+Though it can be used on any R data vectors, `ppidyom` is fully incorporated into [humdrumR](https://humdrumr.ccml.gtcmt.gatech.edu/), making it very easy to apply to existing musical datasets using various operational definitions ("viewpoints").
+
+```{r, message = FALSE}
+library(humdrumR)
+library(ppidyom)
+
+```
+
+
+# First examples
+
+Let's start with trusty Bach chorales, the first ten of which are packaged with humdrumR.
+To load them, we just need this:
+
+```{r}
+
+chorales <- readHumdrum(humdrumRroot, "HumdrumData/BachChorales/.*krn")
+
+```
+
+If you have any other humdrum data on your machine, you can just pass `readHumdrum()` the path and pattern to match your files.
+
+Before applying ppidyom, consider what dimension of the music you want to model, and your *operational definition* for that dimension.
+This choral data is encoded as `**kern`, which means it has relative rhythm data and absolute pitch encoded for each note, as well as notation details like stem direction.
+Here we'll consider just focus on modeling pitch, ignoring rhythm.
+But "pitch" can be viewed different ways: absolute vs relative, tonal vs atonal, etc.
+
+Let's start with simple (no octave information) scale degree, which we can extract using `solfa(simple = TRUE)`.
+We can then pass that straight to `ppidyom()`:
+
+```{r}
+
+chorales |> solfa(simple = TRUE) |> ppidyom()
+
+
+```
+
+And that's all it takes!
+We see a unique information theory prediction for each and every note in the score.
+
+----
+
+The ppidyom() function has *many* arguments, but here we're just using the default settings.
+What exactly did ppidyom do here, by default?:
+
++ *Leave-one-out cross validation*:
+	+ For each chorale, the model is trained on the *other nine* chorales to create the "long-term" model.
++ All four voices (bass, tenor, alto, soprano) within each chorale are used, each treated like a separate sequence.
++ The maximum N-gram length of five is used.
+
+## Different operational definitions 
+
+
+Perhaps you decide that, *given your research questions*, it makes more sense to incorporate absolute pitch information.
+Just get rid of `simple = TRUE` (or set `simple = FALSE`).
+
+```{r}
+
+chorales |> solfa(simple = FALSE) |> ppidyom()
+
+```
+
+Or maybe you just want to atonal absolute pitch (semitones).
+That's easy, just switch to the `semits()` function:
+
+
+```{r}
+
+chorales |> semits() |> ppidyom()
+
+```
+
+
+I wonder how different the ppm information content estimates will be when we use these different approaches.
+Let's compare:
+
+
+```{r}
+
+chorales |> solfa(simple = TRUE)  |> ppidyom() |> pull() -> tonal
+chorales |> semits() |> ppidyom() |> pull() -> atonal
+
+draw(tonal, atonal)
+
+```
+
+
+# Other examples
+
+
+How about a different type of pitch data: harmonies?
+Let's pull up `humdrumR`'s prepackaged subset of the *Rolling Stone 200* dataset:
+
+```{r}
+
+rs <- readHumdrum(humdrumRroot, '/HumdrumData/RollingStoneCorpus/.*hum')
+
+```
+
+We can extract the roman numerals from the `**harm` spine, and then apply ppidyom:
+
+```{r}
+
+rs[[, '**harm']] |> ppidyom()
+
+```
+
+Now we get a information-content estimate for each every chord symbol.
+Notice that this corpus includes separate annotations from two different analyses (Temperley and de Clercq), and ppidyom() is using both as the training data.
+We might want to just use on or the other.
+
+
+
+

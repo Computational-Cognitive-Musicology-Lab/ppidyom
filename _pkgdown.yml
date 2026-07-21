@@ -40,21 +40,24 @@ articles:
   - NGrams
   - InfoTheory
 - title: Usage
-  navbar: Practice
+  navbar: Usage
   contents:
   - ExampleCalls
-- title: Replication
-  desc: How can we replicate outputs of IDyOM and PPM
-  navbar: Replication
+  - HumdrumRCalls
+- title: Algorithm Details
+  desc: Details of how algorithm can be controlled
+  navbar: Algorithm Parameters
   contents:
   - ImplementationDiscrepancy
   - ParameterCorrespondence
+  - Defaults
 reference:
 - title: "Section "
   desc: "These tools ."
 - subtitle: "XXX "
   contents:
   - ppidyom
+  - ppidyomModel
+  - run_ppidyom
   - count_tables
   - lag_matrix
-  - ppidyomModel-class

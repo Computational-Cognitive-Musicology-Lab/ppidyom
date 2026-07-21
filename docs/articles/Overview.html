@@ -41,12 +41,14 @@
     <li><a class="dropdown-item" href="../articles/NGrams.html">N-grams 101</a></li>
     <li><a class="dropdown-item" href="../articles/InfoTheory.html">Information Theory Fundamentals: Entropy and Information Content</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Practice</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Usage</h6></li>
     <li><a class="dropdown-item" href="../articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/HumdrumRCalls.html">Using ppidyom with humdrumR</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Replication</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Algorithm Parameters</h6></li>
     <li><a class="dropdown-item" href="../articles/ImplementationDiscrepancy.html">Implementation Differences: ppm, IDyOM, and ppidyom</a></li>
     <li><a class="dropdown-item" href="../articles/ParameterCorrespondence.html">Parameter Correspondence: ppidyom, ppm, and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/Defaults.html">Our default values: don't let us be a black box</a></li>
   </ul>
 </li>
       </ul>
@@ -208,12 +210,11 @@ governs how the model behaves.</p>
 <h3 id="transparency-and-parameter-correspondence">Transparency and parameter correspondence<a class="anchor" aria-label="anchor" href="#transparency-and-parameter-correspondence"></a>
 </h3>
 <p>Every algorithmic choice that differs between IDyOM and ppm is
-exposed as a named parameter.
-<code>vignette("implementation-discrepancy")</code> documents the six
-divergences, explains the information-theoretic motivation for each, and
-shows exactly which ppidyom flag controls which behaviour.
-<code>vignette("parameter-correspondence")</code> maps each ppidyom
-parameter to its IDyOM and ppm equivalents.</p>
+exposed as a named parameter. <a href="ImplementationDiscrepancy.html"><code>vignette("implementation-discrepancy")</code></a>
+documents the six divergences, explains the information-theoretic
+motivation for each, and shows exactly which ppidyom flag controls which
+behaviour. <a href="ParameterCorrespondence.html"><code>vignette("parameter-correspondence")</code></a>
+maps each ppidyom parameter to its IDyOM and ppm equivalents.</p>
 </div>
 <div class="section level3">
 <h3 id="benchmarking">Benchmarking<a class="anchor" aria-label="anchor" href="#benchmarking"></a>
@@ -231,13 +232,16 @@ processes sequences with vectorised operations. This makes it
 substantially faster than the IDyOM CLI on large corpora.</p>
 </div>
 <div class="section level3">
-<h3 id="humdrumr-integration-in-development">HumdrumR integration (in development)<a class="anchor" aria-label="anchor" href="#humdrumr-integration-in-development"></a>
+<h3 id="humdrumr-integration-early-basic">HumdrumR integration (early / basic)<a class="anchor" aria-label="anchor" href="#humdrumr-integration-early-basic"></a>
 </h3>
-<p>ppidyom is designed to integrate with <a href="https://github.com/Computational-Cognitive-Musicology-Lab/humdrumR" class="external-link">HumdrumR</a>,
-the symbolic music analysis framework for R. The planned integration
-will allow ppidyom to accept Humdrum-format scores directly and return
-IC results as HumdrumR data objects, enabling PPM-based analysis as part
-of a broader corpus analysis pipeline.</p>
+<p>ppidyom now integrates with <a href="https://github.com/Computational-Cognitive-Musicology-Lab/humdrumR" class="external-link">HumdrumR</a>,
+the symbolic music analysis framework for R, via
+<code>ppidyom.humdrumR()</code> — an S3 method on the new
+<code><a href="../reference/ppidyom.html">ppidyom()</a></code> generic. It accepts Humdrum-format scores
+directly and returns IC results attached to the HumdrumR data object,
+enabling PPM-based analysis as part of a broader corpus analysis
+pipeline. This is a first-pass implementation; see <a href="ExampleCalls.html#humdrumr-integration-early-basic"><code>vignette("example-calls")</code></a>
+for a usage example.</p>
 <hr>
 </div>
 </div>
@@ -274,7 +278,7 @@ replication studies and cross-implementation comparison.</p>
 <h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">ppidyom</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ppidyom.ccml.gtcmt.gatech.edu">ppidyom</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># A short melody represented as symbol labels</span></span>
@@ -283,7 +287,7 @@ replication studies and cross-implementation comparison.</p>
 <span><span class="va">N</span>        <span class="op">&lt;-</span> <span class="fl">3L</span>   <span class="co"># order bound: consider up to 3-event contexts</span></span>
 <span></span>
 <span><span class="co"># STM model with default IDyOM-compatible settings</span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span>N <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, stm_exclusion <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyomModel.html">ppidyomModel</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span>N <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, stm_exclusion <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">predict_sequence</span><span class="op">(</span></span>
 <span>  <span class="va">melody</span>,</span>
@@ -296,10 +300,9 @@ replication studies and cross-implementation comparison.</p>
 <span><span class="co"># Extract IC for the observed events</span></span>
 <span><span class="va">obs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span>index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">melody</span><span class="op">)</span>, Event <span class="op">=</span> <span class="va">melody</span><span class="op">)</span></span>
 <span><span class="va">result</span><span class="op">[</span><span class="va">obs</span>, on <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span>, <span class="va">IC</span>, <span class="va">Entropy</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
-<p>For calls that replicate IDyOM or the ppm package exactly, see
-<code>vignette("example-calls")</code>. For a full description of how
-the implementations differ and how to configure ppidyom, see
-<code>vignette("implementation-discrepancy")</code>.</p>
+<p>For calls that replicate IDyOM or the ppm package exactly, see <a href="ExampleCalls.html"><code>vignette("example-calls")</code></a>. For
+a full description of how the implementations differ and how to
+configure ppidyom, see <a href="ImplementationDiscrepancy.html"><code>vignette("implementation-discrepancy")</code></a>.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
@@ -308,7 +311,7 @@ the implementations differ and how to configure ppidyom, see
 
 
     <footer><div class="pkgdown-footer-left">
-  <p><a href="https://humdrumR.ccml.gtcmt.gatech.edu" class="external-link"><img src="ppidyom_logo.svg" alt="humdrumR" style="height:120px;"></a></p>
+  <p><a href="https://ppidyom.ccml.gtcmt.gatech.edu"><img src="ppidyom_logo.svg" alt="ppidyom logo" style="height:120px;"></a></p>
 </div>
 
 <div class="pkgdown-footer-right">

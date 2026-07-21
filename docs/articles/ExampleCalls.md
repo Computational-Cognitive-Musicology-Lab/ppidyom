@@ -15,19 +15,20 @@ that listener has:
   of the current piece, weighting each source by how confident it is.
 
 This vignette shows the exact calls needed to replicate Harrison’s
-**ppm** package and IDyOM (Common Lisp). The two differ in several
-subtle ways that are explained in
-`vignette("implementation-discrepancy")`; the full parameter map is in
-`vignette("parameter-correspondence")`.
+**ppm** package and IDyOM (Common Lisp) using very simple toy examples.
+The two differ in several subtle ways that are explained in
+[`vignette("implementation-discrepancy")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md);
+the full parameter map is in
+[`vignette("parameter-correspondence")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.md).
 
 ------------------------------------------------------------------------
 
 ## Shared test data
 
 ``` r
-x        <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
-alphabet <- c("A", "B", "C")
-N        <- 3L
+testSequence <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
+alphabet     <- c("A", "B", "C")
+N            <- 3L
 ```
 
 ------------------------------------------------------------------------
@@ -57,20 +58,21 @@ statistics; as patterns repeat, higher orders take over.
 #   )
 #   ppm::model_seq(mod, factor(x, levels = alphabet))$information_content
 
-model <- ppidyom$new(
-  N                    = N,
-  alphabet             = alphabet,
-  stm_exclusion        = FALSE,
-  stm_update_exclusion = FALSE
-)
-result <- model$predict_sequence(
-  x,
-  model_type = "stm",
-  ppm_type   = "interpolation",
-  stm_lambda = "C",    # uppercase = ppidyom; lowercase = ppm/IDyOM
-  idyom_base = FALSE   # FALSE = ppm-compatible shrinking base (default)
-)
-result[data.table(index = seq_along(x), Event = x), on = .(index, Event)]$IC
+ppidyom(testSequence, maxN = N, alphabet = alphabet, 
+                model_type = 'stm', ppm_type = 'interpolation', idyom_base = FALSE,
+                shortTermArgs = list(lambda = 'C', exclusion = FALSE, update_exclusion = FALSE))
+#> i is 1 in lt_groups
+#>    index  Event          P        IC   Entropy
+#>    <int> <char>      <num>     <num>     <num>
+#> 1:     1      A 0.33333333 1.5849625 1.5849625
+#> 2:     2      B 0.16666667 2.5849625 1.2516292
+#> 3:     3      A 0.40000000 1.3219281 1.5219281
+#> 4:     4      C 0.09090909 3.4594316 1.2406705
+#> 5:     5      A 0.38461538 1.3785116 1.5766212
+#> 6:     6      B 0.36363636 1.4594316 1.5726237
+#> 7:     7      A 0.78571429 0.3479233 0.9619687
+#> 8:     8      C 0.79245283 0.3356030 0.9240572
+#> 9:     9      A 0.89361702 0.1622714 0.5952916
 ```
 
 ### STM, escape A, with exclusion
@@ -84,51 +86,64 @@ not yet covered by higher-order predictions.
 ``` r
 # ppm::(escape="a", exclusion=TRUE, update_exclusion=FALSE)
 
-model <- ppidyom$new(
-  N                    = N,
-  alphabet             = alphabet,
-  stm_exclusion        = TRUE,
-  stm_update_exclusion = FALSE
-)
-result <- model$predict_sequence(
-  x,
-  model_type = "stm",
-  ppm_type   = "interpolation",
-  stm_lambda = "A",
-  idyom_base = FALSE
-)
-result[data.table(index = seq_along(x), Event = x), on = .(index, Event)]$IC
+ppidyom(testSequence, maxN = N, alphabet = alphabet, 
+                model_type = 'stm', ppm_type = 'interpolation', idyom_base = FALSE,
+                shortTermArgs = list(lambda = 'A', exclusion = TRUE, update_exclusion = FALSE)) 
+#> i is 1 in lt_groups
+#>    index  Event          P        IC  Entropy
+#>    <int> <char>      <num>     <num>    <num>
+#> 1:     1      A 0.33333333 1.5849625 1.584963
+#> 2:     2      B 0.16666667 2.5849625 1.251629
+#> 3:     3      A 0.42857143 1.2223924 1.448816
+#> 4:     4      C 0.06666667 3.9068906 1.230960
+#> 5:     5      A 0.42857143 1.2223924 1.556657
+#> 6:     6      B 0.37500000 1.4150375 1.561278
+#> 7:     7      A 0.61538462 0.7004397 1.334679
+#> 8:     8      C 0.55000000 0.8624965 1.376357
+#> 9:     9      A 0.62500000 0.6780719 1.329434
 ```
 
-### Multiple sequences via `run_ppidyom`
+### Multiple “pieces”
 
-For a corpus of sequences, `run_ppidyom` handles the loop automatically.
-Each sequence is processed independently; for STM the model resets
-between sequences (each sequence starts from scratch with no accumulated
-memory).
+In most research, we work with corpora of multiple musical
+sequences—this can include multiple independent pieces, or different
+parts within the same piece. You can tell ppidyom() how your input data
+is divided into pieces and/or parts. Each sequence is then processed
+independently: the STM the model resets between all sequences (each
+sequence starts from scratch with no accumulated memory); The LTM is
+“trained” across pieces.
+
+Here we’ll build some toy data with two “pieces.” We’ll put the data
+into one column of a data.frame, and the piece indicator in another
+column:
 
 ``` r
-corpus <- list(
-  c("A","B","A","C","A","B","A","C","A"),
-  c("B","A","B","C","A")
-)
 
-results <- run_ppidyom(
-  corpus,
-  N                    = N,
-  alphabet             = alphabet,
-  model_type           = "stm",
-  ppm_type             = "interpolation",
-  stm_lambda           = "C",
-  stm_exclusion        = FALSE,
-  stm_update_exclusion = FALSE,
-  idyom_base           = FALSE   # ppm-compatible
-)
-# results[[i]] has one row per (timestep, symbol); filter to observed events
-lapply(seq_along(corpus), function(i) {
-  obs <- data.table(index = seq_along(corpus[[i]]), Event = corpus[[i]])
-  results[[i]][obs, on = .(index, Event)]$IC
-})
+testCorpus <- data.frame(Sequence = c('A', 'B', 'C', 'A', 'B', 'C', 'A', 'C', 'B',
+                                                                        'B', 'A', 'B', 'C', 'A'),
+                                           Piece = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2))
+
+ppidyom(testCorpus$Sequence, maxN = N, alphabet = alphabet,
+                model_type = 'stm', ppm_type = 'interpolation', idyom_base = FALSE,
+                shortTermArgs = list(lambda = 'C', exclusion = FALSE, update_exclusion = FALSE),
+              shortTermGroups = list(testCorpus$Piece))
+#> i is 1 in lt_groups
+#>     index  Event          P        IC   Entropy
+#>     <int> <char>      <num>     <num>     <num>
+#>  1:     1      A 0.33333333 1.5849625 1.5849625
+#>  2:     2      B 0.16666667 2.5849625 1.2516292
+#>  3:     3      C 0.20000000 2.3219281 1.5219281
+#>  4:     4      A 0.33333333 1.5849625 1.5849625
+#>  5:     5      B 0.55000000 0.8624965 1.4387587
+#>  6:     6      C 0.73684211 0.4405726 1.0946323
+#>  7:     7      A 0.87179487 0.1979394 0.6807002
+#>  8:     8      C 0.03968254 4.6553518 0.5141786
+#>  9:     9      B 0.12820513 2.9634741 1.1385983
+#> 10:     1      B 0.33333333 1.5849625 1.5849625
+#> 11:     2      A 0.16666667 2.5849625 1.2516292
+#> 12:     3      B 0.40000000 1.3219281 1.5219281
+#> 13:     4      C 0.09090909 3.4594316 1.2406705
+#> 14:     5      A 0.30769231 1.7004397 1.5766212
 ```
 
 ------------------------------------------------------------------------
@@ -161,20 +176,22 @@ here; all three implementations agree.
 #   (idyom:idyom <db-id> '(cpitch) '(cpitch) :texture :melody :models :stm
 #     :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))
 
-model <- ppidyom$new(
-  N                    = N,
-  alphabet             = alphabet,
-  stm_exclusion        = TRUE,
-  stm_update_exclusion = FALSE
-)
-result <- model$predict_sequence(
-  x,
-  model_type = "stm",
-  ppm_type   = "interpolation",
-  stm_lambda = "C",
-  idyom_base = TRUE   # no numerical effect with exclusion=TRUE and STM, but explicit for clarity
-)
-result[data.table(index = seq_along(x), Event = x), on = .(index, Event)]$IC
+
+ppidyom(testSequence, maxN = N, alphabet = alphabet, 
+                model_type = 'stm', ppm_type = 'interpolation', idyom_base = TRUE,
+                shortTermArgs = list(lambda = 'C', exclusion = TRUE, update_exclusion = FALSE))
+#> i is 1 in lt_groups
+#>    index  Event         P        IC  Entropy
+#>    <int> <char>     <num>     <num>    <num>
+#> 1:     1      A 0.3333333 1.5849625 1.584963
+#> 2:     2      B 0.1666667 2.5849625 1.251629
+#> 3:     3      A 0.4000000 1.3219281 1.521928
+#> 4:     4      C 0.1000000 3.3219281 1.295462
+#> 5:     5      A 0.3846154 1.3785116 1.576621
+#> 6:     6      B 0.3500000 1.5145732 1.581291
+#> 7:     7      A 0.5714286 0.8073549 1.409975
+#> 8:     8      C 0.5308642 0.9135852 1.442672
+#> 9:     9      A 0.5833333 0.7776076 1.396535
 ```
 
 ### IDyOM STM — exclusion OFF
@@ -190,64 +207,74 @@ values.**
 # IDyOM call:
 #   :stmo '(:escape :c :order-bound 3 :exclusion nil :update-exclusion nil)
 
-model <- ppidyom$new(
-  N                    = N,
-  alphabet             = alphabet,
-  stm_exclusion        = FALSE,
-  stm_update_exclusion = FALSE
-)
 
-result_idyom <- model$predict_sequence(
-  x, model_type = "stm", stm_lambda = "C", idyom_base = TRUE
-)
-result_ppm <- model$predict_sequence(
-  x, model_type = "stm", stm_lambda = "C", idyom_base = FALSE
-)
+result_idyom <- ppidyom(testSequence, maxN = N, alphabet = alphabet, 
+                                                model_type = 'stm', ppm_type = 'interpolation', idyom_base = TRUE,
+                                                shortTermArgs = list(lambda = 'C', exclusion = FALSE, update_exclusion = FALSE))
+#> i is 1 in lt_groups
 
-obs <- data.table(index = seq_along(x), Event = x)
-data.frame(
-  event           = x,
-  IC_idyom_compat = result_idyom[obs, on = .(index, Event)]$IC,
-  IC_ppm_compat   = result_ppm  [obs, on = .(index, Event)]$IC
+result_ppm   <- ppidyom(testSequence, maxN = N, alphabet = alphabet, 
+                                                model_type = 'stm', ppm_type = 'interpolation', idyom_base = FALSE,
+                                                shortTermArgs = list(lambda = 'C', exclusion = FALSE, update_exclusion = FALSE))
+#> i is 1 in lt_groups
+data.frame(event = testSequence,
+                     IC_idyom_compat = result_idyom$IC, 
+                     IC_ppm_compat   = result_ppm$IC
 )
+#>   event IC_idyom_compat IC_ppm_compat
+#> 1     A       1.5849625     1.5849625
+#> 2     B       2.5849625     2.5849625
+#> 3     A       1.2630344     1.3219281
+#> 4     C       3.9068906     3.4594316
+#> 5     A       1.2223924     1.3785116
+#> 6     B       1.4150375     1.4594316
+#> 7     A       0.2157287     0.3479233
+#> 8     C       0.2863042     0.3356030
+#> 9     A       0.1018796     0.1622714
 ```
 
 ### IDyOM LTM only
 
 The LTM is trained on a separate corpus before prediction begins. Once
-trained, it does not update — the listener’s long-term knowledge stays
-fixed throughout the test sequence. The base prior is determined by the
+trained, it does not update — the listener’s long-term knowledge stays f
+throughout the test sequence. The base prior is determined by the
 training data: if all three symbols appear during training, `t_root = 3`
 and the order-(-1) probability is `1/(3+1-3) = 1.0`.
 
 `ltm_start_token = FALSE` is required to match IDyOM’s practice of
 skipping beginning-of-sequence positions during training.
 
+We’ll use our `testCorpus` again, but this time—by using
+`longTermGroups`—we can tell ppidyom() to train its long-term model
+based on the `Piece` field.
+
 ``` r
 # IDyOM call:
 #   (idyom:idyom <db-id> '(cpitch) '(cpitch) :texture :melody :models :ltm
 #     :ltmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))
 
-train_seq <- c("A","B","C","A","B","C","A","C","B")
-
-model <- ppidyom$new(
-  N               = N,
-  alphabet        = alphabet,
-  ltm_exclusion   = TRUE,
-  ltm_start_token = FALSE    # IDyOM-compatible: skip beginning-of-sequence positions
-)
-model$train_sequence(train_seq)
-
-result <- model$predict_sequence(
-  x,
-  model_type = "ltm",
-  ppm_type   = "interpolation",
-  ltm_lambda = "C",
-  idyom_base = TRUE           # use t_root from training data, not test sequence
-)
-result[data.table(index = seq_along(x), Event = x), on = .(index, Event)][
-  , .(index, Event, IC, Entropy)
-]
+ppidyom(testCorpus$Sequence, maxN = N, alphabet = alphabet, 
+                model_type = 'ltm', ppm_type = 'interpolation', idyom_base = TRUE,
+                longTermArgs = list(lambda = 'C', exclusion = TRUE, start_token = FALSE),
+                longTermGroups = list(testCorpus$Piece)) 
+#> i is 1 in lt_groups
+#> i is 2 in lt_groups
+#>     index  Event         P        IC  Entropy
+#>     <int> <char>     <num>     <num>    <num>
+#>  1:     1      A 0.3571429 1.4854268 1.577406
+#>  2:     2      B 0.5500000 0.8624965 1.438759
+#>  3:     3      C 0.5283019 0.9205655 1.455683
+#>  4:     4      A 0.5500000 0.8624965 1.438759
+#>  5:     5      B 0.5500000 0.8624965 1.438759
+#>  6:     6      C 0.5283019 0.9205655 1.455683
+#>  7:     7      A 0.5500000 0.8624965 1.438759
+#>  8:     8      C 0.2000000 2.3219281 1.438759
+#>  9:     9      B 0.2500000 2.0000000 1.438759
+#> 10:     1      B 0.3333333 1.5849625 1.584963
+#> 11:     2      A 0.1666667 2.5849625 1.251629
+#> 12:     3      B 0.4444444 1.1699250 1.530493
+#> 13:     4      C 0.6666667 0.5849625 1.251629
+#> 14:     5      A 0.6666667 0.5849625 1.241946
 ```
 
 ### IDyOM both+ model
@@ -267,29 +294,29 @@ IDyOM-specific flags are required.
 #     :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil)
 #     :ltmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))
 
-model <- ppidyom$new(
-  N                    = N,
-  alphabet             = alphabet,
-  stm_exclusion        = TRUE,
-  ltm_exclusion        = TRUE,
-  stm_update_exclusion = FALSE,
-  ltm_update_exclusion = FALSE,
-  ltm_start_token      = FALSE   # IDyOM-compatible
-)
-model$train_sequence(train_seq)
-
-result <- model$predict_sequence(
-  x,
-  model_type = "both+",
-  ppm_type   = "interpolation",
-  stm_lambda = "C",
-  ltm_lambda = "C",
-  b          = 7,         # IDyOM default: sharp entropy-weighting (Pearce 2005)
-  idyom_base = TRUE
-)
-result[data.table(index = seq_along(x), Event = x), on = .(index, Event)][
-  , .(index, Event, IC, Entropy)
-]
+ppidyom(testCorpus$Sequence, maxN = N, alphabet = alphabet, 
+                model_type = 'both+', ppm_type = 'interpolation', idyom_base = TRUE, b = 7,
+                shortTermArgs = list(lambda = 'C', exclusion = TRUE, update_exclusion = FALSE),
+                longTermArgs = list(lambda = 'C', exclusion = TRUE, update_exclusion = FALSE, start_token = FALSE),
+                longTermGroups = list(testCorpus$Piece)) 
+#> i is 1 in lt_groups
+#> i is 2 in lt_groups
+#>     index  Event         P        IC  Entropy
+#>     <int> <char>     <num>     <num>    <num>
+#>  1:     1      A 0.3455200 1.5331590 1.583009
+#>  2:     2      B 0.3207316 1.6405615 1.489050
+#>  3:     3      C 0.3445727 1.5371195 1.579550
+#>  4:     4      A 0.4500539 1.1518303 1.541824
+#>  5:     5      B 0.6043820 0.7264674 1.358232
+#>  6:     6      C 0.5963342 0.7458071 1.373280
+#>  7:     7      A 0.6175950 0.6952671 1.341650
+#>  8:     8      C 0.1975305 2.3398527 1.435343
+#>  9:     9      B 0.1385047 2.8519929 1.156471
+#> 10:     1      B 0.3333333 1.5849625 1.584963
+#> 11:     2      A 0.1605485 2.6389189 1.432502
+#> 12:     3      B 0.4684657 1.0939848 1.528652
+#> 13:     4      C 0.4534789 1.1408927 1.517111
+#> 14:     5      A 0.6196401 0.6904975 1.318967
 ```
 
 ------------------------------------------------------------------------
@@ -303,40 +330,3 @@ result[data.table(index = seq_along(x), Event = x), on = .(index, Event)][
 | Match IDyOM STM, excl=OFF      | `TRUE`            | **`TRUE`**        | any     | base distribution differs from ppm |
 | Match IDyOM LTM/ltm+           | **`FALSE`**       | **`TRUE`**        | any     | t_root comes from training data    |
 | Match IDyOM both/both+         | **`FALSE`**       | **`TRUE`**        | **`7`** | all three flags required           |
-
-------------------------------------------------------------------------
-
-## HumdrumR integration (planned)
-
-ppidyom is designed to integrate with
-[HumdrumR](https://github.com/Computational-Cognitive-Musicology-Lab/humdrumR),
-the symbolic music analysis framework for R. The planned workflow will
-allow you to pass a Humdrum score directly into ppidyom without any
-manual format conversion:
-
-``` r
-# Planned API — not yet implemented
-# library(humdrumR)
-#
-# h <- readHumdrum("my_score.krn")
-#
-# # ppidyom will accept HumdrumR objects directly:
-# ic_results <- h |>
-#   select_viewpoint("cpitch") |>
-#   run_ppidyom(
-#     N               = 3L,
-#     model_type      = "both+",
-#     stm_lambda      = "C",
-#     ltm_lambda      = "C",
-#     b               = 7,
-#     ltm_start_token = FALSE,
-#     idyom_base      = TRUE
-#   )
-```
-
-The current `run_ppidyom` function operates on plain R lists of
-character vectors (one per sequence). The HumdrumR wrapper will handle
-the extraction of the chosen viewpoint (e.g. chromatic pitch, scale
-degree, interval) and convert the results back into a
-HumdrumR-compatible data object, enabling IC analysis as part of a
-broader corpus analysis pipeline.

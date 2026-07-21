@@ -20,13 +20,19 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Basics</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Theory</h6></li>
     <li><a class="dropdown-item" href="articles/Overview.html">Overview: Motivation, Design, and Applications</a></li>
-    <li><a class="dropdown-item" href="articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="articles/NGrams.html">N-grams 101</a></li>
+    <li><a class="dropdown-item" href="articles/InfoTheory.html">Information Theory Fundamentals: Entropy and Information Content</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>R/Background</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Usage</h6></li>
+    <li><a class="dropdown-item" href="articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="articles/HumdrumRCalls.html">Using ppidyom with humdrumR</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Algorithm Parameters</h6></li>
     <li><a class="dropdown-item" href="articles/ImplementationDiscrepancy.html">Implementation Differences: ppm, IDyOM, and ppidyom</a></li>
     <li><a class="dropdown-item" href="articles/ParameterCorrespondence.html">Parameter Correspondence: ppidyom, ppm, and IDyOM</a></li>
+    <li><a class="dropdown-item" href="articles/Defaults.html">Our default values: don't let us be a black box</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json"></form></li>
@@ -236,18 +242,25 @@
 <td>escape ∈ {a,b,c,d,x} × stm_exclusion ∈ {0,1} × stm_update_exclusion ∈ {0,1}</td>
 <td>x1, x2</td>
 </tr><tr class="even"><td><code>ltm</code></td>
-<td>escape ∈ {a,b,c,d,x} × ltm_exclusion ∈ {0,1}</td>
+<td>OFAT: escape × ltm_exclusion × ltm_update_exclusion (all combos)</td>
 <td>x1, x2</td>
 </tr><tr class="odd"><td><code>ltm+</code></td>
-<td>spot-check: escape=c, ltm_exclusion=1</td>
+<td>spot-check: exclusion, update_exclusion</td>
 <td>x1, x2</td>
 </tr><tr class="even"><td><code>both</code></td>
-<td>OFAT on stm/ltm escape and stm/ltm exclusion flags</td>
+<td>OFAT on stm/ltm escape, exclusion, update_exclusion</td>
 <td>x1, x2</td>
 </tr><tr class="odd"><td><code>both+</code></td>
-<td>spot-check: escape=c, exclusion=1</td>
+<td>spot-check: exclusion</td>
 <td>x1, x2</td>
-</tr></tbody></table><p>Total: 32 IDyOM configurations × 2 sequences = 64 comparison tests. IDyOM’s AX escape is invoked as <code>:x</code> (not <code>:ax</code> — see §6 of <code>vignette("implementation-discrepancy")</code>).</p>
+</tr><tr class="even"><td>backoff (<code>mixtures=nil</code>)</td>
+<td>stm/ltm/ltm+/both/both+ baselines; stm+exclusion variant</td>
+<td>x1, x2</td>
+</tr><tr class="odd"><td><code>b = 1</code></td>
+<td>both (baseline + excl=T) + both+ baseline</td>
+<td>x1, x2</td>
+</tr></tbody></table><p>All LTM models are pretrained on two training sequences (the “multi” corpus). Total: 41 IDyOM configurations × 2 sequences = 82 comparison tests. IDyOM’s AX escape is invoked as <code>:x</code> (not <code>:ax</code> — see §6 of <code>vignette("implementation-discrepancy")</code>).</p>
+<p><strong>Note:</strong> The IDyOM <code>b</code> parameter is set via <code>(mvs:set-ltm-stm-bias N)</code> in the fixture generator.</p>
 </div>
 <div class="section level4">
 <h4 id="what-is-not-covered-1">What is NOT covered<a class="anchor" aria-label="anchor" href="#what-is-not-covered-1"></a></h4>
@@ -255,18 +268,10 @@
 <th>Notes</th>
 </tr></thead><tbody><tr class="odd"><td>N ≠ 3</td>
 <td>fixture only uses order-bound=3</td>
-</tr><tr class="even"><td><code>ltm_update_exclusion = TRUE</code></td>
-<td>fixture holds <code>ltm_update_exclusion = 0</code> throughout</td>
-</tr><tr class="odd"><td><code>b ≠ 7</code></td>
-<td>fixture always uses IDyOM’s default b=7</td>
 </tr><tr class="even"><td><code>idyom_base = FALSE</code></td>
 <td>always uses IDyOM-compatible base; ppm-compatible base not cross-checked for LTM</td>
-</tr><tr class="odd"><td>Backoff mode</td>
-<td>IDyOM supports <code>mixtures=nil</code>; not in fixture</td>
-</tr><tr class="even"><td>STM, <code>stm_exclusion = FALSE</code> vs ppm</td>
-<td>three-way check only runs when <code>stm_exclusion = TRUE</code> (the only setting where all three agree on the base distribution)</td>
-</tr><tr class="odd"><td>More than one training sequence</td>
-<td>fixture trains on a single fixed sequence</td>
+</tr><tr class="odd"><td>STM excl=OFF vs ppm</td>
+<td>three-way check only when <code>stm_exclusion = TRUE</code> and <code>mixtures = TRUE</code> (only setting where all three agree)</td>
 </tr></tbody></table><hr></div>
 </div>
 </div>
@@ -301,7 +306,7 @@
 <div class="section level3">
 <h3 id="id_44-parameter-grid">4.4 Parameter grid<a class="anchor" aria-label="anchor" href="#id_44-parameter-grid"></a></h3>
 <ul><li>OFAT: one-factor-at-a-time</li>
-</ul><p>The fixture covers <strong>32 IDyOM runs × 2 sequences = 64 total runs</strong>:</p>
+</ul><p>All LTM models are pretrained on two training sequences. The fixture covers <strong>41 IDyOM configurations × 2 sequences = 82 total runs</strong>:</p>
 <table class="table"><colgroup><col width="23%"><col width="26%"><col width="50%"></colgroup><thead><tr class="header"><th>Model</th>
 <th>Combos</th>
 <th>What’s varied</th>
@@ -310,7 +315,7 @@
 <td>baseline + 4 escape methods + exclusion + update_exclusion + both</td>
 </tr><tr class="even"><td><code>ltm</code></td>
 <td>8</td>
-<td>same OFAT pattern on the LTM side</td>
+<td>OFAT: escape × exclusion × update_exclusion</td>
 </tr><tr class="odd"><td><code>ltm+</code></td>
 <td>3</td>
 <td>spot-check of online updating</td>
@@ -320,7 +325,14 @@
 </tr><tr class="odd"><td><code>both+</code></td>
 <td>3</td>
 <td>spot-check of online updating in both+</td>
-</tr></tbody></table><p>To add more combinations, edit <code>generate_efficient_grid()</code> in <code>inst/validation/generate_idyom_reference.py</code> and re-run the Docker script. No R code changes are needed — the test file reads all configs directly from the CSV.</p>
+</tr><tr class="even"><td>backoff</td>
+<td>6</td>
+<td>
+<code>mixtures=False</code> for stm/ltm/ltm+/both/both+ + stm excl=T</td>
+</tr><tr class="odd"><td>b=1</td>
+<td>3</td>
+<td>both (2 combos) + both+ with mixture exponent b=1</td>
+</tr></tbody></table><p>To add more combinations, edit <code>generate_grid()</code> in <code>inst/validation/generate_idyom_reference.py</code> and re-run the Docker script. The R test file reads all configs directly from the fixture CSV and requires no changes when new rows are added.</p>
 </div>
 <div class="section level3">
 <h3 id="id_45-what-the-dockerfile-installs">4.5 What the Dockerfile installs<a class="anchor" aria-label="anchor" href="#id_45-what-the-dockerfile-installs"></a></h3>
@@ -357,15 +369,15 @@
 </tr><tr class="even"><td><code>R/backoff.R</code></td>
 <td>Probability computation (backoff PPM): consumes count tables, cascades through orders assigning probability mass to seen symbols.</td>
 </tr><tr class="odd"><td><code>R/ppidyom.R</code></td>
-<td>The main <code>ppidyom</code> R5 Reference Class: wraps LTM state and calls <code>count_tables</code>, <code>ppm_interpolated</code>/<code>ppm_backoff</code>, and <code>detrain_sequence</code>. Also contains <code>combine_models</code> for STM+LTM blending.</td>
-</tr><tr class="even"><td><code>R/utils.R</code></td>
-<td>Top-level user function <code>run_ppidyom</code>: runs leave-one-out or train-all evaluation over a corpus using the <code>ppidyom</code> class.</td>
+<td>The <code>ppidyomModel</code> R5 Reference Class: wraps LTM state and calls <code>count_tables</code>, <code>ppm_interpolated</code>/<code>ppm_backoff</code>, and <code>detrain_sequence</code>. Also contains <code>combine_models</code> for STM+LTM blending. (Renamed from <code>ppidyom</code> to free up that name for the user-facing generic below.)</td>
+</tr><tr class="even"><td><code>R/userfunctions.R</code></td>
+<td>User-facing entry points: <code><a href="reference/ppidyom.html">ppidyom()</a></code> (S3 generic, exported), <code>ppidyom.default()</code> (runs on plain vectors), <code>ppidyom.humdrumR()</code> (runs on a humdrumR corpus via <code><a href="https://rdrr.io/r/base/with.html" class="external-link">within()</a></code>), and <code><a href="reference/run_ppidyom.html">run_ppidyom()</a></code> (leave-one-out / train-all evaluation over a list of sequences using <code>ppidyomModel</code>).</td>
 </tr></tbody></table></div>
 <div class="section level3">
 <h3 id="dependency-graph">Dependency graph<a class="anchor" aria-label="anchor" href="#dependency-graph"></a></h3>
 <pre><code>escape.R  ──────────────────────────────────────────┐
                                                     ▼
-counts.R  ──► interpolation.R ──────────────► ppidyom.R ──► utils.R
+counts.R  ──► interpolation.R ──────────────► ppidyom.R ──► userfunctions.R
           └─► backoff.R ───────────────────────────►┘</code></pre>
 </div>
 <div class="section level3">
@@ -407,7 +419,7 @@ counts.R  ──► interpolation.R ──────────────�
 
 
     <footer><div class="pkgdown-footer-left">
-  <p><a href="https://humdrumR.ccml.gtcmt.gatech.edu" class="external-link"><img src="ppidyom_logo.svg" alt="humdrumR" style="height:120px;"></a></p>
+  <p><a href="https://ppidyom.ccml.gtcmt.gatech.edu"><img src="ppidyom_logo.svg" alt="ppidyom logo" style="height:120px;"></a></p>
 </div>
 
 <div class="pkgdown-footer-right">

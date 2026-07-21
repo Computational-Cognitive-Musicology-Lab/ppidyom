@@ -29,12 +29,14 @@ any leftover mass falling through to a base (uniform) distribution."></head><bod
     <li><a class="dropdown-item" href="../articles/NGrams.html">N-grams 101</a></li>
     <li><a class="dropdown-item" href="../articles/InfoTheory.html">Information Theory Fundamentals: Entropy and Information Content</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Practice</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Usage</h6></li>
     <li><a class="dropdown-item" href="../articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/HumdrumRCalls.html">Using ppidyom with humdrumR</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Replication</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Algorithm Parameters</h6></li>
     <li><a class="dropdown-item" href="../articles/ImplementationDiscrepancy.html">Implementation Differences: ppm, IDyOM, and ppidyom</a></li>
     <li><a class="dropdown-item" href="../articles/ParameterCorrespondence.html">Parameter Correspondence: ppidyom, ppm, and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/Defaults.html">Our default values: don't let us be a black box</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -88,16 +90,16 @@ any leftover mass falling through to a base (uniform) distribution.</p>
 
 <dt id="arg-order-counts">order_counts<a class="anchor" aria-label="anchor" href="#arg-order-counts"></a></dt>
 <dd><p>List of length N+1 containing count tables for orders
-0..N. Each element must be a `data.table` with columns:
-`index`, `context_id`, `Event`, `Ce`, `C`, `t`, `t1`.
-- For **STM**, `index` corresponds to the timestep.
-- For **LTM**, `index` is constantly -1; `ltm_to_timestep_counts` maps
-  them to per-timestep tables before the loop.</p></dd>
+0..N. Each element must be a <code>data.table</code> with columns:
+<code>index</code>, <code>context_id</code>, <code>Event</code>, <code>Ce</code>, <code>C</code>, <code>t</code>, <code>t1</code>.</p><ul><li><p>For <strong>STM</strong>, <code>index</code> corresponds to the timestep.</p></li>
+<li><p>For <strong>LTM</strong>, <code>index</code> is constantly -1; <code>ltm_to_timestep_counts</code> maps
+them to per-timestep tables before the loop.</p></li>
+</ul></dd>
 
 
 <dt id="arg-escape-func">escape_func<a class="anchor" aria-label="anchor" href="#arg-escape-func"></a></dt>
-<dd><p>Escape function from escape.R (e.g., `escape_C`).
-Signature: `function(t, t1)` returning `list(subtract, esc_numer)`.
+<dd><p>Escape function from escape.R (e.g., <code>escape_C</code>).
+Signature: <code>function(t, t1)</code> returning <code>list(subtract, esc_numer)</code>.
 Method C is the standard choice and matches ppm package defaults.</p></dd>
 
 
@@ -115,28 +117,41 @@ receive contrib mass from this order; only the denominator changes.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>## Math</p>
-<p>At each order n, every symbol receives a contribution:</p>
-<p>alpha_n(s) = max(Ce_n(s) - d, 0) / denom_n</p>
-<p>where d = subtract and denom_n = context_count + esc_numer,
-with (subtract, esc_numer) returned by escape_func (see escape.R):</p>
-<p>Method A : d=0,   eff=1,    ctx=C,       denom=C+1
-  Method B : d=1,   eff=t,    ctx=C-t,     denom=C
-  Method C : d=0,   eff=t,    ctx=C,       denom=C+t
-  Method D : d=0.5, eff=t/2,  ctx=C-0.5t,  denom=C
-  Method AX: d=0,   eff=t1+1, ctx=C,       denom=C+t1+1</p>
-<p>Contributions are accumulated across orders using a running "remaining
-mass" (R) that shrinks by the escape probability at each order:</p>
-<p>R starts at 1
-  each order n:   P(s) += R · contrib_n(s)
-                  R    *= esc_n
-  after order 0:  P(s) += R · base(s)</p>
-<p>Expanded (method C for concreteness):</p>
-<p>P(s) =  Ce_N(s)/(C_N+t_N)
-        + [t_N/(C_N+t_N)] · Ce_N-1(s)/(C_N-1+t_N-1)
-        + [t_N/(C_N+t_N)] · [t_N-1/(...)] · Ce_N-2(s)/(...)
-        + ...
-        + (∏ esc_k) · base(s)</p>
+
+<div class="section">
+<h3 id="math">Math<a class="anchor" aria-label="anchor" href="#math"></a></h3>
+
+
+<p></p><div class="sourceCode"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>At each order n, every symbol receives a contribution<span class="sc">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>  <span class="fu">alpha_n</span>(s) <span class="ot">=</span> <span class="fu">max</span>(<span class="fu">Ce_n</span>(s) <span class="sc">-</span> d, <span class="dv">0</span>) <span class="sc">/</span> denom_n</span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>where d <span class="ot">=</span> subtract and denom_n <span class="ot">=</span> context_count <span class="sc">+</span> esc_numer,</span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="fu">with</span> (subtract, esc_numer) returned by <span class="fu">escape_func</span> (see escape.R)<span class="sc">:</span></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>  Method A <span class="sc">:</span> d<span class="ot">=</span><span class="dv">0</span>,   eff<span class="ot">=</span><span class="dv">1</span>,    ctx<span class="ot">=</span>C,       denom<span class="ot">=</span>C<span class="sc">+</span><span class="dv">1</span></span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>  Method B <span class="sc">:</span> d<span class="ot">=</span><span class="dv">1</span>,   eff<span class="ot">=</span>t,    ctx<span class="ot">=</span>C<span class="sc">-</span>t,     denom<span class="ot">=</span>C</span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>  Method C <span class="sc">:</span> d<span class="ot">=</span><span class="dv">0</span>,   eff<span class="ot">=</span>t,    ctx<span class="ot">=</span>C,       denom<span class="ot">=</span>C<span class="sc">+</span>t</span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  Method D <span class="sc">:</span> d<span class="ot">=</span><span class="fl">0.5</span>, eff<span class="ot">=</span>t<span class="sc">/</span><span class="dv">2</span>,  ctx<span class="ot">=</span>C<span class="fl">-0.5</span>t,  denom<span class="ot">=</span>C</span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a>  Method AX<span class="sc">:</span> d<span class="ot">=</span><span class="dv">0</span>,   eff<span class="ot">=</span>t1<span class="sc">+</span><span class="dv">1</span>, ctx<span class="ot">=</span>C,       denom<span class="ot">=</span>C<span class="sc">+</span>t1<span class="sc">+</span><span class="dv">1</span></span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>Contributions are accumulated across orders using a running <span class="st">"remaining</span></span>
+<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a><span class="st">mass"</span> (R) that shrinks by the escape probability at each order<span class="sc">:</span></span>
+<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a>  R starts at <span class="dv">1</span></span>
+<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a>  each order n<span class="sc">:</span>   <span class="fu">P</span>(s) <span class="sc">+</span><span class="er">=</span> R · <span class="fu">contrib_n</span>(s)</span>
+<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a>                  R    <span class="sc">*</span><span class="er">=</span> esc_n</span>
+<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a>  after order <span class="dv">0</span><span class="sc">:</span>  <span class="fu">P</span>(s) <span class="sc">+</span><span class="er">=</span> R · <span class="fu">base</span>(s)</span>
+<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a></span>
+<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a><span class="fu">Expanded</span> (method C <span class="cf">for</span> concreteness)<span class="sc">:</span></span>
+<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a></span>
+<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a>  <span class="fu">P</span>(s) <span class="ot">=</span>  <span class="fu">Ce_N</span>(s)<span class="sc">/</span>(C_N<span class="sc">+</span>t_N)</span>
+<span id="cb1-25"><a href="#cb1-25" tabindex="-1"></a>        <span class="sc">+</span> [t_N<span class="sc">/</span>(C_N<span class="sc">+</span>t_N)] · Ce_{N<span class="dv">-1</span>}(s)<span class="sc">/</span>(C_{N<span class="dv">-1</span>}<span class="sc">+</span>t_{N<span class="dv">-1</span>})</span>
+<span id="cb1-26"><a href="#cb1-26" tabindex="-1"></a>        <span class="sc">+</span> [t_N<span class="sc">/</span>(C_N<span class="sc">+</span>t_N)] · [t_{N<span class="dv">-1</span>}<span class="sc">/</span>(...)] · Ce_{N<span class="dv">-2</span>}(s)<span class="sc">/</span>(...)</span>
+<span id="cb1-27"><a href="#cb1-27" tabindex="-1"></a>        <span class="sc">+</span> ...</span>
+<span id="cb1-28"><a href="#cb1-28" tabindex="-1"></a>        <span class="sc">+</span> (∏ esc_k) · <span class="fu">base</span>(s)</span></code></pre><p></p></div>
+</div>
+
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
@@ -144,7 +159,7 @@ mass" (R) that shrinks by the escape probability at each order:</p>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p><a href="https://humdrumR.ccml.gtcmt.gatech.edu" class="external-link"><img src="ppidyom_logo.svg" alt="humdrumR" style="height:120px;"></a></p>
+  <p><a href="https://ppidyom.ccml.gtcmt.gatech.edu"><img src="ppidyom_logo.svg" alt="ppidyom logo" style="height:120px;"></a></p>
 </div>
 
 <div class="pkgdown-footer-right">

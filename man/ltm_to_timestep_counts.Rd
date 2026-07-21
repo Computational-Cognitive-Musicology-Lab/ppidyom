@@ -13,16 +13,16 @@ ltm_to_timestep_counts(x, N, alphabet, order_counts)
 
 \item{alphabet}{Character vector of the full symbol alphabet.}
 
-\item{order_counts}{List of LTM count tables for orders `0..N`.
-Each element must be a `data.table` containing:
-`context_id`, `Event`, `Ce`, `C`, `t`, `t1`.}
+\item{order_counts}{List of LTM count tables for orders \verb{0..N}.
+Each element must be a \code{data.table} containing:
+\code{context_id}, \code{Event}, \code{Ce}, \code{C}, \code{t}, \code{t1}.}
 }
 \value{
-A list of length `N + 1`.
-Each element is a `data.table` with columns:
-`index`, `context_id`, `Event`, `Ce`, `C`, `t`, `t1`.
+A list of length \code{N + 1}.
+Each element is a \code{data.table} with columns:
+\code{index}, \code{context_id}, \code{Event}, \code{Ce}, \code{C}, \code{t}, \code{t1}.
 
-The tables contain one row per `(timestep, event)` pair and can be
+The tables contain one row per \verb{(timestep, event)} pair and can be
 directly passed to probability computation routines.
 }
 \description{
@@ -31,10 +31,10 @@ timestep-aligned tables compatible with PPM probability computation.
 }
 \details{
 LTM count tables contain counts aggregated over a training corpus
-(typically with `index = -1`). For prediction on a new sequence `x`,
+(typically with \code{index = -1}). For prediction on a new sequence \code{x},
 we must derive the counts associated with each timestep's context.
 
 The result matches the structure expected by PPM implementations
-(`ppm_backoff`, `ppm_interpolated`, etc.).
+(\code{ppm_backoff}, \code{ppm_interpolated}, etc.).
 }
 \keyword{internal}

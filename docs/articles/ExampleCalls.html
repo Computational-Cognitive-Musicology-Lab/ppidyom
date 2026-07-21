@@ -41,12 +41,14 @@
     <li><a class="dropdown-item" href="../articles/NGrams.html">N-grams 101</a></li>
     <li><a class="dropdown-item" href="../articles/InfoTheory.html">Information Theory Fundamentals: Entropy and Information Content</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Practice</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Usage</h6></li>
     <li><a class="dropdown-item" href="../articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/HumdrumRCalls.html">Using ppidyom with humdrumR</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Replication</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Algorithm Parameters</h6></li>
     <li><a class="dropdown-item" href="../articles/ImplementationDiscrepancy.html">Implementation Differences: ppm, IDyOM, and ppidyom</a></li>
     <li><a class="dropdown-item" href="../articles/ParameterCorrespondence.html">Parameter Correspondence: ppidyom, ppm, and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/Defaults.html">Our default values: don't let us be a black box</a></li>
   </ul>
 </li>
       </ul>
@@ -95,18 +97,18 @@ growing memory of the current piece, weighting each source by how
 confident it is.</li>
 </ul>
 <p>This vignette shows the exact calls needed to replicate Harrison’s
-<strong>ppm</strong> package and IDyOM (Common Lisp). The two differ in
-several subtle ways that are explained in
-<code>vignette("implementation-discrepancy")</code>; the full parameter
-map is in <code>vignette("parameter-correspondence")</code>.</p>
+<strong>ppm</strong> package and IDyOM (Common Lisp) using very simple
+toy examples. The two differ in several subtle ways that are explained
+in <a href="ImplementationDiscrepancy.html"><code>vignette("implementation-discrepancy")</code></a>;
+the full parameter map is in <a href="ParameterCorrespondence.html"><code>vignette("parameter-correspondence")</code></a>.</p>
 <hr>
 <div class="section level2">
 <h2 id="shared-test-data">Shared test data<a class="anchor" aria-label="anchor" href="#shared-test-data"></a>
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">x</span>        <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"A"</span>, <span class="st">"C"</span>, <span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"A"</span>, <span class="st">"C"</span>, <span class="st">"A"</span><span class="op">)</span></span>
-<span><span class="va">alphabet</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"C"</span><span class="op">)</span></span>
-<span><span class="va">N</span>        <span class="op">&lt;-</span> <span class="fl">3L</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">testSequence</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"A"</span>, <span class="st">"C"</span>, <span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"A"</span>, <span class="st">"C"</span>, <span class="st">"A"</span><span class="op">)</span></span>
+<span><span class="va">alphabet</span>     <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"C"</span><span class="op">)</span></span>
+<span><span class="va">N</span>            <span class="op">&lt;-</span> <span class="fl">3L</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level2">
@@ -134,20 +136,21 @@ statistics; as patterns repeat, higher orders take over.</p>
 <span><span class="co">#   )</span></span>
 <span><span class="co">#   ppm::model_seq(mod, factor(x, levels = alphabet))$information_content</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
-<span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
-<span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
-<span>  stm_exclusion        <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  stm_update_exclusion <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">predict_sequence</span><span class="op">(</span></span>
-<span>  <span class="va">x</span>,</span>
-<span>  model_type <span class="op">=</span> <span class="st">"stm"</span>,</span>
-<span>  ppm_type   <span class="op">=</span> <span class="st">"interpolation"</span>,</span>
-<span>  stm_lambda <span class="op">=</span> <span class="st">"C"</span>,    <span class="co"># uppercase = ppidyom; lowercase = ppm/IDyOM</span></span>
-<span>  idyom_base <span class="op">=</span> <span class="cn">FALSE</span>   <span class="co"># FALSE = ppm-compatible shrinking base (default)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">result</span><span class="op">[</span><span class="fu">data.table</span><span class="op">(</span>index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, Event <span class="op">=</span> <span class="va">x</span><span class="op">)</span>, on <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">$</span><span class="va">IC</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="va">testSequence</span>, maxN <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, </span>
+<span>                model_type <span class="op">=</span> <span class="st">'stm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">FALSE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
+<span><span class="co">#&gt;    index  Event          P        IC   Entropy</span></span>
+<span><span class="co">#&gt;    &lt;int&gt; &lt;char&gt;      &lt;num&gt;     &lt;num&gt;     &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:     1      A 0.33333333 1.5849625 1.5849625</span></span>
+<span><span class="co">#&gt; 2:     2      B 0.16666667 2.5849625 1.2516292</span></span>
+<span><span class="co">#&gt; 3:     3      A 0.40000000 1.3219281 1.5219281</span></span>
+<span><span class="co">#&gt; 4:     4      C 0.09090909 3.4594316 1.2406705</span></span>
+<span><span class="co">#&gt; 5:     5      A 0.38461538 1.3785116 1.5766212</span></span>
+<span><span class="co">#&gt; 6:     6      B 0.36363636 1.4594316 1.5726237</span></span>
+<span><span class="co">#&gt; 7:     7      A 0.78571429 0.3479233 0.9619687</span></span>
+<span><span class="co">#&gt; 8:     8      C 0.79245283 0.3356030 0.9240572</span></span>
+<span><span class="co">#&gt; 9:     9      A 0.89361702 0.1622714 0.5952916</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="stm-escape-a-with-exclusion">STM, escape A, with exclusion<a class="anchor" aria-label="anchor" href="#stm-escape-a-with-exclusion"></a>
@@ -161,50 +164,62 @@ predictions.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># ppm::(escape="a", exclusion=TRUE, update_exclusion=FALSE)</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
-<span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
-<span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
-<span>  stm_exclusion        <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  stm_update_exclusion <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">predict_sequence</span><span class="op">(</span></span>
-<span>  <span class="va">x</span>,</span>
-<span>  model_type <span class="op">=</span> <span class="st">"stm"</span>,</span>
-<span>  ppm_type   <span class="op">=</span> <span class="st">"interpolation"</span>,</span>
-<span>  stm_lambda <span class="op">=</span> <span class="st">"A"</span>,</span>
-<span>  idyom_base <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">result</span><span class="op">[</span><span class="fu">data.table</span><span class="op">(</span>index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, Event <span class="op">=</span> <span class="va">x</span><span class="op">)</span>, on <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">$</span><span class="va">IC</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="va">testSequence</span>, maxN <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, </span>
+<span>                model_type <span class="op">=</span> <span class="st">'stm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'A'</span>, exclusion <span class="op">=</span> <span class="cn">TRUE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span> </span>
+<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
+<span><span class="co">#&gt;    index  Event          P        IC  Entropy</span></span>
+<span><span class="co">#&gt;    &lt;int&gt; &lt;char&gt;      &lt;num&gt;     &lt;num&gt;    &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:     1      A 0.33333333 1.5849625 1.584963</span></span>
+<span><span class="co">#&gt; 2:     2      B 0.16666667 2.5849625 1.251629</span></span>
+<span><span class="co">#&gt; 3:     3      A 0.42857143 1.2223924 1.448816</span></span>
+<span><span class="co">#&gt; 4:     4      C 0.06666667 3.9068906 1.230960</span></span>
+<span><span class="co">#&gt; 5:     5      A 0.42857143 1.2223924 1.556657</span></span>
+<span><span class="co">#&gt; 6:     6      B 0.37500000 1.4150375 1.561278</span></span>
+<span><span class="co">#&gt; 7:     7      A 0.61538462 0.7004397 1.334679</span></span>
+<span><span class="co">#&gt; 8:     8      C 0.55000000 0.8624965 1.376357</span></span>
+<span><span class="co">#&gt; 9:     9      A 0.62500000 0.6780719 1.329434</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="multiple-sequences-via-run_ppidyom">Multiple sequences via <code>run_ppidyom</code><a class="anchor" aria-label="anchor" href="#multiple-sequences-via-run_ppidyom"></a>
+<h3 id="multiple-pieces">Multiple “pieces”<a class="anchor" aria-label="anchor" href="#multiple-pieces"></a>
 </h3>
-<p>For a corpus of sequences, <code>run_ppidyom</code> handles the loop
-automatically. Each sequence is processed independently; for STM the
-model resets between sequences (each sequence starts from scratch with
-no accumulated memory).</p>
+<p>In most research, we work with corpora of multiple musical
+sequences—this can include multiple independent pieces, or different
+parts within the same piece. You can tell ppidyom() how your input data
+is divided into pieces and/or parts. Each sequence is then processed
+independently: the STM the model resets between all sequences (each
+sequence starts from scratch with no accumulated memory); The LTM is
+“trained” across pieces.</p>
+<p>Here we’ll build some toy data with two “pieces.” We’ll put the data
+into one column of a data.frame, and the piece indicator in another
+column:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">corpus</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"A"</span>,<span class="st">"C"</span>,<span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"A"</span>,<span class="st">"C"</span>,<span class="st">"A"</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"B"</span>,<span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"C"</span>,<span class="st">"A"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
+<code class="sourceCode R"><span></span>
+<span><span class="va">testCorpus</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>Sequence <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'A'</span>, <span class="st">'B'</span>, <span class="st">'C'</span>, <span class="st">'A'</span>, <span class="st">'B'</span>, <span class="st">'C'</span>, <span class="st">'A'</span>, <span class="st">'C'</span>, <span class="st">'B'</span>,</span>
+<span>                                                                        <span class="st">'B'</span>, <span class="st">'A'</span>, <span class="st">'B'</span>, <span class="st">'C'</span>, <span class="st">'A'</span><span class="op">)</span>,</span>
+<span>                                           Piece <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">2</span>, <span class="fl">2</span>, <span class="fl">2</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">results</span> <span class="op">&lt;-</span> <span class="fu">run_ppidyom</span><span class="op">(</span></span>
-<span>  <span class="va">corpus</span>,</span>
-<span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
-<span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
-<span>  model_type           <span class="op">=</span> <span class="st">"stm"</span>,</span>
-<span>  ppm_type             <span class="op">=</span> <span class="st">"interpolation"</span>,</span>
-<span>  stm_lambda           <span class="op">=</span> <span class="st">"C"</span>,</span>
-<span>  stm_exclusion        <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  stm_update_exclusion <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  idyom_base           <span class="op">=</span> <span class="cn">FALSE</span>   <span class="co"># ppm-compatible</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co"># results[[i]] has one row per (timestep, symbol); filter to observed events</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">corpus</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">obs</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="op">(</span>index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">corpus</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>, Event <span class="op">=</span> <span class="va">corpus</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
-<span>  <span class="va">results</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="va">obs</span>, on <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">$</span><span class="va">IC</span></span>
-<span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="va">testCorpus</span><span class="op">$</span><span class="va">Sequence</span>, maxN <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>,</span>
+<span>                model_type <span class="op">=</span> <span class="st">'stm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">FALSE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>,</span>
+<span>              shortTermGroups <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">testCorpus</span><span class="op">$</span><span class="va">Piece</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
+<span><span class="co">#&gt;     index  Event          P        IC   Entropy</span></span>
+<span><span class="co">#&gt;     &lt;int&gt; &lt;char&gt;      &lt;num&gt;     &lt;num&gt;     &lt;num&gt;</span></span>
+<span><span class="co">#&gt;  1:     1      A 0.33333333 1.5849625 1.5849625</span></span>
+<span><span class="co">#&gt;  2:     2      B 0.16666667 2.5849625 1.2516292</span></span>
+<span><span class="co">#&gt;  3:     3      C 0.20000000 2.3219281 1.5219281</span></span>
+<span><span class="co">#&gt;  4:     4      A 0.33333333 1.5849625 1.5849625</span></span>
+<span><span class="co">#&gt;  5:     5      B 0.55000000 0.8624965 1.4387587</span></span>
+<span><span class="co">#&gt;  6:     6      C 0.73684211 0.4405726 1.0946323</span></span>
+<span><span class="co">#&gt;  7:     7      A 0.87179487 0.1979394 0.6807002</span></span>
+<span><span class="co">#&gt;  8:     8      C 0.03968254 4.6553518 0.5141786</span></span>
+<span><span class="co">#&gt;  9:     9      B 0.12820513 2.9634741 1.1385983</span></span>
+<span><span class="co">#&gt; 10:     1      B 0.33333333 1.5849625 1.5849625</span></span>
+<span><span class="co">#&gt; 11:     2      A 0.16666667 2.5849625 1.2516292</span></span>
+<span><span class="co">#&gt; 12:     3      B 0.40000000 1.3219281 1.5219281</span></span>
+<span><span class="co">#&gt; 13:     4      C 0.09090909 3.4594316 1.2406705</span></span>
+<span><span class="co">#&gt; 14:     5      A 0.30769231 1.7004397 1.5766212</span></span></code></pre></div>
 <hr>
 </div>
 </div>
@@ -260,20 +275,22 @@ numerical effect here; all three implementations agree.</p>
 <span><span class="co">#   (idyom:idyom &lt;db-id&gt; '(cpitch) '(cpitch) :texture :melody :models :stm</span></span>
 <span><span class="co">#     :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
-<span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
-<span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
-<span>  stm_exclusion        <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  stm_update_exclusion <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">predict_sequence</span><span class="op">(</span></span>
-<span>  <span class="va">x</span>,</span>
-<span>  model_type <span class="op">=</span> <span class="st">"stm"</span>,</span>
-<span>  ppm_type   <span class="op">=</span> <span class="st">"interpolation"</span>,</span>
-<span>  stm_lambda <span class="op">=</span> <span class="st">"C"</span>,</span>
-<span>  idyom_base <span class="op">=</span> <span class="cn">TRUE</span>   <span class="co"># no numerical effect with exclusion=TRUE and STM, but explicit for clarity</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">result</span><span class="op">[</span><span class="fu">data.table</span><span class="op">(</span>index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, Event <span class="op">=</span> <span class="va">x</span><span class="op">)</span>, on <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">$</span><span class="va">IC</span></span></code></pre></div>
+<span></span>
+<span><span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="va">testSequence</span>, maxN <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, </span>
+<span>                model_type <span class="op">=</span> <span class="st">'stm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">TRUE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
+<span><span class="co">#&gt;    index  Event         P        IC  Entropy</span></span>
+<span><span class="co">#&gt;    &lt;int&gt; &lt;char&gt;     &lt;num&gt;     &lt;num&gt;    &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:     1      A 0.3333333 1.5849625 1.584963</span></span>
+<span><span class="co">#&gt; 2:     2      B 0.1666667 2.5849625 1.251629</span></span>
+<span><span class="co">#&gt; 3:     3      A 0.4000000 1.3219281 1.521928</span></span>
+<span><span class="co">#&gt; 4:     4      C 0.1000000 3.3219281 1.295462</span></span>
+<span><span class="co">#&gt; 5:     5      A 0.3846154 1.3785116 1.576621</span></span>
+<span><span class="co">#&gt; 6:     6      B 0.3500000 1.5145732 1.581291</span></span>
+<span><span class="co">#&gt; 7:     7      A 0.5714286 0.8073549 1.409975</span></span>
+<span><span class="co">#&gt; 8:     8      C 0.5308642 0.9135852 1.442672</span></span>
+<span><span class="co">#&gt; 9:     9      A 0.5833333 0.7776076 1.396535</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="idyom-stm-exclusion-off">IDyOM STM — exclusion OFF<a class="anchor" aria-label="anchor" href="#idyom-stm-exclusion-off"></a>
@@ -289,64 +306,73 @@ values.</strong></p>
 <code class="sourceCode R"><span><span class="co"># IDyOM call:</span></span>
 <span><span class="co">#   :stmo '(:escape :c :order-bound 3 :exclusion nil :update-exclusion nil)</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
-<span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
-<span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
-<span>  stm_exclusion        <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  stm_update_exclusion <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">result_idyom</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">predict_sequence</span><span class="op">(</span></span>
-<span>  <span class="va">x</span>, model_type <span class="op">=</span> <span class="st">"stm"</span>, stm_lambda <span class="op">=</span> <span class="st">"C"</span>, idyom_base <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">result_ppm</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">predict_sequence</span><span class="op">(</span></span>
-<span>  <span class="va">x</span>, model_type <span class="op">=</span> <span class="st">"stm"</span>, stm_lambda <span class="op">=</span> <span class="st">"C"</span>, idyom_base <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
+<span><span class="va">result_idyom</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="va">testSequence</span>, maxN <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, </span>
+<span>                                                model_type <span class="op">=</span> <span class="st">'stm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>                                                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">FALSE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
 <span></span>
-<span><span class="va">obs</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="op">(</span>index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, Event <span class="op">=</span> <span class="va">x</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  event           <span class="op">=</span> <span class="va">x</span>,</span>
-<span>  IC_idyom_compat <span class="op">=</span> <span class="va">result_idyom</span><span class="op">[</span><span class="va">obs</span>, on <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">$</span><span class="va">IC</span>,</span>
-<span>  IC_ppm_compat   <span class="op">=</span> <span class="va">result_ppm</span>  <span class="op">[</span><span class="va">obs</span>, on <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">$</span><span class="va">IC</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">result_ppm</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="va">testSequence</span>, maxN <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, </span>
+<span>                                                model_type <span class="op">=</span> <span class="st">'stm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>                                                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">FALSE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>event <span class="op">=</span> <span class="va">testSequence</span>,</span>
+<span>                     IC_idyom_compat <span class="op">=</span> <span class="va">result_idyom</span><span class="op">$</span><span class="va">IC</span>, </span>
+<span>                     IC_ppm_compat   <span class="op">=</span> <span class="va">result_ppm</span><span class="op">$</span><span class="va">IC</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt;   event IC_idyom_compat IC_ppm_compat</span></span>
+<span><span class="co">#&gt; 1     A       1.5849625     1.5849625</span></span>
+<span><span class="co">#&gt; 2     B       2.5849625     2.5849625</span></span>
+<span><span class="co">#&gt; 3     A       1.2630344     1.3219281</span></span>
+<span><span class="co">#&gt; 4     C       3.9068906     3.4594316</span></span>
+<span><span class="co">#&gt; 5     A       1.2223924     1.3785116</span></span>
+<span><span class="co">#&gt; 6     B       1.4150375     1.4594316</span></span>
+<span><span class="co">#&gt; 7     A       0.2157287     0.3479233</span></span>
+<span><span class="co">#&gt; 8     C       0.2863042     0.3356030</span></span>
+<span><span class="co">#&gt; 9     A       0.1018796     0.1622714</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="idyom-ltm-only">IDyOM LTM only<a class="anchor" aria-label="anchor" href="#idyom-ltm-only"></a>
 </h3>
 <p>The LTM is trained on a separate corpus before prediction begins.
 Once trained, it does not update — the listener’s long-term knowledge
-stays fixed throughout the test sequence. The base prior is determined
-by the training data: if all three symbols appear during training,
+stays f throughout the test sequence. The base prior is determined by
+the training data: if all three symbols appear during training,
 <code>t_root = 3</code> and the order-(-1) probability is
 <code>1/(3+1-3) = 1.0</code>.</p>
 <p><code>ltm_start_token = FALSE</code> is required to match IDyOM’s
 practice of skipping beginning-of-sequence positions during
 training.</p>
+<p>We’ll use our <code>testCorpus</code> again, but this time—by using
+<code>longTermGroups</code>—we can tell ppidyom() to train its long-term
+model based on the <code>Piece</code> field.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># IDyOM call:</span></span>
 <span><span class="co">#   (idyom:idyom &lt;db-id&gt; '(cpitch) '(cpitch) :texture :melody :models :ltm</span></span>
 <span><span class="co">#     :ltmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))</span></span>
 <span></span>
-<span><span class="va">train_seq</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"C"</span>,<span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"C"</span>,<span class="st">"A"</span>,<span class="st">"C"</span>,<span class="st">"B"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
-<span>  N               <span class="op">=</span> <span class="va">N</span>,</span>
-<span>  alphabet        <span class="op">=</span> <span class="va">alphabet</span>,</span>
-<span>  ltm_exclusion   <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  ltm_start_token <span class="op">=</span> <span class="cn">FALSE</span>    <span class="co"># IDyOM-compatible: skip beginning-of-sequence positions</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">model</span><span class="op">$</span><span class="fu">train_sequence</span><span class="op">(</span><span class="va">train_seq</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">predict_sequence</span><span class="op">(</span></span>
-<span>  <span class="va">x</span>,</span>
-<span>  model_type <span class="op">=</span> <span class="st">"ltm"</span>,</span>
-<span>  ppm_type   <span class="op">=</span> <span class="st">"interpolation"</span>,</span>
-<span>  ltm_lambda <span class="op">=</span> <span class="st">"C"</span>,</span>
-<span>  idyom_base <span class="op">=</span> <span class="cn">TRUE</span>           <span class="co"># use t_root from training data, not test sequence</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">result</span><span class="op">[</span><span class="fu">data.table</span><span class="op">(</span>index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, Event <span class="op">=</span> <span class="va">x</span><span class="op">)</span>, on <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">[</span></span>
-<span>  , <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span>, <span class="va">IC</span>, <span class="va">Entropy</span><span class="op">)</span></span>
-<span><span class="op">]</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="va">testCorpus</span><span class="op">$</span><span class="va">Sequence</span>, maxN <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, </span>
+<span>                model_type <span class="op">=</span> <span class="st">'ltm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>                longTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">TRUE</span>, start_token <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>,</span>
+<span>                longTermGroups <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">testCorpus</span><span class="op">$</span><span class="va">Piece</span><span class="op">)</span><span class="op">)</span> </span>
+<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
+<span><span class="co">#&gt; i is 2 in lt_groups</span></span>
+<span><span class="co">#&gt;     index  Event         P        IC  Entropy</span></span>
+<span><span class="co">#&gt;     &lt;int&gt; &lt;char&gt;     &lt;num&gt;     &lt;num&gt;    &lt;num&gt;</span></span>
+<span><span class="co">#&gt;  1:     1      A 0.3571429 1.4854268 1.577406</span></span>
+<span><span class="co">#&gt;  2:     2      B 0.5500000 0.8624965 1.438759</span></span>
+<span><span class="co">#&gt;  3:     3      C 0.5283019 0.9205655 1.455683</span></span>
+<span><span class="co">#&gt;  4:     4      A 0.5500000 0.8624965 1.438759</span></span>
+<span><span class="co">#&gt;  5:     5      B 0.5500000 0.8624965 1.438759</span></span>
+<span><span class="co">#&gt;  6:     6      C 0.5283019 0.9205655 1.455683</span></span>
+<span><span class="co">#&gt;  7:     7      A 0.5500000 0.8624965 1.438759</span></span>
+<span><span class="co">#&gt;  8:     8      C 0.2000000 2.3219281 1.438759</span></span>
+<span><span class="co">#&gt;  9:     9      B 0.2500000 2.0000000 1.438759</span></span>
+<span><span class="co">#&gt; 10:     1      B 0.3333333 1.5849625 1.584963</span></span>
+<span><span class="co">#&gt; 11:     2      A 0.1666667 2.5849625 1.251629</span></span>
+<span><span class="co">#&gt; 12:     3      B 0.4444444 1.1699250 1.530493</span></span>
+<span><span class="co">#&gt; 13:     4      C 0.6666667 0.5849625 1.251629</span></span>
+<span><span class="co">#&gt; 14:     5      A 0.6666667 0.5849625 1.241946</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="idyom-both-model">IDyOM both+ model<a class="anchor" aria-label="anchor" href="#idyom-both-model"></a>
@@ -364,29 +390,29 @@ three IDyOM-specific flags are required.</p>
 <span><span class="co">#     :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil)</span></span>
 <span><span class="co">#     :ltmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
-<span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
-<span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
-<span>  stm_exclusion        <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  ltm_exclusion        <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  stm_update_exclusion <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  ltm_update_exclusion <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  ltm_start_token      <span class="op">=</span> <span class="cn">FALSE</span>   <span class="co"># IDyOM-compatible</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">model</span><span class="op">$</span><span class="fu">train_sequence</span><span class="op">(</span><span class="va">train_seq</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">predict_sequence</span><span class="op">(</span></span>
-<span>  <span class="va">x</span>,</span>
-<span>  model_type <span class="op">=</span> <span class="st">"both+"</span>,</span>
-<span>  ppm_type   <span class="op">=</span> <span class="st">"interpolation"</span>,</span>
-<span>  stm_lambda <span class="op">=</span> <span class="st">"C"</span>,</span>
-<span>  ltm_lambda <span class="op">=</span> <span class="st">"C"</span>,</span>
-<span>  b          <span class="op">=</span> <span class="fl">7</span>,         <span class="co"># IDyOM default: sharp entropy-weighting (Pearce 2005)</span></span>
-<span>  idyom_base <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">result</span><span class="op">[</span><span class="fu">data.table</span><span class="op">(</span>index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, Event <span class="op">=</span> <span class="va">x</span><span class="op">)</span>, on <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span><span class="op">)</span><span class="op">]</span><span class="op">[</span></span>
-<span>  , <span class="fu">.</span><span class="op">(</span><span class="va">index</span>, <span class="va">Event</span>, <span class="va">IC</span>, <span class="va">Entropy</span><span class="op">)</span></span>
-<span><span class="op">]</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="va">testCorpus</span><span class="op">$</span><span class="va">Sequence</span>, maxN <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, </span>
+<span>                model_type <span class="op">=</span> <span class="st">'both+'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">TRUE</span>, b <span class="op">=</span> <span class="fl">7</span>,</span>
+<span>                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">TRUE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>,</span>
+<span>                longTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">TRUE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span>, start_token <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>,</span>
+<span>                longTermGroups <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">testCorpus</span><span class="op">$</span><span class="va">Piece</span><span class="op">)</span><span class="op">)</span> </span>
+<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
+<span><span class="co">#&gt; i is 2 in lt_groups</span></span>
+<span><span class="co">#&gt;     index  Event         P        IC  Entropy</span></span>
+<span><span class="co">#&gt;     &lt;int&gt; &lt;char&gt;     &lt;num&gt;     &lt;num&gt;    &lt;num&gt;</span></span>
+<span><span class="co">#&gt;  1:     1      A 0.3455200 1.5331590 1.583009</span></span>
+<span><span class="co">#&gt;  2:     2      B 0.3207316 1.6405615 1.489050</span></span>
+<span><span class="co">#&gt;  3:     3      C 0.3445727 1.5371195 1.579550</span></span>
+<span><span class="co">#&gt;  4:     4      A 0.4500539 1.1518303 1.541824</span></span>
+<span><span class="co">#&gt;  5:     5      B 0.6043820 0.7264674 1.358232</span></span>
+<span><span class="co">#&gt;  6:     6      C 0.5963342 0.7458071 1.373280</span></span>
+<span><span class="co">#&gt;  7:     7      A 0.6175950 0.6952671 1.341650</span></span>
+<span><span class="co">#&gt;  8:     8      C 0.1975305 2.3398527 1.435343</span></span>
+<span><span class="co">#&gt;  9:     9      B 0.1385047 2.8519929 1.156471</span></span>
+<span><span class="co">#&gt; 10:     1      B 0.3333333 1.5849625 1.584963</span></span>
+<span><span class="co">#&gt; 11:     2      A 0.1605485 2.6389189 1.432502</span></span>
+<span><span class="co">#&gt; 12:     3      B 0.4684657 1.0939848 1.528652</span></span>
+<span><span class="co">#&gt; 13:     4      C 0.4534789 1.1408927 1.517111</span></span>
+<span><span class="co">#&gt; 14:     5      A 0.6196401 0.6904975 1.318967</span></span></code></pre></div>
 <hr>
 </div>
 </div>
@@ -448,39 +474,6 @@ three IDyOM-specific flags are required.</p>
 </tr>
 </tbody>
 </table>
-<hr>
-</div>
-<div class="section level2">
-<h2 id="humdrumr-integration-planned">HumdrumR integration (planned)<a class="anchor" aria-label="anchor" href="#humdrumr-integration-planned"></a>
-</h2>
-<p>ppidyom is designed to integrate with <a href="https://github.com/Computational-Cognitive-Musicology-Lab/humdrumR" class="external-link">HumdrumR</a>,
-the symbolic music analysis framework for R. The planned workflow will
-allow you to pass a Humdrum score directly into ppidyom without any
-manual format conversion:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Planned API — not yet implemented</span></span>
-<span><span class="co"># library(humdrumR)</span></span>
-<span><span class="co">#</span></span>
-<span><span class="co"># h &lt;- readHumdrum("my_score.krn")</span></span>
-<span><span class="co">#</span></span>
-<span><span class="co"># # ppidyom will accept HumdrumR objects directly:</span></span>
-<span><span class="co"># ic_results &lt;- h |&gt;</span></span>
-<span><span class="co">#   select_viewpoint("cpitch") |&gt;</span></span>
-<span><span class="co">#   run_ppidyom(</span></span>
-<span><span class="co">#     N               = 3L,</span></span>
-<span><span class="co">#     model_type      = "both+",</span></span>
-<span><span class="co">#     stm_lambda      = "C",</span></span>
-<span><span class="co">#     ltm_lambda      = "C",</span></span>
-<span><span class="co">#     b               = 7,</span></span>
-<span><span class="co">#     ltm_start_token = FALSE,</span></span>
-<span><span class="co">#     idyom_base      = TRUE</span></span>
-<span><span class="co">#   )</span></span></code></pre></div>
-<p>The current <code>run_ppidyom</code> function operates on plain R
-lists of character vectors (one per sequence). The HumdrumR wrapper will
-handle the extraction of the chosen viewpoint (e.g. chromatic pitch,
-scale degree, interval) and convert the results back into a
-HumdrumR-compatible data object, enabling IC analysis as part of a
-broader corpus analysis pipeline.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
@@ -489,7 +482,7 @@ broader corpus analysis pipeline.</p>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p><a href="https://humdrumR.ccml.gtcmt.gatech.edu" class="external-link"><img src="ppidyom_logo.svg" alt="humdrumR" style="height:120px;"></a></p>
+  <p><a href="https://ppidyom.ccml.gtcmt.gatech.edu"><img src="ppidyom_logo.svg" alt="ppidyom logo" style="height:120px;"></a></p>
 </div>
 
 <div class="pkgdown-footer-right">

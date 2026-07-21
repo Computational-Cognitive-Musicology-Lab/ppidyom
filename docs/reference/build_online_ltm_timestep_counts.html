@@ -31,12 +31,14 @@ x[1:t-1], not x[t:T]."></head><body>
     <li><a class="dropdown-item" href="../articles/NGrams.html">N-grams 101</a></li>
     <li><a class="dropdown-item" href="../articles/InfoTheory.html">Information Theory Fundamentals: Entropy and Information Content</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Practice</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Usage</h6></li>
     <li><a class="dropdown-item" href="../articles/ExampleCalls.html">Example Calls: Matching ppm and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/HumdrumRCalls.html">Using ppidyom with humdrumR</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Replication</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Algorithm Parameters</h6></li>
     <li><a class="dropdown-item" href="../articles/ImplementationDiscrepancy.html">Implementation Differences: ppm, IDyOM, and ppidyom</a></li>
     <li><a class="dropdown-item" href="../articles/ParameterCorrespondence.html">Parameter Correspondence: ppidyom, ppm, and IDyOM</a></li>
+    <li><a class="dropdown-item" href="../articles/Defaults.html">Our default values: don't let us be a black box</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -54,10 +56,10 @@ x[1:t-1], not x[t:T]."></head><body>
     </div>
 
     <div class="ref-description section level2">
-    <p>For ltm+/both+ models: records the LTM state BEFORE observing x[t] at each
-timestep, then updates the LTM with x[t].  This matches IDyOM's online-update
+    <p>For ltm+/both+ models: records the LTM state BEFORE observing <code>x[t]</code> at each
+timestep, then updates the LTM with <code>x[t]</code>.  This matches IDyOM's online-update
 semantics, where prediction at position t uses only the training corpus plus
-x[1:t-1], not x[t:T].</p>
+<code>x[1:t-1]</code>, not <code>x[t:T]</code>.</p>
     </div>
 
     <div class="section level2">
@@ -104,8 +106,8 @@ LTM state before any events from x are observed.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>List of length N+1, each a data.table with columns
-  index, context_id, Event, Ce, C, t, t1 — same format as STM tables, with
-  index in 1..T.</p>
+index, context_id, Event, Ce, C, t, t1 — same format as STM tables, with
+index in 1..T.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
@@ -113,7 +115,7 @@ LTM state before any events from x are observed.</p></dd>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p><a href="https://humdrumR.ccml.gtcmt.gatech.edu" class="external-link"><img src="ppidyom_logo.svg" alt="humdrumR" style="height:120px;"></a></p>
+  <p><a href="https://ppidyom.ccml.gtcmt.gatech.edu"><img src="ppidyom_logo.svg" alt="ppidyom logo" style="height:120px;"></a></p>
 </div>
 
 <div class="pkgdown-footer-right">
