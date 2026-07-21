@@ -1,54 +1,28 @@
-<div id="main" class="col-md-9" role="main">
-
 # Generate Lagged N-gram Matrix
-
-<div class="ref-description section level2">
 
 Creates a lagged representation of a sequence for N-gram modeling.
 
-</div>
-
-<div class="section level2">
-
 ## Usage
-
-<div class="sourceCode">
 
 ``` r
 lag_matrix(x, N = 3)
 ```
 
-</div>
-
-</div>
-
-<div class="section level2">
-
 ## Arguments
 
--   x:
+- x:
 
-    Character vector of symbols/events.
+  Character vector of symbols/events.
 
--   N:
+- N:
 
-    Maximum N-gram order.
-
-</div>
-
-<div class="section level2">
+  Maximum N-gram order.
 
 ## Value
 
 A `data.table` with columns LagN..Lag0 and index.
 
-</div>
-
-<div class="section level2">
-
 ## Examples
-
-<div class="sourceCode">
 
 ``` r
 lag_matrix(c("A", "B", "A", "C", "A"), N = 2)
@@ -60,9 +34,3 @@ lag_matrix(c("A", "B", "A", "C", "A"), N = 2)
 #> 4:      B      A      C     4
 #> 5:      A      C      A     5
 ```
-
-</div>
-
-</div>
-
-</div>

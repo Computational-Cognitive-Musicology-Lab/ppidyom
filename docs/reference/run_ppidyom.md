@@ -1,23 +1,14 @@
-<div id="main" class="col-md-9" role="main">
-
 # Run PPM over a corpus of sequences
 
-<div class="ref-description section level2">
-
-Lower-level building block behind `ppidyom()`. Takes a plain list of
-sequences (rather than viewpoint vectors + grouping columns) and, for
-`model_type`s with an LTM component, evaluates each sequence
-leave-one-out: the whole corpus is trained first, then for each sequence
-in turn it is detrained, predicted on, and retrained before moving to
-the next.
-
-</div>
-
-<div class="section level2">
+Lower-level building block behind
+[`ppidyom()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom.md).
+Takes a plain list of sequences (rather than viewpoint vectors +
+grouping columns) and, for `model_type`s with an LTM component,
+evaluates each sequence leave-one-out: the whole corpus is trained
+first, then for each sequence in turn it is detrained, predicted on, and
+retrained before moving to the next.
 
 ## Usage
-
-<div class="sourceCode">
 
 ``` r
 run_ppidyom(
@@ -38,121 +29,106 @@ run_ppidyom(
 )
 ```
 
-</div>
-
-</div>
-
-<div class="section level2">
-
 ## Arguments
 
--   seq_list:
+- seq_list:
 
-    List of character-vector sequences (the corpus). Each element is one
-    sequence, e.g. one piece.
+  List of character-vector sequences (the corpus). Each element is one
+  sequence, e.g. one piece.
 
--   N:
+- N:
 
-    Maximum n-gram order (order bound).
+  Maximum n-gram order (order bound).
 
--   alphabet:
+- alphabet:
 
-    Character vector of all possible symbols. If `NULL` (default),
-    inferred as the set of unique symbols across `seq_list`.
+  Character vector of all possible symbols. If `NULL` (default),
+  inferred as the set of unique symbols across `seq_list`.
 
--   model_type:
+- model_type:
 
-    Which memory component(s) to use:
+  Which memory component(s) to use:
 
-    -   `"stm"` — short-term memory, one sequence at a time, no
-        leave-one-out.
+  - `"stm"` — short-term memory, one sequence at a time, no
+    leave-one-out.
 
-    -   `"ltm"` — long-term memory, pretrained on the corpus, no update
-        during test.
+  - `"ltm"` — long-term memory, pretrained on the corpus, no update
+    during test.
 
-    -   `"both"` — STM + LTM blended.
+  - `"both"` — STM + LTM blended.
 
-    -   `"ltm+"`/`"both+"` — as `"ltm"`/`"both"`, but LTM updates online
-        per event.
+  - `"ltm+"`/`"both+"` — as `"ltm"`/`"both"`, but LTM updates online per
+    event.
 
--   ppm_type:
+- ppm_type:
 
-    PPM estimation method:
+  PPM estimation method:
 
-    -   `"interpolation"` — weighted sum across all n-gram orders.
+  - `"interpolation"` — weighted sum across all n-gram orders.
 
-    -   `"backoff"` — falls through orders from longest to shortest
-        matching context.
+  - `"backoff"` — falls through orders from longest to shortest matching
+    context.
 
--   stm_lambda:
+- stm_lambda:
 
-    Escape/discount method for STM: `"A"`, `"B"`, `"C"` (Witten-Bell,
-    default), `"D"` (absolute discounting), or `"X"` (AX, based on
-    singleton counts). See the [Escape
-    method](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.html#escape-method)
-    section of the [Parameter
-    Correspondence](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.md)
-    vignette for the exact formulas.
+  Escape/discount method for STM: `"A"`, `"B"`, `"C"` (Witten-Bell,
+  default), `"D"` (absolute discounting), or `"X"` (AX, based on
+  singleton counts). See the [Escape
+  method](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.html#escape-method)
+  section of the [Parameter
+  Correspondence](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.md)
+  vignette for the exact formulas.
 
--   ltm_lambda:
+- ltm_lambda:
 
-    Escape/discount method for LTM; same options as `stm_lambda`.
+  Escape/discount method for LTM; same options as `stm_lambda`.
 
--   stm_exclusion:
+- stm_exclusion:
 
-    Logical; exclude symbols already assigned a probability at a higher
-    order when computing STM escape probabilities (default TRUE).
+  Logical; exclude symbols already assigned a probability at a higher
+  order when computing STM escape probabilities (default TRUE).
 
--   ltm_exclusion:
+- ltm_exclusion:
 
-    Logical; same as `stm_exclusion`, for LTM (default TRUE).
+  Logical; same as `stm_exclusion`, for LTM (default TRUE).
 
--   stm_update_exclusion:
+- stm_update_exclusion:
 
-    Logical; stop updating lower-order STM counts once a higher order
-    already matched at this timestep (default TRUE).
+  Logical; stop updating lower-order STM counts once a higher order
+  already matched at this timestep (default TRUE).
 
--   ltm_update_exclusion:
+- ltm_update_exclusion:
 
-    Logical; same as `stm_update_exclusion`, but applied while
-    accumulating LTM counts (default FALSE).
+  Logical; same as `stm_update_exclusion`, but applied while
+  accumulating LTM counts (default FALSE).
 
--   b:
+- b:
 
-    Bias exponent for entropy-weighted blending, used only when
-    `model_type` is `"both"`/`"both+"`; higher values favor whichever of
-    STM/LTM is currently more confident (default 1).
+  Bias exponent for entropy-weighted blending, used only when
+  `model_type` is `"both"`/`"both+"`; higher values favor whichever of
+  STM/LTM is currently more confident (default 1).
 
--   idyom_base:
+- idyom_base:
 
-    Logical; use IDyOM's order-(-1) base distribution instead of the
-    default shrinking-denominator base (default FALSE). See the
-    [Implementation
-    Discrepancy](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md)
-    vignette.
+  Logical; use IDyOM's order-(-1) base distribution instead of the
+  default shrinking-denominator base (default FALSE). See the
+  [Implementation
+  Discrepancy](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md)
+  vignette.
 
--   ltm_start_token:
+- ltm_start_token:
 
-    Logical; count beginning-of-sequence positions when accumulating LTM
-    (default TRUE; set FALSE to match IDyOM).
-
-</div>
-
-<div class="section level2">
+  Logical; count beginning-of-sequence positions when accumulating LTM
+  (default TRUE; set FALSE to match IDyOM).
 
 ## Value
 
 A list the same length as `seq_list`; each element is a data.table with
 columns `index`, `Event`, `P`, `IC`, `Entropy`, `seq_id` (the position
-of that sequence in `seq_list`). Combine with `data.table::rbindlist()`.
-
-</div>
-
-<div class="section level2">
+of that sequence in `seq_list`). Combine with
+[`data.table::rbindlist()`](https://rdrr.io/pkg/data.table/man/rbindlist.html).
 
 ## Examples
-
-<div class="sourceCode">
 
 ``` r
 # run_ppidyom is internal; use ::: since this example isn't run via library()
@@ -235,9 +211,3 @@ data.table::rbindlist(res_both)
 #>     index  Event         P        IC  Entropy seq_id
 #>     <int> <char>     <num>     <num>    <num>  <int>
 ```
-
-</div>
-
-</div>
-
-</div>

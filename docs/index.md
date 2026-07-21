@@ -1,10 +1,6 @@
-<div id="main" class="col-md-9" role="main">
-
 ![](ppidyom_logo.svg)
 
 Welcome to the main website of ppidyom!
-
-<div class="section level2">
 
 ## What is ppidyom?
 
@@ -24,18 +20,10 @@ these existing systems. In particular, **ppidyom** is designed to work
 within the [humdrumR](https://humdrumR.ccml.gtcmt.gatech.edu) package
 framework, making a complete system for musicological analysis.
 
-<div class="section level4">
-
 #### What does ppidyom stand for?
 
 **P**artial **P**redictive **I**nformation **Dy**namics of **M**usic.
 It’s an homage/mash-up of IDyOM and ppm!
-
-</div>
-
-</div>
-
-<div class="section level2">
 
 ## What is partial predictive matching?
 
@@ -47,8 +35,4 @@ prediction.
 
 PPM model implementations can also incorporate:
 
--   Long-term and short-term models.
-
-</div>
-
-</div>
+- Long-term and short-term models.

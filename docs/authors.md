@@ -1,18 +1,10 @@
-<div id="main" class="col-md-9" role="main">
-
 # Authors and Citation
-
-<div class="section level2">
 
 ## Authors
 
--   **Nat Condit-Schultz**. Author, maintainer.
+- **Nat Condit-Schultz**. Author, maintainer.
 
--   **Ling Qi**. Author.
-
-</div>
-
-<div class="section level2">
+- **Ling Qi**. Author.
 
 ## Citation
 
@@ -25,7 +17,3 @@ modeling to musical data*. R package version 0.1.0.
       year = {2026},
       note = {R package version 0.1.0},
     }
-
-</div>
-
-</div>

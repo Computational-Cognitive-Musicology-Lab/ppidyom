@@ -194,27 +194,27 @@ natural STM-style answer. When working with LTM or both-type models, set
 <code>idyom_base = TRUE</code> to use the training-data count as IDyOM
 does.</p>
 <p>The relevant logic in <code>R/interpolation.R</code>:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># t_root comes from the order-0 count table:</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># for STM: counts observed in the test sequence so far</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># for LTM: counts from the training corpus (fixed)</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>t_root_by_t <span class="ot">&lt;-</span> dt_orders[[<span class="dv">1</span>]][, .(<span class="at">t_root =</span> t[<span class="dv">1</span>]), by <span class="ot">=</span> index]<span class="sc">$</span>t_root</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>p_base <span class="ot">&lt;-</span> <span class="cf">if</span> (idyom_base <span class="sc">&amp;&amp;</span> <span class="sc">!</span>exclusion)</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="fl">1.0</span> <span class="sc">/</span> <span class="fu">length</span>(alphabet)                                     <span class="co"># IDyOM excl=OFF (§2)</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span> <span class="cf">if</span> (idyom_base <span class="sc">&amp;&amp;</span> exclusion)</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="fl">1.0</span> <span class="sc">/</span> (<span class="fu">length</span>(alphabet) <span class="sc">+</span> 1L <span class="sc">-</span> t_root_by_t[t])           <span class="co"># IDyOM excl=ON</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="fl">1.0</span> <span class="sc">/</span> (<span class="fu">length</span>(alphabet) <span class="sc">+</span> 1L <span class="sc">-</span> <span class="fu">length</span>(seen_symbols))     <span class="co"># ppm-compatible</span></span></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># t_root comes from the order-0 count table:</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="co"># for STM: counts observed in the test sequence so far</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="co"># for LTM: counts from the training corpus (fixed)</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>t_root_by_t <span class="ot">&lt;-</span> dt_orders[[<span class="dv">1</span>]][, .(<span class="at">t_root =</span> t[<span class="dv">1</span>]), by <span class="ot">=</span> index]<span class="sc">$</span>t_root</span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>p_base <span class="ot">&lt;-</span> <span class="cf">if</span> (idyom_base <span class="sc">&amp;&amp;</span> <span class="sc">!</span>exclusion)</span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  <span class="fl">1.0</span> <span class="sc">/</span> <span class="fu">length</span>(alphabet)                                     <span class="co"># IDyOM excl=OFF (§2)</span></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="cf">else</span> <span class="cf">if</span> (idyom_base <span class="sc">&amp;&amp;</span> exclusion)</span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>  <span class="fl">1.0</span> <span class="sc">/</span> (<span class="fu">length</span>(alphabet) <span class="sc">+</span> <span class="dv">1</span><span class="dt">L</span> <span class="sc">-</span> t_root_by_t[t])           <span class="co"># IDyOM excl=ON</span></span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a><span class="cf">else</span></span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  <span class="fl">1.0</span> <span class="sc">/</span> (<span class="fu">length</span>(alphabet) <span class="sc">+</span> <span class="dv">1</span><span class="dt">L</span> <span class="sc">-</span> <span class="fu">length</span>(seen_symbols))     <span class="co"># ppm-compatible</span></span></code></pre></div>
 <p>IDyOM source (<code>ppm-star/ppm-star.lisp</code>,
 <code>order-minus1-probability</code>):</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode lisp"><code class="sourceCode commonlisp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">defmethod</span><span class="fu"> order-minus1-probability </span>((m ppm) update-exclusion)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  (<span class="op">/</span> <span class="fl">1.0</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>     (<span class="kw">float</span> (<span class="op">-</span> (<span class="op">+</span> <span class="fl">1.0</span> (alphabet-size m))</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>               (<span class="kw">if</span> (ppm-exclusion m)</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>                   (<span class="kw">hash-table-count</span>          <span class="co">; ← t_root: from MODEL (training)</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>                     (transition-counts m (get-root) update-exclusion))</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>                   <span class="fl">1.0</span>))                      <span class="co">; ← flat uniform when exclusion=OFF</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>            <span class="fl">0.0</span>)))</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode lisp"><code class="sourceCode commonlisp"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>(<span class="kw">defmethod</span><span class="fu"> order-minus1-probability </span>((m ppm) update-exclusion)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  (<span class="op">/</span> <span class="fl">1.0</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>     (<span class="kw">float</span> (<span class="op">-</span> (<span class="op">+</span> <span class="fl">1.0</span> (alphabet-size m))</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>               (<span class="kw">if</span> (ppm-exclusion m)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>                   (<span class="kw">hash-table-count</span>          <span class="co">; ← t_root: from MODEL (training)</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>                     (transition-counts m (get-root) update-exclusion))</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>                   <span class="fl">1.0</span>))                      <span class="co">; ← flat uniform when exclusion=OFF</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>            <span class="fl">0.0</span>)))</span></code></pre></div>
 <hr>
 </div>
 </div>
@@ -380,16 +380,16 @@ systematic differences in the output.</p>
 <p>ppm has no mixture support, so this does not apply.</p>
 <p>IDyOM source (<code>ppm-star.lisp</code>,
 <code>normalise-distribution</code>):</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode lisp"><code class="sourceCode commonlisp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">defun</span><span class="fu"> sums-to-one-p </span>(distribution)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">let</span> ((s (<span class="kw">apply</span> #'+ (<span class="kw">mapcar</span> #'cadr distribution))))</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    (<span class="kw">and</span> (<span class="op">&gt;</span> s <span class="fl">0.999</span>) (<span class="op">&lt;</span> s <span class="fl">1.0</span>))))</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>(<span class="kw">defun</span><span class="fu"> normalise-distribution </span>(distribution)</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">if</span> (sums-to-one-p distribution)</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>      distribution                    <span class="co">; already close enough — skip division</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>      (<span class="kw">let</span> ((sum (<span class="kw">apply</span> #'+ (<span class="kw">mapcar</span> #'cadr distribution))))</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>        (<span class="kw">mapcar</span> (<span class="kw">lambda</span> (p) (<span class="kw">list</span> (<span class="kw">car</span> p) (<span class="op">/</span> (<span class="kw">cadr</span> p) sum)))</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>                distribution))))</span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode lisp"><code class="sourceCode commonlisp"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>(<span class="kw">defun</span><span class="fu"> sums-to-one-p </span>(distribution)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>  (<span class="kw">let</span> ((s (<span class="kw">apply</span> <span class="op">#'</span>+ (<span class="kw">mapcar</span> <span class="op">#'</span>cadr distribution))))</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>    (<span class="kw">and</span> (<span class="op">&gt;</span> s <span class="fl">0.999</span>) (<span class="op">&lt;</span> s <span class="fl">1.0</span>))))</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>(<span class="kw">defun</span><span class="fu"> normalise-distribution </span>(distribution)</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>  (<span class="kw">if</span> (sums-to-one-p distribution)</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>      distribution                    <span class="co">; already close enough — skip division</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>      (<span class="kw">let</span> ((sum (<span class="kw">apply</span> <span class="op">#'</span>+ (<span class="kw">mapcar</span> <span class="op">#'</span>cadr distribution))))</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>        (<span class="kw">mapcar</span> (<span class="kw">lambda</span> (p) (<span class="kw">list</span> (<span class="kw">car</span> p) (<span class="op">/</span> (<span class="kw">cadr</span> p) sum)))</span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>                distribution))))</span></code></pre></div>
 <p>ppidyom’s <code>combine_models</code> replicates this exactly:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># R/ppidyom.R — combine_models</span></span>
@@ -411,7 +411,7 @@ systematic differences in the output.</p>
 distribution is more confident — lower entropy means more certain
 predictions. The exponent <em>b</em> controls how sharply this
 confidence-weighting operates.</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mi>i</mi></msub><mo>∝</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><msub><mi>H</mi><mi>i</mi></msub><msub><mi>H</mi><mo>max</mo></msub></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo>−</mo><mi>b</mi></mrow></msup><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>H</mi><mo>max</mo></msub><mo>=</mo><msub><mo>log</mo><mn>2</mn></msub><mrow><mo stretchy="true" form="prefix">|</mo><mi>a</mi><mi>l</mi><mi>p</mi><mi>h</mi><mi>a</mi><mi>b</mi><mi>e</mi><mi>t</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mi>i</mi></msub><mo>∝</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><msub><mi>H</mi><mi>i</mi></msub><msub><mi>H</mi><mi mathvariant="normal">max</mi></msub></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>−</mi><mi>b</mi></mrow></msup><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>H</mi><mi mathvariant="normal">max</mi></msub><mo>=</mo><msub><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mn>2</mn></msub><mo stretchy="false" form="prefix">|</mo><mi>a</mi><mi>l</mi><mi>p</mi><mi>h</mi><mi>a</mi><mi>b</mi><mi>e</mi><mi>t</mi><mo stretchy="false" form="prefix">|</mo></mrow><annotation encoding="application/x-tex">
 w_i \propto \left(\frac{H_i}{H_{\max}}\right)^{-b}, \quad H_{\max} = \log_2 |alphabet|
 </annotation></semantics></math></p>
 <p>With b = 1, the two models contribute roughly in proportion to their
@@ -459,21 +459,21 @@ escape = (t₁ + 1) / (C + t₁ + 1) where t₁ = count of singletons.</p>
 <code>set-ppm-parameters</code> case expression and the
 singleton-counting branch in <code>type-count</code> are both keyed on
 <code>:x</code>:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode lisp"><code class="sourceCode commonlisp"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">;; ppm-star.lisp — set-ppm-parameters</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>(<span class="kw">case</span> escape</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  (:a  (<span class="kw">values</span> <span class="dv">0</span> <span class="dv">1</span>))</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  (:b  (<span class="kw">values</span> -<span class="dv">1</span> <span class="dv">1</span>))</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  ((<span class="kw">or</span> :c :x) (<span class="kw">values</span> <span class="dv">0</span> <span class="dv">1</span>))   <span class="co">; ← AX handled as :x internally</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  (:d  (<span class="kw">values</span> -<span class="dv">1</span>/<span class="dv">2</span> <span class="dv">2</span>))</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">otherwise</span> (<span class="kw">values</span> <span class="dv">0</span> <span class="dv">1</span>)))   <span class="co">; ← :ax falls through, accidentally same as :c</span></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co">;; ppm-star.lisp — type-count (singleton branch)</span></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>(:x (<span class="kw">let</span> ((<span class="kw">count</span> <span class="dv">1</span>))</span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>      (<span class="kw">maphash</span> (<span class="kw">lambda</span> (k v)</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>                 (<span class="kw">declare</span> (<span class="kw">ignore</span> k))</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>                 (<span class="kw">when</span> (<span class="op">=</span> v <span class="dv">1</span>) (<span class="kw">incf</span> <span class="kw">count</span> <span class="dv">1</span>)))</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>               (transition-counts m location))</span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>      <span class="kw">count</span>))   <span class="co">; → 1 + t₁, but only reached when escape = :x, not :ax</span></span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode lisp"><code class="sourceCode commonlisp"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co">;; ppm-star.lisp — set-ppm-parameters</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>(<span class="kw">case</span> escape</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>  (:a  (<span class="kw">values</span> <span class="dv">0</span> <span class="dv">1</span>))</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>  (:b  (<span class="kw">values</span> <span class="op">-</span><span class="dv">1</span> <span class="dv">1</span>))</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>  ((<span class="kw">or</span> :c :x) (<span class="kw">values</span> <span class="dv">0</span> <span class="dv">1</span>))   <span class="co">; ← AX handled as :x internally</span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>  (:d  (<span class="kw">values</span> <span class="op">-</span><span class="dv">1</span>/2 <span class="dv">2</span>))</span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>  (<span class="kw">otherwise</span> (<span class="kw">values</span> <span class="dv">0</span> <span class="dv">1</span>)))   <span class="co">; ← :ax falls through, accidentally same as :c</span></span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a><span class="co">;; ppm-star.lisp — type-count (singleton branch)</span></span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>(:x (<span class="kw">let</span> ((<span class="kw">count</span> <span class="dv">1</span>))</span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a>      (<span class="kw">maphash</span> (<span class="kw">lambda</span> (k v)</span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a>                 (<span class="kw">declare</span> (<span class="kw">ignore</span> k))</span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a>                 (<span class="kw">when</span> (<span class="op">=</span> v <span class="dv">1</span>) (<span class="kw">incf</span> <span class="kw">count</span> <span class="dv">1</span>)))</span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a>               (transition-counts m location))</span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a>      <span class="kw">count</span>))   <span class="co">; → 1 + t₁, but only reached when escape = :x, not :ax</span></span></code></pre></div>
 <p>When IDyOM is called with <code>:escape :ax</code> (the documented
 keyword), the singleton branch never executes — <code>:ax</code>
 silently produces the same values as <code>:c</code>. <strong>The

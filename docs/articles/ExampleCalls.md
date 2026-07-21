@@ -1,5 +1,3 @@
-<div id="main" class="col-md-9" role="main">
-
 # Example Calls: Matching ppm and IDyOM
 
 PPM models a listener who hears a musical sequence event by event and
@@ -7,15 +5,14 @@ forms expectations about what comes next. Different configurations of
 ppidyom correspond to different assumptions about what kind of memory
 that listener has:
 
--   **STM only** — the listener remembers only the current sequence.
-    Predictions become sharper as the sequence unfolds and patterns
-    repeat.
--   **LTM only** — the listener draws entirely on prior musical
-    experience encoded in a training corpus. The current sequence does
-    not update their expectations.
--   **Both** — the listener blends long-term knowledge with growing
-    memory of the current piece, weighting each source by how confident
-    it is.
+- **STM only** — the listener remembers only the current sequence.
+  Predictions become sharper as the sequence unfolds and patterns
+  repeat.
+- **LTM only** — the listener draws entirely on prior musical experience
+  encoded in a training corpus. The current sequence does not update
+  their expectations.
+- **Both** — the listener blends long-term knowledge with growing memory
+  of the current piece, weighting each source by how confident it is.
 
 This vignette shows the exact calls needed to replicate Harrison’s
 **ppm** package and IDyOM (Common Lisp). The two differ in several
@@ -26,25 +23,16 @@ the full parameter map is in
 
 ------------------------------------------------------------------------
 
-<div class="section level2">
-
 ## Shared test data
 
-<div id="cb1" class="sourceCode">
-
 ``` r
+
 x        <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
 alphabet <- c("A", "B", "C")
 N        <- 3L
 ```
 
-</div>
-
 ------------------------------------------------------------------------
-
-</div>
-
-<div class="section level2">
 
 ## Matching Harrison’s ppm package
 
@@ -56,8 +44,6 @@ symbols.
 
 ppidyom matches this with `idyom_base = FALSE` (the default).
 
-<div class="section level3">
-
 ### STM, escape C, no exclusion (ppm defaults)
 
 The simplest configuration: the model counts how often each n-gram has
@@ -65,9 +51,8 @@ occurred before the current position, then assigns probabilities via
 interpolation. Early in the sequence, it relies heavily on low-order
 statistics; as patterns repeat, higher orders take over.
 
-<div id="cb2" class="sourceCode">
-
 ``` r
+
 # ppm equivalent:
 #   ppm::new_ppm_simple(
 #     order_bound = 3, alphabet_levels = c("A","B","C"),
@@ -91,12 +76,6 @@ result <- model$predict_sequence(
 result[data.table(index = seq_along(x), Event = x), on = .(index, Event)]$IC
 ```
 
-</div>
-
-</div>
-
-<div class="section level3">
-
 ### STM, escape A, with exclusion
 
 Escape A (`1/(C+1)`) is more conservative than Witten-Bell: it assigns a
@@ -105,9 +84,8 @@ context rather than falling back quickly to lower orders. Combined with
 exclusion, lower orders only distribute their escaped mass over symbols
 not yet covered by higher-order predictions.
 
-<div id="cb3" class="sourceCode">
-
 ``` r
+
 # ppm::(escape="a", exclusion=TRUE, update_exclusion=FALSE)
 
 model <- ppidyomModel$new(
@@ -126,12 +104,6 @@ result <- model$predict_sequence(
 result[data.table(index = seq_along(x), Event = x), on = .(index, Event)]$IC
 ```
 
-</div>
-
-</div>
-
-<div class="section level3">
-
 ### Multiple sequences via `run_ppidyom`
 
 For a corpus of sequences, `run_ppidyom` handles the loop automatically.
@@ -139,9 +111,8 @@ Each sequence is processed independently; for STM the model resets
 between sequences (each sequence starts from scratch with no accumulated
 memory).
 
-<div id="cb4" class="sourceCode">
-
 ``` r
+
 corpus <- list(
   c("A","B","A","C","A","B","A","C","A"),
   c("B","A","B","C","A")
@@ -165,32 +136,22 @@ lapply(seq_along(corpus), function(i) {
 })
 ```
 
-</div>
-
 ------------------------------------------------------------------------
-
-</div>
-
-</div>
-
-<div class="section level2">
 
 ## Matching IDyOM (Common Lisp)
 
 IDyOM differs from ppm in three ways that matter for LTM and `both`-type
 predictions:
 
-| Flag              | Value for IDyOM match | Why                                                                                   |
-|-------------------|-----------------------|---------------------------------------------------------------------------------------|
-| `ltm_start_token` | `FALSE`               | IDyOM skips beginning-of-sequence positions when building LTM                         |
-| `idyom_base`      | `TRUE`                | IDyOM’s order-(-1) prior uses `t_root` from the training model, not the test sequence |
-| `b`               | `7`                   | IDyOM weights the more confident model much more sharply (Pearce 2005)                |
+| Flag | Value for IDyOM match | Why |
+|----|----|----|
+| `ltm_start_token` | `FALSE` | IDyOM skips beginning-of-sequence positions when building LTM |
+| `idyom_base` | `TRUE` | IDyOM’s order-(-1) prior uses `t_root` from the training model, not the test sequence |
+| `b` | `7` | IDyOM weights the more confident model much more sharply (Pearce 2005) |
 
 For **STM with exclusion on**, all three implementations already agree —
 no special flags are needed. The flags become important as soon as LTM
 is involved.
-
-<div class="section level3">
 
 ### Default IDyOM STM — exclusion ON
 
@@ -200,9 +161,8 @@ whether you compute it from the training data or from the test sequence
 — they are the same sequence. So `idyom_base` has no numerical effect
 here; all three implementations agree.
 
-<div id="cb5" class="sourceCode">
-
 ``` r
+
 # IDyOM call (Common Lisp):
 #   (idyom:idyom <db-id> '(cpitch) '(cpitch) :texture :melody :models :stm
 #     :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))
@@ -223,12 +183,6 @@ result <- model$predict_sequence(
 result[data.table(index = seq_along(x), Event = x), on = .(index, Event)]$IC
 ```
 
-</div>
-
-</div>
-
-<div class="section level3">
-
 ### IDyOM STM — exclusion OFF
 
 Without exclusion, IDyOM uses a flat uniform `1/|alphabet|` as the base
@@ -238,9 +192,8 @@ visible at the beginning of the sequence, before all alphabet symbols
 have been observed. **Set `idyom_base = TRUE` to reproduce IDyOM’s
 values.**
 
-<div id="cb6" class="sourceCode">
-
 ``` r
+
 # IDyOM call:
 #   :stmo '(:escape :c :order-bound 3 :exclusion nil :update-exclusion nil)
 
@@ -266,12 +219,6 @@ data.frame(
 )
 ```
 
-</div>
-
-</div>
-
-<div class="section level3">
-
 ### IDyOM LTM only
 
 The LTM is trained on a separate corpus before prediction begins. Once
@@ -283,9 +230,8 @@ and the order-(-1) probability is `1/(3+1-3) = 1.0`.
 `ltm_start_token = FALSE` is required to match IDyOM’s practice of
 skipping beginning-of-sequence positions during training.
 
-<div id="cb7" class="sourceCode">
-
 ``` r
+
 # IDyOM call:
 #   (idyom:idyom <db-id> '(cpitch) '(cpitch) :texture :melody :models :ltm
 #     :ltmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))
@@ -312,12 +258,6 @@ result[data.table(index = seq_along(x), Event = x), on = .(index, Event)][
 ]
 ```
 
-</div>
-
-</div>
-
-<div class="section level3">
-
 ### IDyOM both+ model
 
 `both+` blends the STM and LTM distributions using an entropy-weighted
@@ -329,9 +269,8 @@ The blend sharpness is controlled by `b = 7`: the model with lower
 entropy (more confident predictions) strongly dominates. All three
 IDyOM-specific flags are required.
 
-<div id="cb8" class="sourceCode">
-
 ``` r
+
 # IDyOM call:
 #   (idyom:idyom <db-id> '(cpitch) '(cpitch) :texture :melody :models :both+
 #     :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil)
@@ -362,43 +301,31 @@ result[data.table(index = seq_along(x), Event = x), on = .(index, Event)][
 ]
 ```
 
-</div>
-
 ------------------------------------------------------------------------
-
-</div>
-
-</div>
-
-<div class="section level2">
 
 ## Quick decision table
 
-| Goal                           | `ltm_start_token` | `idyom_base`      | `b`     | Notes                              |
-|--------------------------------|-------------------|-------------------|---------|------------------------------------|
-| Match ppm (STM, any exclusion) | `TRUE`            | `FALSE`           | any     | ppm always uses shrinking base     |
-| Match IDyOM STM, excl=ON       | `TRUE`            | `TRUE` or `FALSE` | any     | all three implementations agree    |
-| Match IDyOM STM, excl=OFF      | `TRUE`            | **`TRUE`**        | any     | base distribution differs from ppm |
-| Match IDyOM LTM/ltm+           | **`FALSE`**       | **`TRUE`**        | any     | t_root comes from training data    |
-| Match IDyOM both/both+         | **`FALSE`**       | **`TRUE`**        | **`7`** | all three flags required           |
+| Goal | `ltm_start_token` | `idyom_base` | `b` | Notes |
+|----|----|----|----|----|
+| Match ppm (STM, any exclusion) | `TRUE` | `FALSE` | any | ppm always uses shrinking base |
+| Match IDyOM STM, excl=ON | `TRUE` | `TRUE` or `FALSE` | any | all three implementations agree |
+| Match IDyOM STM, excl=OFF | `TRUE` | **`TRUE`** | any | base distribution differs from ppm |
+| Match IDyOM LTM/ltm+ | **`FALSE`** | **`TRUE`** | any | t_root comes from training data |
+| Match IDyOM both/both+ | **`FALSE`** | **`TRUE`** | **`7`** | all three flags required |
 
 ------------------------------------------------------------------------
-
-</div>
-
-<div class="section level2">
 
 ## HumdrumR integration (early / basic)
 
 ppidyom now integrates with
 [HumdrumR](https://github.com/Computational-Cognitive-Musicology-Lab/humdrumR),
 the symbolic music analysis framework for R, via an S3 method on the
-generic `ppidyom()`. This is a first-pass implementation — the interface
-may still change.
-
-<div id="cb9" class="sourceCode">
+generic
+[`ppidyom()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom.md).
+This is a first-pass implementation — the interface may still change.
 
 ``` r
+
 library(humdrumR)
 
 h <- readHumdrum("*.krn")
@@ -408,25 +335,23 @@ h <- readHumdrum("*.krn")
 h |> pitch() |> ppidyom(model_type = "both+")
 ```
 
-</div>
+[`ppidyom()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom.md)
+is a generic with two methods:
 
-`ppidyom()` is a generic with two methods:
+- **`ppidyom.default(...)`** — takes one or more plain vectors (all the
+  same length) and returns an IC vector. This is the same computation
+  `run_ppidyom` performs, but organized around long-term/short-term
+  *grouping* (e.g. by `Piece`) rather than a list of pre-split
+  sequences.
+- **`ppidyom.humdrumR(humdrumR, ...)`** — evaluates `...` as field
+  expressions inside the humdrumR object (via
+  [`within()`](https://rdrr.io/r/base/with.html)) and calls
+  `ppidyom.default()` on the result, attaching the IC values back onto
+  the corpus as a new field.
 
--   **`ppidyom.default(...)`** — takes one or more plain vectors (all
-    the same length) and returns an IC vector. This is the same
-    computation `run_ppidyom` performs, but organized around
-    long-term/short-term *grouping* (e.g. by `Piece`) rather than a list
-    of pre-split sequences.
--   **`ppidyom.humdrumR(humdrumR, ...)`** — evaluates `...` as field
-    expressions inside the humdrumR object (via `within()`) and calls
-    `ppidyom.default()` on the result, attaching the IC values back onto
-    the corpus as a new field.
-
-`run_ppidyom()` (used throughout this vignette) still operates on plain
-R lists of character vectors and remains the lower-level building block;
-the new `ppidyom()` generic is the higher-level, HumdrumR-aware entry
-point built on top of the same `ppidyomModel` class.
-
-</div>
-
-</div>
+[`run_ppidyom()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/run_ppidyom.md)
+(used throughout this vignette) still operates on plain R lists of
+character vectors and remains the lower-level building block; the new
+[`ppidyom()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom.md)
+generic is the higher-level, HumdrumR-aware entry point built on top of
+the same `ppidyomModel` class.

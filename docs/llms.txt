@@ -1,10 +1,6 @@
-<div id="main" class="col-md-9" role="main">
-
 ![](ppidyom_logo.svg)
 
 Welcome to the main website of ppidyom!
-
-<div class="section level2">
 
 ## What is ppidyom?
 
@@ -24,18 +20,10 @@ these existing systems. In particular, **ppidyom** is designed to work
 within the [humdrumR](https://humdrumR.ccml.gtcmt.gatech.edu) package
 framework, making a complete system for musicological analysis.
 
-<div class="section level4">
-
 #### What does ppidyom stand for?
 
 **P**artial **P**redictive **I**nformation **Dy**namics of **M**usic.
 It’s an homage/mash-up of IDyOM and ppm!
-
-</div>
-
-</div>
-
-<div class="section level2">
 
 ## What is partial predictive matching?
 
@@ -47,81 +35,41 @@ prediction.
 
 PPM model implementations can also incorporate:
 
--   Long-term and short-term models.
-
-</div>
-
-</div>
-
-<div id="main" class="col-md-9" role="main">
+- Long-term and short-term models.
 
 # Package index
 
-<div class="section level2">
-
 ## Section
-
-<div class="section-desc">
 
 These tools .
 
-</div>
-
-</div>
-
-<div class="section level2">
-
 ### XXX
 
-</div>
-
-<div class="section level2">
-
--   `ppidyom()` : Calculate information dynamics using PPIDyOM
--   `ppidyomModel` : Initialize a new PPM counter
--   `run_ppidyom()` : Run PPM over a corpus of sequences
--   `count_tables()` : Compute Count Tables for STM and LTM with
-    Optional Prior
--   `lag_matrix()` : Generate Lagged N-gram Matrix
-
-</div>
-
-</div>
-
-<div id="main" class="col-md-9" role="main">
+- [`ppidyom()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyom.md)
+  : Calculate information dynamics using PPIDyOM
+- [`ppidyomModel`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/ppidyomModel.md)
+  : Initialize a new PPM counter
+- [`run_ppidyom()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/run_ppidyom.md)
+  : Run PPM over a corpus of sequences
+- [`count_tables()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/count_tables.md)
+  : Compute Count Tables for STM and LTM with Optional Prior
+- [`lag_matrix()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/lag_matrix.md)
+  : Generate Lagged N-gram Matrix
 
 # Articles
 
-<div class="section">
-
 ### Basics
 
-<div class="section-desc">
-
-</div>
-
--   [Overview: Motivation, Design, and
-    Applications](https://ppidyom.ccml.gtcmt.gatech.edu/articles/Overview.md):
--   [Example Calls: Matching ppm and
-    IDyOM](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ExampleCalls.md):
-
-</div>
-
-<div class="section">
+- [Overview: Motivation, Design, and
+  Applications](https://ppidyom.ccml.gtcmt.gatech.edu/articles/Overview.md):
+- [Example Calls: Matching ppm and
+  IDyOM](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ExampleCalls.md):
 
 ### Replication
 
-<div class="section-desc">
-
 How can we replicate outputs of IDyOM and PPM
 
-</div>
-
--   [Implementation Differences: ppm, IDyOM, and
-    ppidyom](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md):
--   [Parameter Correspondence: ppidyom, ppm, and
-    IDyOM](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.md):
-
-</div>
-
-</div>
+- [Implementation Differences: ppm, IDyOM, and
+  ppidyom](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md):
+- [Parameter Correspondence: ppidyom, ppm, and
+  IDyOM](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.md):

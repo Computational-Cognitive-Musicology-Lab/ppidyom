@@ -1,8 +1,4 @@
-<div id="main" class="col-md-9" role="main">
-
 # Implementation Differences: ppm, IDyOM, and ppidyom
-
-<div class="section level2">
 
 ## Overview
 
@@ -13,24 +9,18 @@ different choices at six decision points. ppidyom covers both: its
 defaults are documented, and every divergence is exposed as a named
 parameter.
 
-| \#  | Topic                    | ppm              | IDyOM                        | ppidyom default            | Flag to match IDyOM       |
-|-----|--------------------------|------------------|------------------------------|----------------------------|---------------------------|
-| 1   | Base prior, LTM          | — (no LTM)       | Training `t_root`            | Test-sequence `t_root`     | `idyom_base = TRUE`       |
-| 2   | Base prior, STM excl=OFF | Shrinking        | Flat uniform                 | Shrinking (= ppm)          | `idyom_base = TRUE`       |
-| 3   | LTM start positions      | — (no LTM)       | Skip start tokens            | Include all                | `ltm_start_token = FALSE` |
-| 4   | STM+LTM normalisation    | — (no mixture)   | Conditional skip             | Conditional skip (= IDyOM) | (already matching)        |
-| 5   | Mixture exponent *b*     | — (no mixture)   | b = 7                        | b = 1                      | `b = 7`                   |
-| 6   | AX escape method         | `"ax"` (correct) | `:ax` is dead code; use `:x` | `"X"` (correct)            | Call IDyOM with `:x`      |
+| \# | Topic | ppm | IDyOM | ppidyom default | Flag to match IDyOM |
+|----|----|----|----|----|----|
+| 1 | Base prior, LTM | — (no LTM) | Training `t_root` | Test-sequence `t_root` | `idyom_base = TRUE` |
+| 2 | Base prior, STM excl=OFF | Shrinking | Flat uniform | Shrinking (= ppm) | `idyom_base = TRUE` |
+| 3 | LTM start positions | — (no LTM) | Skip start tokens | Include all | `ltm_start_token = FALSE` |
+| 4 | STM+LTM normalisation | — (no mixture) | Conditional skip | Conditional skip (= IDyOM) | (already matching) |
+| 5 | Mixture exponent *b* | — (no mixture) | b = 7 | b = 1 | `b = 7` |
+| 6 | AX escape method | `"ax"` (correct) | `:ax` is dead code; use `:x` | `"X"` (correct) | Call IDyOM with `:x` |
 
 ------------------------------------------------------------------------
 
-</div>
-
-<div class="section level2">
-
 ## 1. Base prior — LTM
-
-<div class="section level3">
 
 ### The concept
 
@@ -46,10 +36,6 @@ With exclusion on, symbols already assigned probability at higher orders
 are conceptually covered. The order −1 prior only needs to distribute
 over the *remaining* symbols — and how many remain depends on whether
 you look at the **training corpus** or the **current test sequence**.
-
-</div>
-
-<div class="section level3">
 
 ### The implementations’ choices
 
@@ -68,8 +54,6 @@ natural STM-style answer. When working with LTM or both-type models, set
 
 The relevant logic in `R/interpolation.R`:
 
-<div id="cb1" class="sourceCode">
-
 ``` r
 # t_root comes from the order-0 count table:
 # for STM: counts observed in the test sequence so far
@@ -84,11 +68,7 @@ else
   1.0 / (length(alphabet) + 1L - length(seen_symbols))     # ppm-compatible
 ```
 
-</div>
-
 IDyOM source (`ppm-star/ppm-star.lisp`, `order-minus1-probability`):
-
-<div id="cb2" class="sourceCode">
 
 ``` lisp
 (defmethod order-minus1-probability ((m ppm) update-exclusion)
@@ -101,19 +81,9 @@ IDyOM source (`ppm-star/ppm-star.lisp`, `order-minus1-probability`):
             0.0)))
 ```
 
-</div>
-
 ------------------------------------------------------------------------
 
-</div>
-
-</div>
-
-<div class="section level2">
-
 ## 2. Base prior — STM, exclusion OFF
-
-<div class="section level3">
 
 ### The concept
 
@@ -127,24 +97,19 @@ This is a design choice. IDyOM uses the flat uniform; ppm uses a
 shrinking denominator. The difference is only visible before all
 alphabet symbols have appeared — after that, both converge.
 
-</div>
-
-<div class="section level3">
-
 ### The implementations’ choices
 
-| exclusion | IDyOM prior                      | ppm prior                          | ppidyom default            |
-|-----------|----------------------------------|------------------------------------|----------------------------|
-| OFF       | `1 / \|alphabet\|` — flat always | `1 / (\|α\|+1−\|seen\|)` — shrinks | ppm-compatible (shrinking) |
-| ON        | `1 / (\|α\|+1−t_root)`           | `1 / (\|α\|+1−\|seen\|)`           | matches IDyOM              |
+| exclusion | IDyOM prior | ppm prior | ppidyom default |
+|----|----|----|----|
+| OFF | `1 / \|alphabet\|` — flat always | `1 / (\|α\|+1−\|seen\|)` — shrinks | ppm-compatible (shrinking) |
+| ON | `1 / (\|α\|+1−t_root)` | `1 / (\|α\|+1−\|seen\|)` | matches IDyOM |
 
 Set `idyom_base = TRUE` in `predict_sequence()` to use IDyOM’s flat
 uniform when `exclusion = FALSE`. When `exclusion = TRUE`, all three
 implementations already agree.
 
-<div id="cb3" class="sourceCode">
-
 ``` r
+
 x        <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
 alphabet <- c("A", "B", "C")
 N        <- 3L
@@ -169,19 +134,9 @@ data.frame(
 )
 ```
 
-</div>
-
 ------------------------------------------------------------------------
 
-</div>
-
-</div>
-
-<div class="section level2">
-
 ## 3. LTM beginning-of-sequence positions (`ltm_start_token`)
-
-<div class="section level3">
 
 ### The concept
 
@@ -195,10 +150,6 @@ the tonic, the first beat, with particular melodic shapes. Whether to
 treat this as a generalisable observation (count it) or as too specific
 to generalise (skip it) is a design choice.
 
-</div>
-
-<div class="section level3">
-
 ### The implementations’ choices
 
 IDyOM silently skips positions where the context window extends before
@@ -209,14 +160,13 @@ The practical effect: with `ltm_start_token = FALSE` (IDyOM-compatible),
 the total count at order 0 — and therefore `t_root` and the order −1
 prior — will be lower than with `TRUE`.
 
-| ppidyom `ltm_start_token` | Positions counted                                     | Matches                 |
-|---------------------------|-------------------------------------------------------|-------------------------|
-| `TRUE` (default)          | all positions, including those with undefined context | Harrison’s ppm approach |
-| `FALSE`                   | positions with NA lags are skipped                    | **IDyOM**               |
-
-<div id="cb4" class="sourceCode">
+| ppidyom `ltm_start_token` | Positions counted | Matches |
+|----|----|----|
+| `TRUE` (default) | all positions, including those with undefined context | Harrison’s ppm approach |
+| `FALSE` | positions with NA lags are skipped | **IDyOM** |
 
 ``` r
+
 # IDyOM-compatible LTM (used in all IDyOM comparison tests)
 model <- ppidyomModel$new(
   N               = 3L,
@@ -225,19 +175,9 @@ model <- ppidyomModel$new(
 )
 ```
 
-</div>
-
 ------------------------------------------------------------------------
 
-</div>
-
-</div>
-
-<div class="section level2">
-
 ## 4. STM+LTM mixture normalisation (`sums-to-one-p`)
-
-<div class="section level3">
 
 ### The concept
 
@@ -251,17 +191,11 @@ and 1.0, treat it as already normalised and skip the division. Without
 this shortcut, division by a number like 0.99999… introduces small but
 systematic differences in the output.
 
-</div>
-
-<div class="section level3">
-
 ### The implementations’ choices
 
 ppm has no mixture support, so this does not apply.
 
 IDyOM source (`ppm-star.lisp`, `normalise-distribution`):
-
-<div id="cb5" class="sourceCode">
 
 ``` lisp
 (defun sums-to-one-p (distribution)
@@ -276,13 +210,10 @@ IDyOM source (`ppm-star.lisp`, `normalise-distribution`):
                 distribution))))
 ```
 
-</div>
-
 ppidyom’s `combine_models` replicates this exactly:
 
-<div id="cb6" class="sourceCode">
-
 ``` r
+
 # R/ppidyom.R — combine_models
 dt[, P_raw := P_stm^w_stm_n * P_ltm^w_ltm_n]
 dt[, Z     := sum(P_raw), by = index]
@@ -290,21 +221,11 @@ dt[, P     := if (Z[1] > 0.999 && Z[1] < 1.0) P_raw else P_raw / Z,
     by = index]
 ```
 
-</div>
-
 ppidyom matches IDyOM by default for this; no flag is required.
 
 ------------------------------------------------------------------------
 
-</div>
-
-</div>
-
-<div class="section level2">
-
 ## 5. Mixture weight exponent *b*
-
-<div class="section level3">
 
 ### The concept
 
@@ -313,15 +234,13 @@ distribution is more confident — lower entropy means more certain
 predictions. The exponent *b* controls how sharply this
 confidence-weighting operates.
 
-$$w\_{i} \\propto \\left( \\frac{H\_{i}}{H\_{\\max}} \\right)^{- b},\\quad H\_{\\max} = \\log\_{2}\|alphabet\|$$
+``` math
+w_i \propto \left(\frac{H_i}{H_{\max}}\right)^{-b}, \quad H_{\max} = \log_2 |alphabet|
+```
 
 With b = 1, the two models contribute roughly in proportion to their
 confidence. With b = 7 (IDyOM’s default, Pearce 2005), the lower-entropy
 model almost completely dominates — a sharp, near-winner-take-all blend.
-
-</div>
-
-<div class="section level3">
 
 ### The implementations’ choices
 
@@ -330,28 +249,17 @@ ppm has no mixture support, so this does not apply.
 ppidyom defaults to `b = 1`; pass `b = 7` to match IDyOM’s default
 behaviour:
 
-<div id="cb7" class="sourceCode">
-
 ``` r
+
 model$predict_sequence(x, model_type = "both", b = 7, ...)
 ```
-
-</div>
 
 The `test-idyom-comparison.R` suite always passes `b = 7` when testing
 `both`/`both+` configurations.
 
 ------------------------------------------------------------------------
 
-</div>
-
-</div>
-
-<div class="section level2">
-
 ## 6. Escape method AX — IDyOM bug; call with `:x`
-
-<div class="section level3">
 
 ### The concept
 
@@ -364,28 +272,19 @@ mass should escape to shorter contexts.
 Harrison’s **ppm** and ppidyom implement this directly: escape =
 (t₁ + 1) / (C + t₁ + 1) where t₁ = count of singletons.
 
-<div id="cb8" class="sourceCode">
-
 ``` r
+
 # R/escape.R — escape_AX
 esc_numer <- t1 + 1L
 weight    <- C / (C + esc_numer)
 escape    <- esc_numer / (C + esc_numer)
 ```
 
-</div>
-
-</div>
-
-<div class="section level3">
-
 ### The IDyOM bug
 
 IDyOM stores AX internally under the keyword `:x`. The
 `set-ppm-parameters` case expression and the singleton-counting branch
 in `type-count` are both keyed on `:x`:
-
-<div id="cb9" class="sourceCode">
 
 ``` lisp
 ;; ppm-star.lisp — set-ppm-parameters
@@ -405,15 +304,9 @@ in `type-count` are both keyed on `:x`:
       count))   ; → 1 + t₁, but only reached when escape = :x, not :ax
 ```
 
-</div>
-
 When IDyOM is called with `:escape :ax` (the documented keyword), the
 singleton branch never executes — `:ax` silently produces the same
 values as `:c`. **The correct call is `:x`.**
-
-</div>
-
-<div class="section level3">
 
 ### How ppidyom handles this
 
@@ -424,30 +317,20 @@ the IDyOM and ppm comparison suites.
 
 ------------------------------------------------------------------------
 
-</div>
-
-</div>
-
-<div class="section level2">
-
 ## Summary
 
 ppidyom’s default behaviour and required flags:
 
-| Configuration                  | ppidyom matches IDyOM?   | Flags required                                          |
-|--------------------------------|--------------------------|---------------------------------------------------------|
-| STM, any escape, exclusion=ON  | ✓ always                 | `stm_exclusion = TRUE`                                  |
-| STM, any escape, exclusion=OFF | ✗ by default             | `idyom_base = TRUE`                                     |
-| LTM / ltm+, exclusion=ON       | ✓ with flags             | `ltm_start_token = FALSE`, `idyom_base = TRUE`          |
-| LTM / ltm+, exclusion=OFF      | ✗ by default             | `ltm_start_token = FALSE`, `idyom_base = TRUE`          |
-| both / both+                   | ✓ with flags             | `ltm_start_token = FALSE`, `idyom_base = TRUE`, `b = 7` |
-| AX escape                      | ✓ (call IDyOM with `:x`) | fixture uses `:x`; test maps `"x"` → ppidyom `"X"`      |
+| Configuration | ppidyom matches IDyOM? | Flags required |
+|----|----|----|
+| STM, any escape, exclusion=ON | ✓ always | `stm_exclusion = TRUE` |
+| STM, any escape, exclusion=OFF | ✗ by default | `idyom_base = TRUE` |
+| LTM / ltm+, exclusion=ON | ✓ with flags | `ltm_start_token = FALSE`, `idyom_base = TRUE` |
+| LTM / ltm+, exclusion=OFF | ✗ by default | `ltm_start_token = FALSE`, `idyom_base = TRUE` |
+| both / both+ | ✓ with flags | `ltm_start_token = FALSE`, `idyom_base = TRUE`, `b = 7` |
+| AX escape | ✓ (call IDyOM with `:x`) | fixture uses `:x`; test maps `"x"` → ppidyom `"X"` |
 
 For working code examples see
 [`vignette("example-calls")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ExampleCalls.md).
 For the full parameter map see
 [`vignette("parameter-correspondence")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.md).
-
-</div>
-
-</div>

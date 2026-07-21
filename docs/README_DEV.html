@@ -55,31 +55,31 @@
 <strong>devtools</strong> — the standard R package development toolkit</li>
 </ul><hr></div>
 <div class="section level2">
-<h2 id="1-first-time-setup">1. First-Time Setup<a class="anchor" aria-label="anchor" href="#1-first-time-setup"></a></h2>
+<h2 id="id_1-first-time-setup">1. First-Time Setup<a class="anchor" aria-label="anchor" href="#id_1-first-time-setup"></a></h2>
 <div class="section level3">
-<h3 id="11-install-devtools">1.1 Install devtools<a class="anchor" aria-label="anchor" href="#11-install-devtools"></a></h3>
+<h3 id="id_11-install-devtools">1.1 Install devtools<a class="anchor" aria-label="anchor" href="#id_11-install-devtools"></a></h3>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"devtools"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="12-install-package-dependencies">1.2 Install package dependencies<a class="anchor" aria-label="anchor" href="#12-install-package-dependencies"></a></h3>
+<h3 id="id_12-install-package-dependencies">1.2 Install package dependencies<a class="anchor" aria-label="anchor" href="#id_12-install-package-dependencies"></a></h3>
 <p><code>ppidyom</code> depends on <code>data.table</code> (CRAN) and <code>ppm</code> (GitHub):</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"data.table"</span><span class="op">)</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/install-deprecated.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"pmcharrison/ppm"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="13-install-testthat-for-running-tests">1.3 Install testthat (for running tests)<a class="anchor" aria-label="anchor" href="#13-install-testthat-for-running-tests"></a></h3>
+<h3 id="id_13-install-testthat-for-running-tests">1.3 Install testthat (for running tests)<a class="anchor" aria-label="anchor" href="#id_13-install-testthat-for-running-tests"></a></h3>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"testthat"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="14-open-the-project">1.4 Open the project<a class="anchor" aria-label="anchor" href="#14-open-the-project"></a></h3>
+<h3 id="id_14-open-the-project">1.4 Open the project<a class="anchor" aria-label="anchor" href="#id_14-open-the-project"></a></h3>
 <p>Open <code>ppidyom.Rproj</code> in RStudio — this sets the working directory and activates the project environment automatically.</p>
 <hr></div>
 </div>
 <div class="section level2">
-<h2 id="2-build">2. Build<a class="anchor" aria-label="anchor" href="#2-build"></a></h2>
+<h2 id="id_2-build">2. Build<a class="anchor" aria-label="anchor" href="#id_2-build"></a></h2>
 <div class="section level3">
 <h3 id="active-development-recommended">Active development (recommended)<a class="anchor" aria-label="anchor" href="#active-development-recommended"></a></h3>
 <p><code>load_all()</code> sources every file in <code>R/</code> into the current session without a full install. Use this during development — it’s fast and reflects your edits immediately:</p>
@@ -106,7 +106,7 @@
 <hr></div>
 </div>
 <div class="section level2">
-<h2 id="3-running-tests">3. Running Tests<a class="anchor" aria-label="anchor" href="#3-running-tests"></a></h2>
+<h2 id="id_3-running-tests">3. Running Tests<a class="anchor" aria-label="anchor" href="#id_3-running-tests"></a></h2>
 <p>Tests live in <code>tests/testthat/</code>. The test suite uses the <strong>testthat</strong> framework.</p>
 <div class="section level3">
 <h3 id="run-all-tests">Run all tests<a class="anchor" aria-label="anchor" href="#run-all-tests"></a></h3>
@@ -135,23 +135,23 @@
 <hr></div>
 <div class="section level3">
 <h3 id="test-coverage-summary">Test coverage summary<a class="anchor" aria-label="anchor" href="#test-coverage-summary"></a></h3>
-<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr class="header"><th>Test file</th>
+<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr><th>Test file</th>
 <th>What it covers</th>
-</tr></thead><tbody><tr class="odd"><td><code>test-escape.R</code></td>
+</tr></thead><tbody><tr><td><code>test-escape.R</code></td>
 <td>Escape functions A/B/C/D/AX: correct <code>subtract</code>, <code>esc_numer</code>, full escape probability</td>
-</tr><tr class="even"><td><code>test-counts.R</code></td>
+</tr><tr><td><code>test-counts.R</code></td>
 <td>STM and LTM count tables (<code>Ce</code>, <code>C</code>, <code>t</code>, <code>t1</code>) at order 0 and order 2; LTM prior accumulation across sequences</td>
-</tr><tr class="odd"><td><code>test-invariants.R</code></td>
+</tr><tr><td><code>test-invariants.R</code></td>
 <td>
 <code>P ∈ (0,1]</code> for observed events; per-timestep distribution sums to 1</td>
-</tr><tr class="even"><td><code>test-ppidyom.R</code></td>
+</tr><tr><td><code>test-ppidyom.R</code></td>
 <td>
 <code>detrain_sequence</code> exactly reverses training (with and without <code>ltm_update_exclusion</code>); <code>run_ppidyom</code> matches manual leave-one-out</td>
-</tr><tr class="odd"><td><code>test-ppm-comparison.R</code></td>
+</tr><tr><td><code>test-ppm-comparison.R</code></td>
 <td>ppidyom STM ↔︎ Harrison’s <strong>ppm</strong> for all 5 escape methods, both exclusion flags, both update-exclusion flags, N ∈ {1,3,5}; full <code>run_ppidyom</code> grid</td>
-</tr><tr class="even"><td><code>test-idyom-comparison.R</code></td>
+</tr><tr><td><code>test-idyom-comparison.R</code></td>
 <td>ppidyom ↔︎ IDyOM (Common Lisp) for all model/escape/exclusion combinations × 2 sequences (AX via <code>:x</code>); ppidyom ↔︎ ppm for STM excl=ON</td>
-</tr><tr class="odd"><td><code>test-scalability.R</code></td>
+</tr><tr><td><code>test-scalability.R</code></td>
 <td>timing benchmarks for large sequences (disabled by default)</td>
 </tr></tbody></table><hr></div>
 <div class="section level3">
@@ -160,49 +160,49 @@
 <p>Compares ppidyom STM against Harrison’s <strong>ppm</strong> package. All tests use <code>ppm_type = "interpolation"</code> and <code>idyom_base = FALSE</code> (ppm-compatible shrinking-denominator base).</p>
 <div class="section level4">
 <h4 id="what-is-covered">What IS covered<a class="anchor" aria-label="anchor" href="#what-is-covered"></a></h4>
-<table style="width:100%;" class="table"><colgroup><col width="16%"><col width="16%"><col width="16%"><col width="16%"><col width="16%"><col width="16%"></colgroup><thead><tr class="header"><th>Section</th>
+<table style="width:100%;" class="table"><colgroup><col width="16%"><col width="16%"><col width="16%"><col width="16%"><col width="16%"><col width="16%"></colgroup><thead><tr><th>Section</th>
 <th>Escape</th>
 <th>Exclusion</th>
 <th>Update-excl</th>
 <th>N</th>
 <th>Sequences</th>
-</tr></thead><tbody><tr class="odd"><td>§1 escape sweep</td>
+</tr></thead><tbody><tr><td>§1 escape sweep</td>
 <td>A, B, C, D, AX</td>
 <td>FALSE</td>
 <td>FALSE</td>
 <td>3</td>
 <td>x1, x2</td>
-</tr><tr class="even"><td>§2 exclusion</td>
+</tr><tr><td>§2 exclusion</td>
 <td>C</td>
 <td><strong>TRUE</strong></td>
 <td>FALSE</td>
 <td>3</td>
 <td>x1, x2</td>
-</tr><tr class="odd"><td>§3 update-exclusion</td>
+</tr><tr><td>§3 update-exclusion</td>
 <td>C</td>
 <td>FALSE</td>
 <td><strong>TRUE</strong></td>
 <td>3</td>
 <td>x1, x2</td>
-</tr><tr class="even"><td>§3 both flags</td>
+</tr><tr><td>§3 both flags</td>
 <td>C</td>
 <td><strong>TRUE</strong></td>
 <td><strong>TRUE</strong></td>
 <td>3</td>
 <td>x1, x2</td>
-</tr><tr class="odd"><td>§4 order bound</td>
+</tr><tr><td>§4 order bound</td>
 <td>C</td>
 <td>FALSE</td>
 <td>FALSE</td>
 <td><strong>1</strong></td>
 <td>x1 only</td>
-</tr><tr class="even"><td>§4 order bound</td>
+</tr><tr><td>§4 order bound</td>
 <td>C</td>
 <td>FALSE</td>
 <td>FALSE</td>
 <td><strong>5</strong></td>
 <td>x1 only</td>
-</tr><tr class="odd"><td>§5 <code>run_ppidyom</code> grid</td>
+</tr><tr><td>§5 <code>run_ppidyom</code> grid</td>
 <td>A, B, C, D, X</td>
 <td>FALSE, TRUE</td>
 <td>FALSE, TRUE</td>
@@ -212,13 +212,13 @@
 </div>
 <div class="section level4">
 <h4 id="what-is-not-covered">What is NOT covered<a class="anchor" aria-label="anchor" href="#what-is-not-covered"></a></h4>
-<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr class="header"><th>Gap</th>
+<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr><th>Gap</th>
 <th>Notes</th>
-</tr></thead><tbody><tr class="odd"><td>LTM / ltm+ / both / both+ model types</td>
+</tr></thead><tbody><tr><td>LTM / ltm+ / both / both+ model types</td>
 <td>ppm package has no LTM; STM only</td>
-</tr><tr class="even"><td><code>idyom_base = TRUE</code></td>
+</tr><tr><td><code>idyom_base = TRUE</code></td>
 <td>always uses ppm-compatible shrinking base</td>
-</tr><tr class="odd"><td>Backoff mode (<code>ppm_type = "backoff"</code>)</td>
+</tr><tr><td>Backoff mode (<code>ppm_type = "backoff"</code>)</td>
 <td>ppm package uses interpolation only</td>
 </tr></tbody></table><hr></div>
 </div>
@@ -229,28 +229,28 @@
 <div class="section level4">
 <h4 id="what-is-covered-1">What IS covered<a class="anchor" aria-label="anchor" href="#what-is-covered-1"></a></h4>
 <ul><li>OFAT: one-factor-at-a-time</li>
-</ul><table class="table"><colgroup><col width="33%"><col width="33%"><col width="33%"></colgroup><thead><tr class="header"><th>Model</th>
+</ul><table class="table"><colgroup><col width="33%"><col width="33%"><col width="33%"></colgroup><thead><tr><th>Model</th>
 <th>Parameter combinations</th>
 <th>Sequences</th>
-</tr></thead><tbody><tr class="odd"><td><code>stm</code></td>
+</tr></thead><tbody><tr><td><code>stm</code></td>
 <td>escape ∈ {a,b,c,d,x} × stm_exclusion ∈ {0,1} × stm_update_exclusion ∈ {0,1}</td>
 <td>x1, x2</td>
-</tr><tr class="even"><td><code>ltm</code></td>
+</tr><tr><td><code>ltm</code></td>
 <td>OFAT: escape × ltm_exclusion × ltm_update_exclusion (all combos)</td>
 <td>x1, x2</td>
-</tr><tr class="odd"><td><code>ltm+</code></td>
+</tr><tr><td><code>ltm+</code></td>
 <td>spot-check: exclusion, update_exclusion</td>
 <td>x1, x2</td>
-</tr><tr class="even"><td><code>both</code></td>
+</tr><tr><td><code>both</code></td>
 <td>OFAT on stm/ltm escape, exclusion, update_exclusion</td>
 <td>x1, x2</td>
-</tr><tr class="odd"><td><code>both+</code></td>
+</tr><tr><td><code>both+</code></td>
 <td>spot-check: exclusion</td>
 <td>x1, x2</td>
-</tr><tr class="even"><td>backoff (<code>mixtures=nil</code>)</td>
+</tr><tr><td>backoff (<code>mixtures=nil</code>)</td>
 <td>stm/ltm/ltm+/both/both+ baselines; stm+exclusion variant</td>
 <td>x1, x2</td>
-</tr><tr class="odd"><td><code>b = 1</code></td>
+</tr><tr><td><code>b = 1</code></td>
 <td>both (baseline + excl=T) + both+ baseline</td>
 <td>x1, x2</td>
 </tr></tbody></table><p>All LTM models are pretrained on two training sequences (the “multi” corpus). Total: 41 IDyOM configurations × 2 sequences = 82 comparison tests. IDyOM’s AX escape is invoked as <code>:x</code> (not <code>:ax</code> — see §6 of <code>vignette("implementation-discrepancy")</code>).</p>
@@ -258,78 +258,78 @@
 </div>
 <div class="section level4">
 <h4 id="what-is-not-covered-1">What is NOT covered<a class="anchor" aria-label="anchor" href="#what-is-not-covered-1"></a></h4>
-<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr class="header"><th>Gap</th>
+<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr><th>Gap</th>
 <th>Notes</th>
-</tr></thead><tbody><tr class="odd"><td>N ≠ 3</td>
+</tr></thead><tbody><tr><td>N ≠ 3</td>
 <td>fixture only uses order-bound=3</td>
-</tr><tr class="even"><td><code>idyom_base = FALSE</code></td>
+</tr><tr><td><code>idyom_base = FALSE</code></td>
 <td>always uses IDyOM-compatible base; ppm-compatible base not cross-checked for LTM</td>
-</tr><tr class="odd"><td>STM excl=OFF vs ppm</td>
+</tr><tr><td>STM excl=OFF vs ppm</td>
 <td>three-way check only when <code>stm_exclusion = TRUE</code> and <code>mixtures = TRUE</code> (only setting where all three agree)</td>
 </tr></tbody></table><hr></div>
 </div>
 </div>
 <div class="section level2">
-<h2 id="4-idyom-comparison-tests-ground-truth-validation">4. IDyOM Comparison Tests (Ground-Truth Validation)<a class="anchor" aria-label="anchor" href="#4-idyom-comparison-tests-ground-truth-validation"></a></h2>
+<h2 id="id_4-idyom-comparison-tests-ground-truth-validation">4. IDyOM Comparison Tests (Ground-Truth Validation)<a class="anchor" aria-label="anchor" href="#id_4-idyom-comparison-tests-ground-truth-validation"></a></h2>
 <p>The test file <code>tests/testthat/test-idyom-comparison.R</code> validates ppidyom against real IDyOM (Common Lisp) output. This is a three-way check for STM:</p>
 <pre><code>ppidyom  ↔  ppm package  ↔  IDyOM (Lisp)</code></pre>
 <p>and a two-way check for LTM / ltm+ / both / both+:</p>
 <pre><code>ppidyom  ↔  IDyOM (Lisp)</code></pre>
 <p>The comparison requires a pre-generated reference CSV. You only need to regenerate it when you change the toy sequences or add new parameter combinations.</p>
 <div class="section level3">
-<h3 id="41-prerequisites">4.1 Prerequisites<a class="anchor" aria-label="anchor" href="#41-prerequisites"></a></h3>
+<h3 id="id_41-prerequisites">4.1 Prerequisites<a class="anchor" aria-label="anchor" href="#id_41-prerequisites"></a></h3>
 <ul><li>
 <strong>Docker</strong> — install from <a href="https://docs.docker.com/get-docker/" class="external-link uri">https://docs.docker.com/get-docker/</a>
 </li>
 </ul><p>No local Lisp or IDyOM installation is needed; Docker handles everything.</p>
 </div>
 <div class="section level3">
-<h3 id="42-generate-the-idyom-reference-fixture-run-once">4.2 Generate the IDyOM reference fixture (run once)<a class="anchor" aria-label="anchor" href="#42-generate-the-idyom-reference-fixture-run-once"></a></h3>
+<h3 id="id_42-generate-the-idyom-reference-fixture-run-once">4.2 Generate the IDyOM reference fixture (run once)<a class="anchor" aria-label="anchor" href="#id_42-generate-the-idyom-reference-fixture-run-once"></a></h3>
 <p>From the repo root:</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> inst/validation/run_idyom_docker.sh</span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="fu">bash</span> inst/validation/run_idyom_docker.sh</span></code></pre></div>
 <p>This will: 1. Build a Docker image with SBCL + IDyOM + Python 3 (takes ~5 min the first time; cached afterwards). 2. Run <code>inst/validation/generate_idyom_reference.py</code> inside the container. 3. Write <code>tests/testthat/fixtures/idyom_reference_ic.csv</code>.</p>
 <p>The script supports <strong>checkpointing</strong> — if interrupted, re-running it skips already-completed parameter combinations.</p>
 </div>
 <div class="section level3">
-<h3 id="43-run-the-comparison-tests">4.3 Run the comparison tests<a class="anchor" aria-label="anchor" href="#43-run-the-comparison-tests"></a></h3>
+<h3 id="id_43-run-the-comparison-tests">4.3 Run the comparison tests<a class="anchor" aria-label="anchor" href="#id_43-run-the-comparison-tests"></a></h3>
 <p>After the fixture CSV exists, run normally:</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">test</a></span><span class="op">(</span>filter <span class="op">=</span> <span class="st">"idyom"</span><span class="op">)</span></span></code></pre></div>
 <p>Tests are skipped automatically (with an informative message) if the fixture is absent, so <code><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">devtools::test()</a></code> remains safe to run without Docker.</p>
 </div>
 <div class="section level3">
-<h3 id="44-parameter-grid">4.4 Parameter grid<a class="anchor" aria-label="anchor" href="#44-parameter-grid"></a></h3>
+<h3 id="id_44-parameter-grid">4.4 Parameter grid<a class="anchor" aria-label="anchor" href="#id_44-parameter-grid"></a></h3>
 <ul><li>OFAT: one-factor-at-a-time</li>
 </ul><p>All LTM models are pretrained on two training sequences. The fixture covers <strong>41 IDyOM configurations × 2 sequences = 82 total runs</strong>:</p>
-<table class="table"><colgroup><col width="23%"><col width="26%"><col width="50%"></colgroup><thead><tr class="header"><th>Model</th>
+<table class="table"><colgroup><col width="23%"><col width="26%"><col width="50%"></colgroup><thead><tr><th>Model</th>
 <th>Combos</th>
 <th>What’s varied</th>
-</tr></thead><tbody><tr class="odd"><td><code>stm</code></td>
+</tr></thead><tbody><tr><td><code>stm</code></td>
 <td>8</td>
 <td>baseline + 4 escape methods + exclusion + update_exclusion + both</td>
-</tr><tr class="even"><td><code>ltm</code></td>
+</tr><tr><td><code>ltm</code></td>
 <td>8</td>
 <td>OFAT: escape × exclusion × update_exclusion</td>
-</tr><tr class="odd"><td><code>ltm+</code></td>
+</tr><tr><td><code>ltm+</code></td>
 <td>3</td>
 <td>spot-check of online updating</td>
-</tr><tr class="even"><td><code>both</code></td>
+</tr><tr><td><code>both</code></td>
 <td>10</td>
 <td>OFAT on STM+LTM interpolation + key interactions</td>
-</tr><tr class="odd"><td><code>both+</code></td>
+</tr><tr><td><code>both+</code></td>
 <td>3</td>
 <td>spot-check of online updating in both+</td>
-</tr><tr class="even"><td>backoff</td>
+</tr><tr><td>backoff</td>
 <td>6</td>
 <td>
 <code>mixtures=False</code> for stm/ltm/ltm+/both/both+ + stm excl=T</td>
-</tr><tr class="odd"><td>b=1</td>
+</tr><tr><td>b=1</td>
 <td>3</td>
 <td>both (2 combos) + both+ with mixture exponent b=1</td>
 </tr></tbody></table><p>To add more combinations, edit <code>generate_grid()</code> in <code>inst/validation/generate_idyom_reference.py</code> and re-run the Docker script. The R test file reads all configs directly from the fixture CSV and requires no changes when new rows are added.</p>
 </div>
 <div class="section level3">
-<h3 id="45-what-the-dockerfile-installs">4.5 What the Dockerfile installs<a class="anchor" aria-label="anchor" href="#45-what-the-dockerfile-installs"></a></h3>
+<h3 id="id_45-what-the-dockerfile-installs">4.5 What the Dockerfile installs<a class="anchor" aria-label="anchor" href="#id_45-what-the-dockerfile-installs"></a></h3>
 <p><code>inst/validation/Dockerfile</code> installs: - <code>sbcl</code> — Steel Bank Common Lisp (the Lisp compiler IDyOM runs on) - <code>quicklisp</code> — Common Lisp package manager (downloads IDyOM automatically) - <code>idyom</code> — Pearce’s IDyOM system from GitHub - <code>python3</code> + <code>pandas</code> — to run the generator script and parse <code>.dat</code> outputs</p>
 <hr></div>
 </div>
@@ -352,19 +352,19 @@
 <h2 id="understanding-the-codebase">Understanding the Codebase<a class="anchor" aria-label="anchor" href="#understanding-the-codebase"></a></h2>
 <div class="section level3">
 <h3 id="file-by-file-overview">File-by-file overview<a class="anchor" aria-label="anchor" href="#file-by-file-overview"></a></h3>
-<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr class="header"><th>File</th>
+<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr><th>File</th>
 <th>Role</th>
-</tr></thead><tbody><tr class="odd"><td><code>R/escape.R</code></td>
+</tr></thead><tbody><tr><td><code>R/escape.R</code></td>
 <td>Pure math: escape and discount function definitions (methods A, B, C, D, AX). No side effects, no dependencies.</td>
-</tr><tr class="even"><td><code>R/counts.R</code></td>
+</tr><tr><td><code>R/counts.R</code></td>
 <td>Count accumulation: builds the sparse count tables (Ce, C, t, t1) for all n-gram orders, for both STM and LTM. Also handles the lag matrix, context key generation, prior seeding, and update-exclusion logic.</td>
-</tr><tr class="odd"><td><code>R/interpolation.R</code></td>
+</tr><tr><td><code>R/interpolation.R</code></td>
 <td>Probability computation (interpolated PPM): consumes count tables, applies the weighted sum across orders, handles the exclusion mechanism.</td>
-</tr><tr class="even"><td><code>R/backoff.R</code></td>
+</tr><tr><td><code>R/backoff.R</code></td>
 <td>Probability computation (backoff PPM): consumes count tables, cascades through orders assigning probability mass to seen symbols.</td>
-</tr><tr class="odd"><td><code>R/ppidyom.R</code></td>
+</tr><tr><td><code>R/ppidyom.R</code></td>
 <td>The <code>ppidyomModel</code> R5 Reference Class: wraps LTM state and calls <code>count_tables</code>, <code>ppm_interpolated</code>/<code>ppm_backoff</code>, and <code>detrain_sequence</code>. Also contains <code>combine_models</code> for STM+LTM blending. (Renamed from <code>ppidyom</code> to free up that name for the user-facing generic below.)</td>
-</tr><tr class="even"><td><code>R/userfunctions.R</code></td>
+</tr><tr><td><code>R/userfunctions.R</code></td>
 <td>User-facing entry points: <code><a href="reference/ppidyom.html">ppidyom()</a></code> (S3 generic, exported), <code>ppidyom.default()</code> (runs on plain vectors), <code>ppidyom.humdrumR()</code> (runs on a humdrumR corpus via <code><a href="https://rdrr.io/r/base/with.html" class="external-link">within()</a></code>), and <code><a href="reference/run_ppidyom.html">run_ppidyom()</a></code> (leave-one-out / train-all evaluation over a list of sequences using <code>ppidyomModel</code>).</td>
 </tr></tbody></table></div>
 <div class="section level3">
@@ -378,28 +378,28 @@ counts.R  ──► interpolation.R ──────────────�
 <h3 id="key-data-structures">Key data structures<a class="anchor" aria-label="anchor" href="#key-data-structures"></a></h3>
 <p><strong>Count table</strong> (output of <code>count_tables</code>, input to <code>ppm_interpolated</code> / <code>ppm_backoff</code>):</p>
 <p>A list of N+1 <code>data.table</code>s (one per order 0..N). Each row is one <code>(timestep, symbol)</code> pair:</p>
-<table class="table"><colgroup><col width="34%"><col width="26%"><col width="39%"></colgroup><thead><tr class="header"><th>Column</th>
+<table class="table"><colgroup><col width="34%"><col width="26%"><col width="39%"></colgroup><thead><tr><th>Column</th>
 <th>Type</th>
 <th>Meaning</th>
-</tr></thead><tbody><tr class="odd"><td><code>index</code></td>
+</tr></thead><tbody><tr><td><code>index</code></td>
 <td>int</td>
 <td>Timestep (1..T for STM; -1 for LTM, a constant sentinel)</td>
-</tr><tr class="even"><td><code>context_id</code></td>
+</tr><tr><td><code>context_id</code></td>
 <td>chr</td>
 <td>N-gram context string, e.g. <code>"A_B"</code> for order 2, <code>"ROOT"</code> for order 0</td>
-</tr><tr class="odd"><td><code>Event</code></td>
+</tr><tr><td><code>Event</code></td>
 <td>chr</td>
 <td>Symbol/event label</td>
-</tr><tr class="even"><td><code>Ce</code></td>
+</tr><tr><td><code>Ce</code></td>
 <td>int</td>
 <td>Count of times this symbol followed this context</td>
-</tr><tr class="odd"><td><code>C</code></td>
+</tr><tr><td><code>C</code></td>
 <td>int</td>
 <td>Total count of all symbols after this context (= sum of Ce over the alphabet)</td>
-</tr><tr class="even"><td><code>t</code></td>
+</tr><tr><td><code>t</code></td>
 <td>int</td>
 <td>Number of distinct symbols seen after this context</td>
-</tr><tr class="odd"><td><code>t1</code></td>
+</tr><tr><td><code>t1</code></td>
 <td>int</td>
 <td>Number of symbols seen exactly once (singletons)</td>
 </tr></tbody></table><p><strong>LTM environments</strong> (internal representation during accumulation in <code>counts.R</code>):</p>

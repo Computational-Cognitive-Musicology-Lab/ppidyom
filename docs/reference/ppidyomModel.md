@@ -1,136 +1,117 @@
-<div id="main" class="col-md-9" role="main">
-
 # Initialize a new PPM counter
-
-<div class="ref-description section level2">
 
 Initialize a new PPM counter
 
-</div>
-
-<div class="section level2">
-
 ## Arguments
 
--   N:
+- N:
 
-    Maximum n-gram order (order bound).
+  Maximum n-gram order (order bound).
 
--   alphabet:
+- alphabet:
 
-    Character vector of all possible symbols/events.
+  Character vector of all possible symbols/events.
 
--   stm_exclusion:
+- stm_exclusion:
 
-    Logical; when computing STM escape probabilities, exclude symbols
-    already assigned a probability at a higher order (default TRUE).
+  Logical; when computing STM escape probabilities, exclude symbols
+  already assigned a probability at a higher order (default TRUE).
 
--   ltm_exclusion:
+- ltm_exclusion:
 
-    Logical; same as `stm_exclusion`, for LTM (default TRUE).
+  Logical; same as `stm_exclusion`, for LTM (default TRUE).
 
--   stm_update_exclusion:
+- stm_update_exclusion:
 
-    Logical; stop updating lower-order STM counts once a higher order
-    already matched at this timestep (default TRUE).
+  Logical; stop updating lower-order STM counts once a higher order
+  already matched at this timestep (default TRUE).
 
--   ltm_update_exclusion:
+- ltm_update_exclusion:
 
-    Logical; same as `stm_update_exclusion`, but applied while
-    accumulating LTM counts (default FALSE).
+  Logical; same as `stm_update_exclusion`, but applied while
+  accumulating LTM counts (default FALSE).
 
--   ltm_start_token:
+- ltm_start_token:
 
-    Logical; count beginning-of-sequence positions when accumulating LTM
-    (default TRUE; set FALSE to match IDyOM).
+  Logical; count beginning-of-sequence positions when accumulating LTM
+  (default TRUE; set FALSE to match IDyOM).
 
--   x:
+- x:
 
-    Character vector sequence
+  Character vector sequence
 
--   model_type:
+- model_type:
 
-    Which memory component(s) to use:
+  Which memory component(s) to use:
 
-    -   `"stm"` — short-term memory, `x` only.
+  - `"stm"` — short-term memory, `x` only.
 
-    -   `"ltm"` — long-term memory, from prior `train_sequence()` calls.
+  - `"ltm"` — long-term memory, from prior `train_sequence()` calls.
 
-    -   `"both"` — STM + LTM blended.
+  - `"both"` — STM + LTM blended.
 
-    -   `"ltm+"`/`"both+"` — as `"ltm"`/`"both"`, but LTM is updated
-        online after each event of `x`.
+  - `"ltm+"`/`"both+"` — as `"ltm"`/`"both"`, but LTM is updated online
+    after each event of `x`.
 
--   ppm_type:
+- ppm_type:
 
-    PPM estimation method:
+  PPM estimation method:
 
-    -   `"interpolation"` — weighted sum across all n-gram orders.
+  - `"interpolation"` — weighted sum across all n-gram orders.
 
-    -   `"backoff"` — falls through orders from longest to shortest
-        matching context.
+  - `"backoff"` — falls through orders from longest to shortest matching
+    context.
 
--   stm_lambda:
+- stm_lambda:
 
-    Escape/discount method for STM:
+  Escape/discount method for STM:
 
-    -   `"A"` — very conservative; escapes rarely.
+  - `"A"` — very conservative; escapes rarely.
 
-    -   `"B"` — escapes in proportion to novelty.
+  - `"B"` — escapes in proportion to novelty.
 
-    -   `"C"` — Witten-Bell (default); balances novelty and count
-        stability.
+  - `"C"` — Witten-Bell (default); balances novelty and count stability.
 
-    -   `"D"` — absolute discounting (d = 0.5).
+  - `"D"` — absolute discounting (d = 0.5).
 
-    -   `"X"` — AX; escapes based on singleton count.
+  - `"X"` — AX; escapes based on singleton count.
 
-    See the [Escape
-    method](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.html#escape-method)
-    section of the [Parameter
-    Correspondence](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.md)
-    vignette for the exact formulas.
+  See the [Escape
+  method](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.html#escape-method)
+  section of the [Parameter
+  Correspondence](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ParameterCorrespondence.md)
+  vignette for the exact formulas.
 
--   ltm_lambda:
+- ltm_lambda:
 
-    Escape/discount method for LTM; same options as `stm_lambda`.
+  Escape/discount method for LTM; same options as `stm_lambda`.
 
--   b:
+- b:
 
-    Bias exponent for entropy-weighted blending, used only when
-    `model_type` is `"both"`/`"both+"`; higher values favor whichever of
-    STM/LTM is currently more confident (lower entropy).
+  Bias exponent for entropy-weighted blending, used only when
+  `model_type` is `"both"`/`"both+"`; higher values favor whichever of
+  STM/LTM is currently more confident (lower entropy).
 
--   idyom_base:
+- idyom_base:
 
-    Logical order-(-1) base distribution:
+  Logical order-(-1) base distribution:
 
-    -   `TRUE` — IDyOM-compatible: 1/\|alphabet\| when exclusion=FALSE,
-        shrinking denominator when exclusion=TRUE.
+  - `TRUE` — IDyOM-compatible: 1/\|alphabet\| when exclusion=FALSE,
+    shrinking denominator when exclusion=TRUE.
 
-    -   `FALSE` (default) — always the shrinking denominator (matches
-        Harrison's ppm package).
+  - `FALSE` (default) — always the shrinking denominator (matches
+    Harrison's ppm package).
 
-    See the [Implementation
-    Discrepancy](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md)
-    vignette for details. (Matching IDyOM for LTM also requires the
-    constructor's `ltm_start_token = FALSE`.)
-
-</div>
-
-<div class="section level2">
+  See the [Implementation
+  Discrepancy](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md)
+  vignette for details. (Matching IDyOM for LTM also requires the
+  constructor's `ltm_start_token = FALSE`.)
 
 ## Value
 
 data.table with columns: index, Event, P, IC, Entropy
 
-</div>
-
-<div class="section level2">
-
 ## Examples
-
-<div class="sourceCode">
 
 ``` r
 # ppidyomModel is internal; use ::: since this example isn't run via library()
@@ -152,9 +133,3 @@ result[, .(index, Event, P, IC, Entropy)]
 #> 8:     8      C 0.5428571 0.8813555 1.431006
 #> 9:     9      A 0.5789474 0.7884959 1.402993
 ```
-
-</div>
-
-</div>
-
-</div>
