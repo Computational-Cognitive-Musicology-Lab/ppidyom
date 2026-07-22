@@ -50,7 +50,7 @@ ppidyom <- function(...) {
 
 #' @exportS3Method
 ppidyom.default <- function(..., maxN = 5, alphabet = do.call('paste', expand.grid(lapply(list(...), unique))),
-														model_type = c("stm", "ltm", "both", "ltm+", "both+"), ppm_type = c("interpolation", "backoff"),
+														model_type = c("both", "stm", "ltm", "ltm+", "both+"), ppm_type = c("interpolation", "backoff"),
 														shortTermArgs = list(), longTermArgs = list(), 
 														longTermGroups = list(), shortTermGroups = list(),
 														b = 1, idyom_base = FALSE) {
@@ -100,7 +100,7 @@ ppidyom.default <- function(..., maxN = 5, alphabet = do.call('paste', expand.gr
 	output <- list()
 	for (i in seq_along(lt_groups)) {
 		lg <- lt_groups[i]
-     cat('i is', i, 'in lt_groups\n')
+   #  cat('i is', i, 'in lt_groups\n')
 
 		if (has_ltm) {
 			for (sg in data[longTerm == lg, unique(shortTerm)]) {
@@ -147,7 +147,7 @@ ppidyom.humdrumR <- function(humdrumR, ...) {
 
 	if (!any(ns == '')) quos <- c(rlang::quo(.), quos)
 
-	rlang::eval_tidy(rlang::expr(within(humdrumR, ICppidyom <- ppidyom.default(!!!quos, shortTermGroups = list(Spine, Piece), longTermGroups = list(Piece))$IC, dataTypes = 'D')))
+	rlang::eval_tidy(rlang::expr(within(humdrumR, ICppidyom <- ppidyom.default(!!!quos, shortTermGroups = list(Spine, Piece), longTermGroups = list(Piece))$IC |> round(3), dataTypes = 'D')))
 
 }
 

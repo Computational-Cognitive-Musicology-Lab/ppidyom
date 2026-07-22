@@ -143,7 +143,7 @@ res_stm <- ppidyom:::run_ppidyom(
 )
 #> run_ppidyom: 3 sequences, N=3, model=stm, ppm=interpolation, alphabet=3 (inferred)
 #>   [1/3] 0.0s elapsed, 0.0s remaining
-#>   [2/3] 0.0s elapsed, 0.0s remaining
+#>   [2/3] 0.1s elapsed, 0.0s remaining
 #>   [3/3] 0.1s elapsed, 0.0s remaining
 data.table::rbindlist(res_stm)
 #>     index  Event          P         IC   Entropy seq_id

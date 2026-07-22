@@ -139,7 +139,6 @@ statistics; as patterns repeat, higher orders take over.</p>
 <span><span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="va">testSequence</span>, maxN <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, </span>
 <span>                model_type <span class="op">=</span> <span class="st">'stm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">FALSE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
 <span><span class="co">#&gt;    index  Event          P        IC   Entropy</span></span>
 <span><span class="co">#&gt;    &lt;int&gt; &lt;char&gt;      &lt;num&gt;     &lt;num&gt;     &lt;num&gt;</span></span>
 <span><span class="co">#&gt; 1:     1      A 0.33333333 1.5849625 1.5849625</span></span>
@@ -167,7 +166,6 @@ predictions.</p>
 <span><span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="va">testSequence</span>, maxN <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, </span>
 <span>                model_type <span class="op">=</span> <span class="st">'stm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'A'</span>, exclusion <span class="op">=</span> <span class="cn">TRUE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span> </span>
-<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
 <span><span class="co">#&gt;    index  Event          P        IC  Entropy</span></span>
 <span><span class="co">#&gt;    &lt;int&gt; &lt;char&gt;      &lt;num&gt;     &lt;num&gt;    &lt;num&gt;</span></span>
 <span><span class="co">#&gt; 1:     1      A 0.33333333 1.5849625 1.584963</span></span>
@@ -203,7 +201,6 @@ column:</p>
 <span>                model_type <span class="op">=</span> <span class="st">'stm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">FALSE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>,</span>
 <span>              shortTermGroups <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">testCorpus</span><span class="op">$</span><span class="va">Piece</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
 <span><span class="co">#&gt;     index  Event          P        IC   Entropy</span></span>
 <span><span class="co">#&gt;     &lt;int&gt; &lt;char&gt;      &lt;num&gt;     &lt;num&gt;     &lt;num&gt;</span></span>
 <span><span class="co">#&gt;  1:     1      A 0.33333333 1.5849625 1.5849625</span></span>
@@ -279,7 +276,6 @@ numerical effect here; all three implementations agree.</p>
 <span><span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="va">testSequence</span>, maxN <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, </span>
 <span>                model_type <span class="op">=</span> <span class="st">'stm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">TRUE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
 <span><span class="co">#&gt;    index  Event         P        IC  Entropy</span></span>
 <span><span class="co">#&gt;    &lt;int&gt; &lt;char&gt;     &lt;num&gt;     &lt;num&gt;    &lt;num&gt;</span></span>
 <span><span class="co">#&gt; 1:     1      A 0.3333333 1.5849625 1.584963</span></span>
@@ -310,12 +306,10 @@ values.</strong></p>
 <span><span class="va">result_idyom</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="va">testSequence</span>, maxN <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, </span>
 <span>                                                model_type <span class="op">=</span> <span class="st">'stm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>                                                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">FALSE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
 <span></span>
 <span><span class="va">result_ppm</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="va">testSequence</span>, maxN <span class="op">=</span> <span class="va">N</span>, alphabet <span class="op">=</span> <span class="va">alphabet</span>, </span>
 <span>                                                model_type <span class="op">=</span> <span class="st">'stm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>                                                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">FALSE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>event <span class="op">=</span> <span class="va">testSequence</span>,</span>
 <span>                     IC_idyom_compat <span class="op">=</span> <span class="va">result_idyom</span><span class="op">$</span><span class="va">IC</span>, </span>
 <span>                     IC_ppm_compat   <span class="op">=</span> <span class="va">result_ppm</span><span class="op">$</span><span class="va">IC</span></span>
@@ -355,8 +349,6 @@ model based on the <code>Piece</code> field.</p>
 <span>                model_type <span class="op">=</span> <span class="st">'ltm'</span>, ppm_type <span class="op">=</span> <span class="st">'interpolation'</span>, idyom_base <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>                longTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">TRUE</span>, start_token <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>,</span>
 <span>                longTermGroups <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">testCorpus</span><span class="op">$</span><span class="va">Piece</span><span class="op">)</span><span class="op">)</span> </span>
-<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
-<span><span class="co">#&gt; i is 2 in lt_groups</span></span>
 <span><span class="co">#&gt;     index  Event         P        IC  Entropy</span></span>
 <span><span class="co">#&gt;     &lt;int&gt; &lt;char&gt;     &lt;num&gt;     &lt;num&gt;    &lt;num&gt;</span></span>
 <span><span class="co">#&gt;  1:     1      A 0.3571429 1.4854268 1.577406</span></span>
@@ -395,8 +387,6 @@ three IDyOM-specific flags are required.</p>
 <span>                shortTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">TRUE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>,</span>
 <span>                longTermArgs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="st">'C'</span>, exclusion <span class="op">=</span> <span class="cn">TRUE</span>, update_exclusion <span class="op">=</span> <span class="cn">FALSE</span>, start_token <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>,</span>
 <span>                longTermGroups <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">testCorpus</span><span class="op">$</span><span class="va">Piece</span><span class="op">)</span><span class="op">)</span> </span>
-<span><span class="co">#&gt; i is 1 in lt_groups</span></span>
-<span><span class="co">#&gt; i is 2 in lt_groups</span></span>
 <span><span class="co">#&gt;     index  Event         P        IC  Entropy</span></span>
 <span><span class="co">#&gt;     &lt;int&gt; &lt;char&gt;     &lt;num&gt;     &lt;num&gt;    &lt;num&gt;</span></span>
 <span><span class="co">#&gt;  1:     1      A 0.3455200 1.5331590 1.583009</span></span>
