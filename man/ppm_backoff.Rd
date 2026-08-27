@@ -22,14 +22,16 @@ ppm_backoff(
 \item{alphabet}{Character vector of full alphabet}
 
 \item{order_counts}{List of length N+1 containing count tables for orders
-0..N. Each element must be a `data.table` with columns:
-`index`, `context_id`, `Event`, `Ce`, `C`, `t`, `t1`.
-- For **STM**, `index` corresponds to the timestep.
-- For **LTM**, `index` is constantly -1; `ltm_to_timestep_counts` maps
-  them to per-timestep tables first.}
+0..N. Each element must be a \code{data.table} with columns:
+\code{index}, \code{context_id}, \code{Event}, \code{Ce}, \code{C}, \code{t}, \code{t1}.
+\itemize{
+\item For \strong{STM}, \code{index} corresponds to the timestep.
+\item For \strong{LTM}, \code{index} is constantly -1; \code{ltm_to_timestep_counts} maps
+them to per-timestep tables first.
+}}
 
-\item{escape_func}{Escape function (e.g., `escape_C`).
-Signature: `function(t, t1)` returning `list(subtract, esc_numer)`; see escape.R.}
+\item{escape_func}{Escape function (e.g., \code{escape_C}).
+Signature: \verb{function(t, t1)} returning \code{list(subtract, esc_numer)}; see escape.R.}
 
 \item{exclusion}{Logical. If TRUE, symbols seen at higher orders are excluded
 from the context count at lower orders (Cleary & Witten 1984).}
@@ -43,38 +45,41 @@ data.table with columns: index, Event, P, IC, Entropy
 }
 \description{
 Implements the PPM non-mixture (backoff) model that matches IDyOM's
-`:mixtures nil` behaviour.  Each symbol is finalized at the deepest order
+\verb{:mixtures nil} behaviour.  Each symbol is finalized at the deepest order
 whose context has observed it (highest order wins); symbols not seen at any
 order receive the accumulated escape mass scaled by the base prior.  The
 final per-timestep distribution is renormalized to sum to 1.
 }
 \details{
-## Cascade algorithm
+\subsection{Cascade algorithm}{
 
-esc_mass[t] tracks remaining probability mass for timestep t (starts at 1).
+esc_mass\link{t} tracks remaining probability mass for timestep t (starts at 1).
 At each order, only symbols not yet finalized AND not excluded are eligible.
 
-  for n = N downto 0:
-    for each eligible symbol s (Ce_n(s) > 0, unfixed, not excluded):
-      P(s) = esc_mass[t] * prob_local_n(s)    <- finalize at highest order
-    esc_mass[t] *= esc_n[t]                   <- remaining mass flows down
-    if exclusion: mark all Ce>0 symbols as excluded
-  for each symbol s still unset:
-    P(s) = esc_mass[t] * base(s)              <- base prior
-  normalize P[t] so that sum = 1
+for n = N downto 0:
+for each eligible symbol s (Ce_n(s) > 0, unfixed, not excluded):
+P(s) = esc_mass\link{t} * prob_local_n(s)    <- finalize at highest order
+esc_mass\link{t} *= esc_n\link{t}                   <- remaining mass flows down
+if exclusion: mark all Ce>0 symbols as excluded
+for each symbol s still unset:
+P(s) = esc_mass\link{t} * base(s)              <- base prior
+normalize P\link{t} so that sum = 1
+}
 
-## Exclusion (Cleary & Witten 1984)
+\subsection{Exclusion (Cleary & Witten 1984)}{
 
-Same as `ppm_interpolated`: once a symbol has Ce > 0 at any order it is
+Same as \code{ppm_interpolated}: once a symbol has Ce > 0 at any order it is
 marked excluded and removed from the context count (ctx) at lower orders.
 The escape numerator (esc_numer) uses the ORIGINAL t (including excluded),
-matching Harrison's ppm and IDyOM behaviour (see `ppm_interpolated` docs).
+matching Harrison's ppm and IDyOM behaviour (see \code{ppm_interpolated} docs).
+}
 
-## Base distribution
+\subsection{Base distribution}{
 
-Mirrors `ppm_interpolated`:
-  idyom_base + !exclusion  ->  1 / |alphabet|
-  idyom_base +  exclusion  ->  1 / (|alphabet| + 1 - t_root)
-  !idyom_base              ->  1 / (|alphabet| + 1 - |seen_at_t|)
+Mirrors \code{ppm_interpolated}:
+idyom_base + !exclusion  ->  1 / |alphabet|
+idyom_base +  exclusion  ->  1 / (|alphabet| + 1 - t_root)
+!idyom_base              ->  1 / (|alphabet| + 1 - |seen_at_t|)
+}
 }
 \keyword{internal}

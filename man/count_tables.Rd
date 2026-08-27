@@ -22,10 +22,15 @@ count_tables(
 
 \item{alphabet}{Character vector of all possible symbols.}
 
-\item{model_type}{Character: one of `"stm"`, `"ltm"`, `"both"`.}
+\item{model_type}{Character:
+\itemize{
+\item \code{"stm"} — counts per timestep within \code{x}.
+\item \code{"ltm"} — counts per context, accumulated across calls via \code{prior}.
+\item \code{"both"} — compute both.
+}}
 
 \item{prior}{Optional: previously accumulated LTM tables (list of length N+1).
-Used to initialize/accumulate counts for LTM or `both` type.}
+Used to initialize/accumulate counts for LTM or \code{both} type.}
 
 \item{stm_update_exclusion}{Logical; apply update exclusion in STM (default TRUE).
 Prevents lower-order updates when an event is already observed in a higher-order
@@ -36,11 +41,21 @@ If TRUE, applies the same exclusion logic during corpus accumulation; if FALSE,
 all orders are updated for every event.}
 }
 \value{
-A list with elements depending on `model_type`:
-  - `$stm`: list of length N+1, each a data.table of counts per timestep (if `model_type` includes `"stm"`).
-  - `$ltm`: list of length N+1, each a data.table of counts per context (if `model_type` includes `"ltm"`).
+A list with elements depending on \code{model_type}:
+\itemize{
+\item \verb{$stm}: list of length N+1, each a data.table of counts per timestep (if \code{model_type} includes \code{"stm"}).
+\item \verb{$ltm}: list of length N+1, each a data.table of counts per context (if \code{model_type} includes \code{"ltm"}).
+}
 }
 \description{
 Generates count tables for STM (per-timestep) and/or LTM (per-context),
 optionally incorporating previously accumulated LTM counts.
+}
+\examples{
+x <- c("A", "B", "A", "C", "A")
+counts <- count_tables(x, N = 1, alphabet = c("A", "B", "C"), model_type = "both")
+# STM: order-1 counts (context = previous symbol) at every timestep
+counts$stm[[2]]
+# LTM: order-1 counts per context, accumulated across all of x
+counts$ltm[[2]]
 }

@@ -7,21 +7,62 @@
 ppidyom(...)
 }
 \arguments{
-\item{...}{***One or more input vectors, all the same length.***}
+\item{...}{\emph{\strong{One or more input vectors, all the same length.}}}
 
-\item{maxN}{***Maximum N-gram length to compute.***
-Defaults to 10.}
+\item{maxN}{\emph{\strong{Maximum N-gram length to compute.}}
+Defaults to 5.}
 
-\item{alphabet}{***The set of possible input values. By default, cartesian product of input vectors.***}
+\item{alphabet}{\emph{\strong{The set of possible input values. By default, cartesian product of input vectors.}}}
 
-\item{shortTermArgs}{***List of arguments for short-term ppm algorithm. See details.***}
+\item{model_type}{\emph{\strong{Which memory component(s) to use:}}
+\itemize{
+\item \emph{\strong{\code{"stm"} — short-term memory, within each \code{shortTermGroups} group only.}}
+\item \emph{\strong{\code{"ltm"} — long-term memory, trained across \code{longTermGroups}.}}
+\item \emph{\strong{\code{"both"} — STM + LTM blended.}}
+\item \emph{\strong{\code{"ltm+"}/\code{"both+"} — as \code{"ltm"}/\code{"both"}, but LTM updates online
+group by group.}}
+}}
 
-\item{longTermArgs}{***List of arguments for long-term ppm algorithm. See details.***}
+\item{ppm_type}{\emph{\strong{PPM estimation method:}}
+\itemize{
+\item \emph{\strong{\code{"interpolation"} — weighted sum across all n-gram orders.}}
+\item \emph{\strong{\code{"backoff"} — falls through orders from longest to shortest matching context.}}
+}}
 
-\item{longTermGroups}{***Groups for long term training (usually pieces).***}
+\item{shortTermArgs}{\emph{\strong{List of STM settings:}}
+\itemize{
+\item \emph{\strong{\code{lambda} — escape method, one of \code{"A"}/\code{"B"}/\code{"C"}/\code{"D"}/\code{"X"}
+(default \code{"C"}); see the
+\href{../articles/ParameterCorrespondence.html#escape-method}{Escape method}
+section of the \href{../articles/ParameterCorrespondence.html}{Parameter Correspondence}
+vignette.}}
+\item \emph{\strong{\code{exclusion} — logical; exclude symbols already assigned a
+probability at a higher order (default TRUE).}}
+\item \emph{\strong{\code{update_exclusion} — logical; stop updating lower-order counts
+once a higher order already matched at this timestep (default TRUE).}}
+}}
 
-\item{shortTermGroups}{***Groups for short term (local) application (usually parts within a piece).***}
+\item{longTermArgs}{\emph{\strong{List of LTM settings: same as \code{shortTermArgs}, plus
+\code{start_token} (whether to count beginning-of-sequence positions).}}}
+
+\item{longTermGroups}{\emph{\strong{Groups for long term training (usually pieces).}}}
+
+\item{shortTermGroups}{\emph{\strong{Groups for short term (local) application (usually parts within a piece).}}}
+
+\item{b}{\emph{\strong{Bias exponent for entropy-weighted blending, used only when
+\code{model_type} is \code{"both"}/\code{"both+"}; higher values favor whichever of
+STM/LTM is currently more confident.}}}
+
+\item{idyom_base}{\emph{\strong{Logical; use IDyOM's order-(-1) base distribution instead
+of the default shrinking-denominator base. See the
+\href{../articles/ImplementationDiscrepancy.html}{Implementation Discrepancy} vignette.}}}
 }
 \description{
 This function calls ppidyom on arbitrary vectors of data, or humdrumR data.
+}
+\examples{
+\dontrun{
+x <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
+ppidyom(x, maxN = 3, model_type = "stm")
+}
 }

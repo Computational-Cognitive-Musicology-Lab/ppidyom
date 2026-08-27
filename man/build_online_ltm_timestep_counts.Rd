@@ -29,13 +29,13 @@ LTM state before any events from x are observed.}
 }
 \value{
 List of length N+1, each a data.table with columns
-  index, context_id, Event, Ce, C, t, t1 — same format as STM tables, with
-  index in 1..T.
+index, context_id, Event, Ce, C, t, t1 — same format as STM tables, with
+index in 1..T.
 }
 \description{
-For ltm+/both+ models: records the LTM state BEFORE observing x[t] at each
-timestep, then updates the LTM with x[t].  This matches IDyOM's online-update
+For ltm+/both+ models: records the LTM state BEFORE observing \code{x[t]} at each
+timestep, then updates the LTM with \code{x[t]}.  This matches IDyOM's online-update
 semantics, where prediction at position t uses only the training corpus plus
-x[1:t-1], not x[t:T].
+\code{x[1:t-1]}, not \code{x[t:T]}.
 }
 \keyword{internal}

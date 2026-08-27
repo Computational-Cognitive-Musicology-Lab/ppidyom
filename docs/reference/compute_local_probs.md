@@ -17,8 +17,8 @@ compute_local_probs(dt, escape_func, normalize = FALSE)
 
 - escape_func:
 
-  Escape function from escape.R. Signature: \`function(t, t1)\`
-  returning \`list(subtract, esc_numer)\`.
+  Escape function from escape.R. Signature: `function(t, t1)` returning
+  `list(subtract, esc_numer)`.
 
 ## Value
 

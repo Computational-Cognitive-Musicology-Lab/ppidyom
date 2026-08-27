@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Example Calls: Matching ppm and IDyOM • ppidyom</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
 <meta property="og:title" content="Example Calls: Matching ppm and IDyOM">
@@ -92,9 +92,8 @@ confident it is.</li>
 </ul>
 <p>This vignette shows the exact calls needed to replicate Harrison’s
 <strong>ppm</strong> package and IDyOM (Common Lisp). The two differ in
-several subtle ways that are explained in
-<code>vignette("implementation-discrepancy")</code>; the full parameter
-map is in <code>vignette("parameter-correspondence")</code>.</p>
+several subtle ways that are explained in <a href="ImplementationDiscrepancy.html"><code>vignette("implementation-discrepancy")</code></a>;
+the full parameter map is in <a href="ParameterCorrespondence.html"><code>vignette("parameter-correspondence")</code></a>.</p>
 <hr>
 <div class="section level2">
 <h2 id="shared-test-data">Shared test data<a class="anchor" aria-label="anchor" href="#shared-test-data"></a>
@@ -130,7 +129,7 @@ statistics; as patterns repeat, higher orders take over.</p>
 <span><span class="co">#   )</span></span>
 <span><span class="co">#   ppm::model_seq(mod, factor(x, levels = alphabet))$information_content</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyomModel.html">ppidyomModel</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
 <span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>  stm_exclusion        <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -157,7 +156,7 @@ predictions.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># ppm::(escape="a", exclusion=TRUE, update_exclusion=FALSE)</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyomModel.html">ppidyomModel</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
 <span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>  stm_exclusion        <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -185,7 +184,7 @@ no accumulated memory).</p>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"B"</span>,<span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"C"</span>,<span class="st">"A"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">results</span> <span class="op">&lt;-</span> <span class="fu">run_ppidyom</span><span class="op">(</span></span>
+<span><span class="va">results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/run_ppidyom.html">run_ppidyom</a></span><span class="op">(</span></span>
 <span>  <span class="va">corpus</span>,</span>
 <span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
 <span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
@@ -256,7 +255,7 @@ numerical effect here; all three implementations agree.</p>
 <span><span class="co">#   (idyom:idyom &lt;db-id&gt; '(cpitch) '(cpitch) :texture :melody :models :stm</span></span>
 <span><span class="co">#     :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyomModel.html">ppidyomModel</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
 <span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>  stm_exclusion        <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -285,7 +284,7 @@ values.</strong></p>
 <code class="sourceCode R"><span><span class="co"># IDyOM call:</span></span>
 <span><span class="co">#   :stmo '(:escape :c :order-bound 3 :exclusion nil :update-exclusion nil)</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyomModel.html">ppidyomModel</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
 <span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>  stm_exclusion        <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -325,7 +324,7 @@ training.</p>
 <span></span>
 <span><span class="va">train_seq</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"C"</span>,<span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"C"</span>,<span class="st">"A"</span>,<span class="st">"C"</span>,<span class="st">"B"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyomModel.html">ppidyomModel</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N               <span class="op">=</span> <span class="va">N</span>,</span>
 <span>  alphabet        <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>  ltm_exclusion   <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -360,7 +359,7 @@ three IDyOM-specific flags are required.</p>
 <span><span class="co">#     :stmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil)</span></span>
 <span><span class="co">#     :ltmo '(:escape :c :order-bound 3 :exclusion t :update-exclusion nil))</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyomModel.html">ppidyomModel</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  N                    <span class="op">=</span> <span class="va">N</span>,</span>
 <span>  alphabet             <span class="op">=</span> <span class="va">alphabet</span>,</span>
 <span>  stm_exclusion        <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -447,36 +446,40 @@ three IDyOM-specific flags are required.</p>
 <hr>
 </div>
 <div class="section level2">
-<h2 id="humdrumr-integration-planned">HumdrumR integration (planned)<a class="anchor" aria-label="anchor" href="#humdrumr-integration-planned"></a>
+<h2 id="humdrumr-integration-early-basic">HumdrumR integration (early / basic)<a class="anchor" aria-label="anchor" href="#humdrumr-integration-early-basic"></a>
 </h2>
-<p>ppidyom is designed to integrate with <a href="https://github.com/Computational-Cognitive-Musicology-Lab/humdrumR" class="external-link">HumdrumR</a>,
-the symbolic music analysis framework for R. The planned workflow will
-allow you to pass a Humdrum score directly into ppidyom without any
-manual format conversion:</p>
+<p>ppidyom now integrates with <a href="https://github.com/Computational-Cognitive-Musicology-Lab/humdrumR" class="external-link">HumdrumR</a>,
+the symbolic music analysis framework for R, via an S3 method on the
+generic <code><a href="../reference/ppidyom.html">ppidyom()</a></code>. This is a first-pass implementation —
+the interface may still change.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Planned API — not yet implemented</span></span>
-<span><span class="co"># library(humdrumR)</span></span>
-<span><span class="co">#</span></span>
-<span><span class="co"># h &lt;- readHumdrum("my_score.krn")</span></span>
-<span><span class="co">#</span></span>
-<span><span class="co"># # ppidyom will accept HumdrumR objects directly:</span></span>
-<span><span class="co"># ic_results &lt;- h |&gt;</span></span>
-<span><span class="co">#   select_viewpoint("cpitch") |&gt;</span></span>
-<span><span class="co">#   run_ppidyom(</span></span>
-<span><span class="co">#     N               = 3L,</span></span>
-<span><span class="co">#     model_type      = "both+",</span></span>
-<span><span class="co">#     stm_lambda      = "C",</span></span>
-<span><span class="co">#     ltm_lambda      = "C",</span></span>
-<span><span class="co">#     b               = 7,</span></span>
-<span><span class="co">#     ltm_start_token = FALSE,</span></span>
-<span><span class="co">#     idyom_base      = TRUE</span></span>
-<span><span class="co">#   )</span></span></code></pre></div>
-<p>The current <code>run_ppidyom</code> function operates on plain R
-lists of character vectors (one per sequence). The HumdrumR wrapper will
-handle the extraction of the chosen viewpoint (e.g. chromatic pitch,
-scale degree, interval) and convert the results back into a
-HumdrumR-compatible data object, enabling IC analysis as part of a
-broader corpus analysis pipeline.</p>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://humdrumR.ccml.gtcmt.gatech.edu" class="external-link">humdrumR</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">h</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/humdrumR/man/readHumdrum.html" class="external-link">readHumdrum</a></span><span class="op">(</span><span class="st">"*.krn"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># ppidyom() dispatches on the humdrumR object and evaluates its other</span></span>
+<span><span class="co"># arguments as viewpoint expressions inside the corpus (like within()):</span></span>
+<span><span class="va">h</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/pkg/humdrumR/man/pitch.html" class="external-link">pitch</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span>model_type <span class="op">=</span> <span class="st">"both+"</span><span class="op">)</span></span></code></pre></div>
+<p><code><a href="../reference/ppidyom.html">ppidyom()</a></code> is a generic with two methods:</p>
+<ul>
+<li>
+<strong><code>ppidyom.default(...)</code></strong> — takes one or
+more plain vectors (all the same length) and returns an IC vector. This
+is the same computation <code>run_ppidyom</code> performs, but organized
+around long-term/short-term <em>grouping</em> (e.g. by
+<code>Piece</code>) rather than a list of pre-split sequences.</li>
+<li>
+<strong><code>ppidyom.humdrumR(humdrumR, ...)</code></strong> —
+evaluates <code>...</code> as field expressions inside the humdrumR
+object (via <code><a href="https://rdrr.io/r/base/with.html" class="external-link">within()</a></code>) and calls
+<code>ppidyom.default()</code> on the result, attaching the IC values
+back onto the corpus as a new field.</li>
+</ul>
+<p><code><a href="../reference/run_ppidyom.html">run_ppidyom()</a></code> (used throughout this vignette) still
+operates on plain R lists of character vectors and remains the
+lower-level building block; the new <code><a href="../reference/ppidyom.html">ppidyom()</a></code> generic is
+the higher-level, HumdrumR-aware entry point built on top of the same
+<code>ppidyomModel</code> class.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

@@ -7,7 +7,7 @@ conceptually — in terms of what kind of listener or memory it represents
 each package.
 
 For the algorithmic discrepancies that go beyond parameter naming see
-`vignette("implementation-discrepancy")`.
+[`vignette("implementation-discrepancy")`](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.md).
 
 ------------------------------------------------------------------------
 
@@ -31,13 +31,13 @@ prediction begins. In `both`/`both+` models the STM and LTM
 distributions are combined using an entropy-weighted geometric mean (see
 §8 for the blend exponent).
 
-| ppidyom `model_type` | ppm equivalent     | IDyOM `:models` | Notes                                                      |
-|----------------------|--------------------|-----------------|------------------------------------------------------------|
-| `"stm"`              | `new_ppm_simple()` | `:stm`          | memory of the current sequence only                        |
-| `"ltm"`              | —                  | `:ltm`          | memory of training corpus only; no update during test      |
-| `"ltm+"`             | —                  | `:ltm+`         | LTM counts grow as the test sequence is processed          |
-| `"both"`             | —                  | `:both`         | entropy-weighted blend of STM and LTM                      |
-| `"both+"`            | —                  | `:both+`        | entropy-weighted blend with simultaneous LTM online update |
+| ppidyom `model_type` | ppm equivalent | IDyOM `:models` | Notes |
+|----|----|----|----|
+| `"stm"` | `new_ppm_simple()` | `:stm` | memory of the current sequence only |
+| `"ltm"` | — | `:ltm` | memory of training corpus only; no update during test |
+| `"ltm+"` | — | `:ltm+` | LTM counts grow as the test sequence is processed |
+| `"both"` | — | `:both` | entropy-weighted blend of STM and LTM |
+| `"both+"` | — | `:both+` | entropy-weighted blend with simultaneous LTM online update |
 
 ppm has no LTM or mixture support.
 
@@ -59,13 +59,13 @@ Every escape method answers: *given that we have observed C total events
 in context c, with t distinct following symbols, what fraction of
 probability mass should escape to the next-shorter context?*
 
-| ppidyom | ppm    | IDyOM  | Escape probability                      | Notes                                             |
-|---------|--------|--------|-----------------------------------------|---------------------------------------------------|
-| `"A"`   | `"a"`  | `:a`   | `1 / (C + 1)`                           | very conservative; escapes rarely                 |
-| `"B"`   | `"b"`  | `:b`   | `t / C`                                 | escapes in proportion to novelty                  |
-| `"C"`   | `"c"`  | `:c`   | `t / (C + t)` — Witten-Bell             | **default**; balances novelty and count stability |
-| `"D"`   | `"d"`  | `:d`   | `t / (2C)`                              | absolute discounting with d = 0.5                 |
-| `"X"`   | `"ax"` | `:x` ¹ | `(t₁ + 1) / (C + t₁ + 1)` — Moffat 1990 | escapes based on singleton count                  |
+| ppidyom | ppm | IDyOM | Escape probability | Notes |
+|----|----|----|----|----|
+| `"A"` | `"a"` | `:a` | `1 / (C + 1)` | very conservative; escapes rarely |
+| `"B"` | `"b"` | `:b` | `t / C` | escapes in proportion to novelty |
+| `"C"` | `"c"` | `:c` | `t / (C + t)` — Witten-Bell | **default**; balances novelty and count stability |
+| `"D"` | `"d"` | `:d` | `t / (2C)` | absolute discounting with d = 0.5 |
+| `"X"` | `"ax"` | `:x` ¹ | `(t₁ + 1) / (C + t₁ + 1)` — Moffat 1990 | escapes based on singleton count |
 
 *C* = total events in this context; *t* = distinct symbols seen after
 this context; *t₁* = singletons (symbols seen exactly once).
@@ -77,7 +77,8 @@ exact formulas.
 > ¹ **AX note:** IDyOM’s internal AX keyword is `:x`, not `:ax`; calling
 > IDyOM with `:ax` silently falls back to `:c` behaviour (an IDyOM bug).
 > The IDyOM comparison fixture uses `:x` to correctly invoke the AX
-> branch. See `vignette("implementation-discrepancy")` §6.
+> branch. See [`vignette("implementation-discrepancy")`
+> §6](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.html#escape-method-ax-idyom-bug-call-with-x).
 
 ------------------------------------------------------------------------
 
@@ -127,14 +128,15 @@ Exclusion does not set any symbol’s probability to zero; it only affects
 the *denominator* (context count) used to compute the escape weight at
 each level.
 
-| ppidyom                           | ppm         | IDyOM (stmo/ltmo) | Default                                      |
-|-----------------------------------|-------------|-------------------|----------------------------------------------|
-| `stm_exclusion` / `ltm_exclusion` | `exclusion` | `:exclusion`      | ppidyom: `TRUE`; ppm: `FALSE`; IDyOM: `TRUE` |
+| ppidyom | ppm | IDyOM (stmo/ltmo) | Default |
+|----|----|----|----|
+| `stm_exclusion` / `ltm_exclusion` | `exclusion` | `:exclusion` | ppidyom: `TRUE`; ppm: `FALSE`; IDyOM: `TRUE` |
 
 > **Base-distribution interaction:** the exclusion flag also controls
 > which order −1 formula IDyOM uses. See
-> `vignette("implementation-discrepancy")` §1–2 for the full
-> explanation.
+> [`vignette("implementation-discrepancy")`
+> §1–2](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.html#base-prior-ltm)
+> for the full explanation.
 
 ------------------------------------------------------------------------
 
@@ -153,8 +155,8 @@ symbol’s predicted probability for the next identical context. The count
 only contributes from the second occurrence onward. This prevents a form
 of circular self-prediction.
 
-| ppidyom                                         | ppm                | IDyOM (stmo/ltmo)   | Default                                                             |
-|-------------------------------------------------|--------------------|---------------------|---------------------------------------------------------------------|
+| ppidyom | ppm | IDyOM (stmo/ltmo) | Default |
+|----|----|----|----|
 | `stm_update_exclusion` / `ltm_update_exclusion` | `update_exclusion` | `:update-exclusion` | ppidyom: `TRUE` (stm) / `FALSE` (ltm); ppm: `FALSE`; IDyOM: `FALSE` |
 
 ------------------------------------------------------------------------
@@ -174,14 +176,15 @@ specific context that may not generalise well. It also means the total
 count at order 0 (the root of the suffix tree) is lower, which affects
 the base prior.
 
-| ppidyom `ltm_start_token` | Behaviour                                                        | Matches        |
-|---------------------------|------------------------------------------------------------------|----------------|
-| `TRUE` (default)          | all positions counted, including those with no preceding context | Harrison’s ppm |
-| `FALSE`                   | positions with undefined context (NA lags) are skipped           | **IDyOM**      |
+| ppidyom `ltm_start_token` | Behaviour | Matches |
+|----|----|----|
+| `TRUE` (default) | all positions counted, including those with no preceding context | Harrison’s ppm |
+| `FALSE` | positions with undefined context (NA lags) are skipped | **IDyOM** |
 
 ``` r
+
 # IDyOM-compatible LTM
-model <- ppidyom$new(
+model <- ppidyomModel$new(
   N               = 3L,
   alphabet        = c("A","B","C"),
   ltm_start_token = FALSE
@@ -208,10 +211,10 @@ there are two strategies for assigning probability to the current event:
 Interpolation (the default in ppm and IDyOM) generally gives smoother IC
 profiles; backoff is more “winner-takes-all.”
 
-| ppidyom `ppm_type` | ppm                             | IDyOM `ppm-mixtures` slot      |
-|--------------------|---------------------------------|--------------------------------|
-| `"interpolation"`  | only option in `new_ppm_simple` | `mixtures = t` (TRUE, default) |
-| `"backoff"`        | —                               | `mixtures = nil` (FALSE)       |
+| ppidyom `ppm_type` | ppm | IDyOM `ppm-mixtures` slot |
+|----|----|----|
+| `"interpolation"` | only option in `new_ppm_simple` | `mixtures = t` (TRUE, default) |
+| `"backoff"` | — | `mixtures = nil` (FALSE) |
 
 ------------------------------------------------------------------------
 
@@ -228,12 +231,12 @@ the beginning of a sequence (when counts are thin and escaping is
 frequent) and in LTM prediction (where the base is fixed from training
 rather than growing with the test sequence).
 
-| ppidyom `idyom_base` | exclusion    | Formula                                                                                     | Matches           |
-|----------------------|--------------|---------------------------------------------------------------------------------------------|-------------------|
-| `FALSE` (default)    | any          | `1 / (|α| + 1 − |seen in x[1..t-1]|)` — shrinks as the test sequence grows                  | ppm               |
-| `TRUE`               | OFF          | `1 / |alphabet|` — flat uniform over all symbols                                            | IDyOM excl=OFF    |
-| `TRUE`               | ON, STM      | `1 / (|α| + 1 − t_root_STM)` where `t_root` = distinct symbols seen so far                  | IDyOM STM excl=ON |
-| `TRUE`               | ON, LTM/ltm+ | `1 / (|α| + 1 − t_root_LTM)` where `t_root` = distinct symbols in **training data** (fixed) | IDyOM LTM excl=ON |
+| ppidyom `idyom_base` | exclusion | Formula | Matches |
+|----|----|----|----|
+| `FALSE` (default) | any | `1 / (|α| + 1 − |seen in x[1..t-1]|)` — shrinks as the test sequence grows | ppm |
+| `TRUE` | OFF | `1 / |alphabet|` — flat uniform over all symbols | IDyOM excl=OFF |
+| `TRUE` | ON, STM | `1 / (|α| + 1 − t_root_STM)` where `t_root` = distinct symbols seen so far | IDyOM STM excl=ON |
+| `TRUE` | ON, LTM/ltm+ | `1 / (|α| + 1 − t_root_LTM)` where `t_root` = distinct symbols in **training data** (fixed) | IDyOM LTM excl=ON |
 
 The `FALSE` (ppm-compatible) and STM `idyom_base = TRUE` rows are
 numerically identical: `t_root_STM` equals the number of distinct
@@ -243,7 +246,8 @@ the test sequence. For a LTM trained on all three symbols, the base
 prior is `1/(3+1-3) = 1.0` — a constant.
 
 Full explanation with IDyOM source:
-`vignette("implementation-discrepancy")` §1–2.
+[`vignette("implementation-discrepancy")`
+§1–2](https://ppidyom.ccml.gtcmt.gatech.edu/articles/ImplementationDiscrepancy.html#base-prior-ltm).
 
 ------------------------------------------------------------------------
 
@@ -259,16 +263,19 @@ proportionally to their confidence. With b = 7 (IDyOM’s default), the
 lower-entropy model almost completely takes over; the blend becomes
 nearly winner-take-all.
 
-$$w_{i} \propto \left( \frac{H_{i}}{H_{\max}} \right)^{-b},\quad H_{\max} = \log_{2}|alphabet|$$
+``` math
+w_i \propto \left(\frac{H_i}{H_{\max}}\right)^{-b}, \quad H_{\max} = \log_2 |alphabet|
+```
 
-| ppidyom `b`           | IDyOM default                   | Effect                                                  |
-|-----------------------|---------------------------------|---------------------------------------------------------|
-| `1` (ppidyom default) | —                               | gentle weighting; both models contribute noticeably     |
-| `7`                   | **IDyOM default** (Pearce 2005) | sharp weighting; lower-entropy model strongly dominates |
+| ppidyom `b` | IDyOM default | Effect |
+|----|----|----|
+| `1` (ppidyom default) | — | gentle weighting; both models contribute noticeably |
+| `7` | **IDyOM default** (Pearce 2005) | sharp weighting; lower-entropy model strongly dominates |
 
-Pass `b = 7` to `predict_sequence()` or `run_ppidyom()` to match IDyOM’s
-default behaviour. All `both`/`both+` IDyOM comparison tests use
-`b = 7`.
+Pass `b = 7` to `predict_sequence()` or
+[`run_ppidyom()`](https://ppidyom.ccml.gtcmt.gatech.edu/reference/run_ppidyom.md)
+to match IDyOM’s default behaviour. All `both`/`both+` IDyOM comparison
+tests use `b = 7`.
 
 ppm does not support mixture models.
 
@@ -276,14 +283,14 @@ ppm does not support mixture models.
 
 ## Quick-reference matrix
 
-| Concept                  | ppidyom                                         | ppm (`new_ppm_simple`)   | IDyOM (`:stmo` / `:ltmo`)      |
-|--------------------------|-------------------------------------------------|--------------------------|--------------------------------|
-| max context length       | `N`                                             | `order_bound`            | `:order-bound`                 |
-| escape method            | `stm_lambda` / `ltm_lambda` ∈ {A,B,C,D,X}       | `escape` ∈ {a,b,c,d,ax}  | `:escape` ∈ {:a,:b,:c,:d,:x} ¹ |
-| exclusion                | `stm_exclusion` / `ltm_exclusion`               | `exclusion`              | `:exclusion`                   |
-| update exclusion         | `stm_update_exclusion` / `ltm_update_exclusion` | `update_exclusion`       | `:update-exclusion`            |
-| LTM start token          | `ltm_start_token`                               | —                        | implicit (always skips)        |
-| base distribution        | `idyom_base` flag                               | always shrinking         | depends on `exclusion`         |
-| interpolation vs backoff | `ppm_type`                                      | always interpolation     | `mixtures` slot                |
-| mixture exponent         | `b` (default 1)                                 | —                        | implicit b = 7                 |
-| shortest deterministic   | — (not implemented)                             | `shortest_deterministic` | auto when `order-bound = nil`  |
+| Concept | ppidyom | ppm (`new_ppm_simple`) | IDyOM (`:stmo` / `:ltmo`) |
+|----|----|----|----|
+| max context length | `N` | `order_bound` | `:order-bound` |
+| escape method | `stm_lambda` / `ltm_lambda` ∈ {A,B,C,D,X} | `escape` ∈ {a,b,c,d,ax} | `:escape` ∈ {:a,:b,:c,:d,:x} ¹ |
+| exclusion | `stm_exclusion` / `ltm_exclusion` | `exclusion` | `:exclusion` |
+| update exclusion | `stm_update_exclusion` / `ltm_update_exclusion` | `update_exclusion` | `:update-exclusion` |
+| LTM start token | `ltm_start_token` | — | implicit (always skips) |
+| base distribution | `idyom_base` flag | always shrinking | depends on `exclusion` |
+| interpolation vs backoff | `ppm_type` | always interpolation | `mixtures` slot |
+| mixture exponent | `b` (default 1) | — | implicit b = 7 |
+| shortest deterministic | — (not implemented) | `shortest_deterministic` | auto when `order-bound = nil` |

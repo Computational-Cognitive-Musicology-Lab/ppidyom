@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Parameter Correspondence: ppidyom, ppm, and IDyOM • ppidyom</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
 <meta property="og:title" content="Parameter Correspondence: ppidyom, ppm, and IDyOM">
@@ -81,8 +81,240 @@ each package.</p>
 <code>vignette("implementation-discrepancy")</code>.</p>
 <hr>
 <div class="section level2">
-<h2 id="model-type">Model type<a class="anchor" aria-label="anchor" href="#model-type"></a>
+<h2 id="quick-reference-matrix">Quick-reference matrix<a class="anchor" aria-label="anchor" href="#quick-reference-matrix"></a>
 </h2>
+<table class="table">
+<colgroup>
+<col width="25%">
+<col width="25%">
+<col width="25%">
+<col width="25%">
+</colgroup>
+<thead><tr class="header">
+<th>Concept</th>
+<th>ppidyom</th>
+<th>ppm (<code>new_ppm_simple</code>)</th>
+<th>IDyOM (<code>:stmo</code> / <code>:ltmo</code>)</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>model type</td>
+<td><code>model_type</code></td>
+<td>— (STM only)</td>
+<td><code>:models</code></td>
+</tr>
+<tr class="even">
+<td>max context length</td>
+<td><code>N</code></td>
+<td><code>order_bound</code></td>
+<td><code>:order-bound</code></td>
+</tr>
+<tr class="odd">
+<td>interpolation vs backoff</td>
+<td><code>ppm_type</code></td>
+<td>always interpolation</td>
+<td>
+<code>mixtures</code> slot</td>
+</tr>
+<tr class="even">
+<td>escape method</td>
+<td>
+<code>stm_lambda</code> / <code>ltm_lambda</code> ∈ {A,B,C,D,X}</td>
+<td>
+<code>escape</code> ∈ {a,b,c,d,ax}</td>
+<td>
+<code>:escape</code> ∈ {:a,:b,:c,:d,:x} ¹</td>
+</tr>
+<tr class="odd">
+<td>exclusion</td>
+<td>
+<code>stm_exclusion</code> / <code>ltm_exclusion</code>
+</td>
+<td><code>exclusion</code></td>
+<td><code>:exclusion</code></td>
+</tr>
+<tr class="even">
+<td>update exclusion</td>
+<td>
+<code>stm_update_exclusion</code> /
+<code>ltm_update_exclusion</code>
+</td>
+<td><code>update_exclusion</code></td>
+<td><code>:update-exclusion</code></td>
+</tr>
+<tr class="odd">
+<td>LTM start token</td>
+<td><code>ltm_start_token</code></td>
+<td>—</td>
+<td>implicit (always skips)</td>
+</tr>
+<tr class="even">
+<td>base distribution</td>
+<td>
+<code>idyom_base</code> flag</td>
+<td>always shrinking</td>
+<td>depends on <code>exclusion</code>
+</td>
+</tr>
+<tr class="odd">
+<td>mixture exponent</td>
+<td>
+<code>b</code> (default 1)</td>
+<td>—</td>
+<td>implicit b = 7</td>
+</tr>
+<tr class="even">
+<td>shortest deterministic</td>
+<td>— (not implemented)</td>
+<td><code>shortest_deterministic</code></td>
+<td>auto when <code>order-bound = nil</code>
+</td>
+</tr>
+</tbody>
+</table>
+<p>For exact working code for each profile see
+<code>vignette("example-calls")</code>.</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="decision-tree-choosing-your-parameters">Decision tree: choosing your parameters<a class="anchor" aria-label="anchor" href="#decision-tree-choosing-your-parameters"></a>
+</h2>
+<p>Not sure which parameters you actually need to touch? Work through
+these questions in order. Most users only need §1–2; the rest are for
+replication work or deliberate exploration.</p>
+<div class="section level3">
+<h3 id="what-is-your-goal">What is your goal?<a class="anchor" aria-label="anchor" href="#what-is-your-goal"></a>
+</h3>
+<ul>
+<li>
+<strong>General use</strong> — analysing music or testing a
+hypothesis, no numerical replication target. Use the “general use”
+values throughout.</li>
+<li>
+<strong>Match ppm</strong> — reproduce Harrison’s <code>ppm</code>
+package numerically. Use the “match ppm” values throughout.</li>
+<li>
+<strong>Match IDyOM</strong> — reproduce IDyOM (Common Lisp)
+numerically. Use the “match IDyOM” values throughout.</li>
+<li>
+<strong>Exploring a parameter</strong> — e.g. comparing escape
+methods or order sensitivity. Read the relevant section below; the
+“general use” values are a safe baseline to vary from.</li>
+</ul>
+<table class="table">
+<colgroup>
+<col width="25%">
+<col width="25%">
+<col width="25%">
+<col width="25%">
+</colgroup>
+<thead><tr class="header">
+<th>Parameter</th>
+<th>General use</th>
+<th>Match ppm</th>
+<th>Match IDyOM</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>model_type</code></td>
+<td>pick per §2</td>
+<td>
+<code>"stm"</code> only</td>
+<td>match <code>:models</code>
+</td>
+</tr>
+<tr class="even">
+<td><code>N</code></td>
+<td>3–5</td>
+<td>match <code>order_bound</code>
+</td>
+<td>match <code>:order-bound</code>
+</td>
+</tr>
+<tr class="odd">
+<td><code>ppm_type</code></td>
+<td><code>"interpolation"</code></td>
+<td><code>"interpolation"</code></td>
+<td>
+<code>"interpolation"</code> (or <code>"backoff"</code> for
+<code>mixtures=nil</code>)</td>
+</tr>
+<tr class="even">
+<td>
+<code>stm_lambda</code> / <code>ltm_lambda</code>
+</td>
+<td><code>"C"</code></td>
+<td>match <code>escape</code>
+</td>
+<td>match <code>:escape</code>
+</td>
+</tr>
+<tr class="odd">
+<td><code>stm_exclusion</code></td>
+<td><code>TRUE</code></td>
+<td>
+<code>FALSE</code> (ppm default) or match
+<code>exclusion</code>
+</td>
+<td>
+<code>TRUE</code> (IDyOM default) or match
+<code>:exclusion</code>
+</td>
+</tr>
+<tr class="even">
+<td><code>ltm_exclusion</code></td>
+<td><code>TRUE</code></td>
+<td>n/a (no LTM)</td>
+<td>
+<code>TRUE</code> (IDyOM default) or match
+<code>:exclusion</code>
+</td>
+</tr>
+<tr class="odd">
+<td><code>stm_update_exclusion</code></td>
+<td><code>TRUE</code></td>
+<td>
+<code>FALSE</code> (ppm default) or match
+<code>update_exclusion</code>
+</td>
+<td>
+<code>FALSE</code> (IDyOM default) or match
+<code>:update-exclusion</code>
+</td>
+</tr>
+<tr class="even">
+<td><code>ltm_update_exclusion</code></td>
+<td><code>FALSE</code></td>
+<td>n/a (no LTM)</td>
+<td>
+<code>FALSE</code> (IDyOM default) or match
+<code>:update-exclusion</code>
+</td>
+</tr>
+<tr class="odd">
+<td><code>ltm_start_token</code></td>
+<td><code>TRUE</code></td>
+<td>n/a (no LTM)</td>
+<td><code>FALSE</code></td>
+</tr>
+<tr class="even">
+<td><code>idyom_base</code></td>
+<td><code>FALSE</code></td>
+<td><code>FALSE</code></td>
+<td><code>TRUE</code></td>
+</tr>
+<tr class="odd">
+<td><code>b</code></td>
+<td><code>1</code></td>
+<td>n/a (no mixtures)</td>
+<td><code>7</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level3">
+<h3 id="model-type-model_type">Model Type <code>model_type</code><a class="anchor" aria-label="anchor" href="#model-type-model_type"></a>
+</h3>
 <p><strong>What it represents:</strong> PPM models a listener who hears
 a musical sequence event by event and forms expectations about what
 comes next. The model type determines what <em>memory</em> that listener
@@ -101,7 +333,8 @@ confident each is → <strong>both</strong> / <strong>both+</strong>
 <p>The LTM is built by calling <code>train_sequence()</code> on a corpus
 before prediction begins. In <code>both</code>/<code>both+</code> models
 the STM and LTM distributions are combined using an entropy-weighted
-geometric mean (see §8 for the blend exponent).</p>
+geometric mean (see parameter <code>b</code> for the blend
+exponent).</p>
 <table class="table">
 <colgroup>
 <col width="25%">
@@ -110,60 +343,229 @@ geometric mean (see §8 for the blend exponent).</p>
 <col width="25%">
 </colgroup>
 <thead><tr class="header">
-<th>ppidyom <code>model_type</code>
-</th>
-<th>ppm equivalent</th>
-<th>IDyOM <code>:models</code>
-</th>
-<th>Notes</th>
+<th>Research question</th>
+<th><code>model_type</code></th>
+<th>Needs <code>train_sequence()</code> first?</th>
+<th>Relevant params</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
+<td>How surprising is this, given only what’s been heard so far <em>in
+this piece</em>?</td>
 <td><code>"stm"</code></td>
-<td><code>new_ppm_simple()</code></td>
-<td><code>:stm</code></td>
-<td>memory of the current sequence only</td>
+<td>No</td>
+<td>
+<code>stm_*</code> only</td>
 </tr>
 <tr class="even">
+<td>How surprising is this to someone who knows the style, but not this
+specific piece?</td>
 <td><code>"ltm"</code></td>
-<td>—</td>
-<td><code>:ltm</code></td>
-<td>memory of training corpus only; no update during test</td>
+<td>Yes</td>
+<td>
+<code>ltm_*</code> only</td>
 </tr>
 <tr class="odd">
+<td>Same, but long-term knowledge keeps updating as the piece is
+heard</td>
 <td><code>"ltm+"</code></td>
-<td>—</td>
-<td><code>:ltm+</code></td>
-<td>LTM counts grow as the test sequence is processed</td>
+<td>Yes</td>
+<td>
+<code>ltm_*</code> only</td>
 </tr>
 <tr class="even">
+<td>How surprising is this to someone who knows the style <em>and</em>
+is learning this piece, trusting whichever source is currently more
+confident?</td>
 <td><code>"both"</code></td>
-<td>—</td>
-<td><code>:both</code></td>
-<td>entropy-weighted blend of STM and LTM</td>
+<td>Yes</td>
+<td>
+<code>stm_*</code>, <code>ltm_*</code>, <code>b</code>
+</td>
 </tr>
 <tr class="odd">
+<td>Same, with long-term knowledge also updating online</td>
 <td><code>"both+"</code></td>
-<td>—</td>
-<td><code>:both+</code></td>
-<td>entropy-weighted blend with simultaneous LTM online update</td>
+<td>Yes</td>
+<td>
+<code>stm_*</code>, <code>ltm_*</code>, <code>b</code>
+</td>
 </tr>
 </tbody>
 </table>
 <p>ppm has no LTM or mixture support.</p>
-<hr>
 </div>
-<div class="section level2">
-<h2 id="escape-method">Escape method<a class="anchor" aria-label="anchor" href="#escape-method"></a>
-</h2>
+<div class="section level3">
+<h3 id="order-bound-n">Order bound <code>N</code><a class="anchor" aria-label="anchor" href="#order-bound-n"></a>
+</h3>
+<p><strong>What it controls:</strong> The length of the context window —
+how many preceding events the model uses when predicting the next one. A
+longer window can capture longer-range patterns (e.g. “what note usually
+follows this exact 5-note run?”), but at the cost of sparser statistics:
+long specific patterns are rarely repeated exactly, so the model escapes
+to shorter contexts more often.</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>Situation</th>
+<th>Recommendation</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>No strong reason to deviate</td>
+<td>
+<code>N = 3</code> to <code>5</code> (start with 3)</td>
+</tr>
+<tr class="even">
+<td>Short sequences, or a large alphabet (e.g. raw pitch, not scale
+degree)</td>
+<td>Lower N (2–3) — higher orders rarely find matches and just add
+escape overhead</td>
+</tr>
+<tr class="odd">
+<td>Large corpus, want to capture long-range idiomatic patterns</td>
+<td>Try N = 5+ and compare</td>
+</tr>
+<tr class="even">
+<td>Replicating a specific paper</td>
+<td>Use the N reported there — it must match exactly for numeric
+comparison</td>
+</tr>
+</tbody>
+</table>
+<table class="table">
+<colgroup>
+<col width="33%">
+<col width="33%">
+<col width="33%">
+</colgroup>
+<thead><tr class="header">
+<th>ppidyom</th>
+<th>ppm</th>
+<th>IDyOM</th>
+</tr></thead>
+<tbody><tr class="odd">
+<td>
+<code>N</code> (constructor arg)</td>
+<td><code>order_bound</code></td>
+<td>
+<code>:order-bound</code> in <code>:stmo</code> /
+<code>:ltmo</code>
+</td>
+</tr></tbody>
+</table>
+<p>All three use the same semantics: contexts longer than <em>N</em> are
+truncated. IDyOM additionally supports <code>order-bound = nil</code>,
+which activates <em>shortest-deterministic state selection</em> — the
+model automatically finds the longest reliable context without a fixed
+bound. ppidyom and ppm always require an explicit integer bound.</p>
+</div>
+<div class="section level3">
+<h3 id="interpolation-vs-backoff-ppm_type">Interpolation vs backoff — <code>ppm_type</code><a class="anchor" aria-label="anchor" href="#interpolation-vs-backoff-ppm_type"></a>
+</h3>
+<p><strong>What it controls:</strong> When a given context order has no
+observations, there are two strategies for assigning probability to the
+current event:</p>
+<ul>
+<li>
+<strong>Interpolation</strong> blends predictions from <em>all</em>
+orders simultaneously. Every order contributes — high orders via their
+counts, low orders via the mass that escapes from above. The result is a
+smooth distribution even for unseen contexts.</li>
+<li>
+<strong>Backoff</strong> finds the highest order that <em>does</em>
+have observations and uses only that, renormalising its distribution to
+sum to 1. Lower orders are ignored unless every higher order has zero
+counts.</li>
+</ul>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>Situation</th>
+<th>Value</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>No reason to deviate</td>
+<td>
+<code>"interpolation"</code> (default; matches ppm and IDyOM’s
+default <code>mixtures = t</code>)</td>
+</tr>
+<tr class="even">
+<td>Matching IDyOM run with <code>mixtures = nil</code>
+</td>
+<td><code>"backoff"</code></td>
+</tr>
+<tr class="odd">
+<td>Want smoother IC trajectories</td>
+<td><code>"interpolation"</code></td>
+</tr>
+<tr class="even">
+<td>Want a stricter “most specific context with data wins” model</td>
+<td><code>"backoff"</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level3">
+<h3 id="escape-method-stm_lambda-ltm_lambda">Escape method — <code>stm_lambda</code> /
+<code>ltm_lambda</code><a class="anchor" aria-label="anchor" href="#escape-method-stm_lambda-ltm_lambda"></a>
+</h3>
 <p><strong>What it controls:</strong> When the model has never observed
 a particular context–symbol pair (zero count), it cannot assign
 probability from that context alone. Instead it <em>escapes</em> —
 falling back to shorter contexts that have more data. The escape method
 determines how aggressively this happens: how much probability mass
-flows down to lower-order models at each level.</p>
-<p>Escaping more means relying on general patterns; escaping less means
-staying closer to the specific context even when counts are thin.</p>
+flows down to lower-order models at each level. Escaping more means
+relying on general patterns; escaping less means staying closer to the
+specific context even when counts are thin.</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>Situation</th>
+<th>Value</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>No reason to deviate</td>
+<td>
+<code>"C"</code> (Witten-Bell; default in ppm, effectively default
+in IDyOM)</td>
+</tr>
+<tr class="even">
+<td>Want the most conservative escaping — trust the specific context
+even with thin data</td>
+<td><code>"A"</code></td>
+</tr>
+<tr class="odd">
+<td>Want escape probability directly proportional to how many distinct
+symbols follow</td>
+<td><code>"B"</code></td>
+</tr>
+<tr class="even">
+<td>Want absolute discounting</td>
+<td><code>"D"</code></td>
+</tr>
+<tr class="odd">
+<td>Want singleton-based escaping (Moffat 1990)</td>
+<td>
+<code>"X"</code> — if comparing directly against IDyOM Lisp, call
+IDyOM with <code>:x</code>, not <code>:ax</code> (see
+<code>vignette("implementation-discrepancy")</code> §6)</td>
+</tr>
+</tbody>
+</table>
+<p>STM and LTM can use different escape methods if you have a specific
+reason; most users set both the same.</p>
 <p>Every escape method answers: <em>given that we have observed C total
 events in context c, with t distinct following symbols, what fraction of
 probability mass should escape to the next-shorter context?</em></p>
@@ -234,81 +636,56 @@ formulas.</p>
 <code>:x</code>, not <code>:ax</code>; calling IDyOM with
 <code>:ax</code> silently falls back to <code>:c</code> behaviour (an
 IDyOM bug). The IDyOM comparison fixture uses <code>:x</code> to
-correctly invoke the AX branch. See
-<code>vignette("implementation-discrepancy")</code> §6.</p>
+correctly invoke the AX branch.</p>
 </blockquote>
-<hr>
 </div>
-<div class="section level2">
-<h2 id="order-bound">Order bound<a class="anchor" aria-label="anchor" href="#order-bound"></a>
-</h2>
-<p><strong>What it controls:</strong> The length of the context window —
-how many preceding events the model uses when predicting the next one. A
-longer window can capture longer-range patterns (e.g. “what note usually
-follows this exact 5-note run?”), but at the cost of sparser statistics:
-long specific patterns are rarely repeated exactly, so the model will
-escape to shorter contexts more often.</p>
-<p>In practice, N = 3–5 is common in music modelling. High orders
-produce precise predictions for frequently observed patterns but escape
-frequently for anything unusual; low orders are more conservative and
-general.</p>
+<div class="section level3">
+<h3 id="exclusion-stm_exclusion-ltm_exclusion">Exclusion — <code>stm_exclusion</code> /
+<code>ltm_exclusion</code><a class="anchor" aria-label="anchor" href="#exclusion-stm_exclusion-ltm_exclusion"></a>
+</h3>
+<p>Stops a note from double-dipping. Once the model’s most specific
+guess (e.g. “after A B A, it’s almost always C”) has claimed a note,
+exclusion keeps that same note from also grabbing a share of the
+leftover probability handed down to its more general, less specific
+fallback guesses — so that leftover only goes to notes still up for
+grabs. Exclusion never sets a symbol’s probability to zero; it only
+changes how the leftover probability gets divided up.</p>
 <table class="table">
 <colgroup>
-<col width="33%">
-<col width="33%">
-<col width="33%">
+<col width="50%">
+<col width="50%">
 </colgroup>
 <thead><tr class="header">
-<th>ppidyom</th>
-<th>ppm</th>
-<th>IDyOM</th>
+<th>Situation</th>
+<th>Value</th>
 </tr></thead>
-<tbody><tr class="odd">
+<tbody>
+<tr class="odd">
+<td>No strong reason to deviate — the standard modern PPM setting</td>
 <td>
-<code>N</code> (constructor arg)</td>
-<td><code>order_bound</code></td>
-<td>
-<code>:order-bound</code> in <code>:stmo</code> /
-<code>:ltmo</code>
-</td>
-</tr></tbody>
+<code>TRUE</code> (ppidyom default)</td>
+</tr>
+<tr class="even">
+<td>Want every context length to guess over the full alphabet, unaware
+of what other lengths already predicted</td>
+<td><code>FALSE</code></td>
+</tr>
+<tr class="odd">
+<td>Matching Harrison’s ppm default</td>
+<td><code>FALSE</code></td>
+</tr>
+<tr class="even">
+<td>Matching IDyOM default</td>
+<td><code>TRUE</code></td>
+</tr>
+</tbody>
 </table>
-<p>All three use the same semantics: contexts longer than <em>N</em> are
-truncated.</p>
-<p>IDyOM additionally supports <code>order-bound = nil</code>, which
-activates <em>shortest-deterministic state selection</em> — the model
-automatically finds the longest reliable context without a fixed bound.
-ppidyom and ppm always require an explicit integer bound.</p>
-<hr>
-</div>
-<div class="section level2">
-<h2 id="exclusion">Exclusion<a class="anchor" aria-label="anchor" href="#exclusion"></a>
-</h2>
-<p><strong>What it controls:</strong> Suppose the order-3 model already
-assigns high probability to a specific symbol (say, “G”). When the
-probability mass that <em>escapes</em> from order 3 flows down to order
-2, should order 2 compete over the <em>full</em> alphabet, or only over
-the symbols not yet well-predicted?</p>
-<p>With exclusion <strong>on</strong>, lower-order models only
-distribute their escaped mass over symbols that haven’t been assigned
-non-zero probability by any higher-order context. This prevents lower
-orders from “double-covering” symbols already handled above,
-concentrating the remaining mass more sharply.</p>
-<p>Exclusion does not set any symbol’s probability to zero; it only
-affects the <em>denominator</em> (context count) used to compute the
-escape weight at each level.</p>
 <table class="table">
-<colgroup>
-<col width="25%">
-<col width="25%">
-<col width="25%">
-<col width="25%">
-</colgroup>
 <thead><tr class="header">
 <th>ppidyom</th>
 <th>ppm</th>
 <th>IDyOM (stmo/ltmo)</th>
-<th>Default</th>
+<th></th>
 </tr></thead>
 <tbody><tr class="odd">
 <td>
@@ -316,9 +693,7 @@ escape weight at each level.</p>
 </td>
 <td><code>exclusion</code></td>
 <td><code>:exclusion</code></td>
-<td>ppidyom: <code>TRUE</code>; ppm: <code>FALSE</code>; IDyOM:
-<code>TRUE</code>
-</td>
+<td></td>
 </tr></tbody>
 </table>
 <blockquote>
@@ -327,23 +702,52 @@ also controls which order −1 formula IDyOM uses. See
 <code>vignette("implementation-discrepancy")</code> §1–2 for the full
 explanation.</p>
 </blockquote>
-<hr>
 </div>
-<div class="section level2">
-<h2 id="update-exclusion">Update exclusion<a class="anchor" aria-label="anchor" href="#update-exclusion"></a>
-</h2>
-<p><strong>What it controls:</strong> Should the model update its counts
-with the current event <em>before</em> or <em>after</em> predicting it?
-In online sequential modelling, the default is to update first and
-predict from the updated model. Update exclusion reverses this for
-<em>first occurrences</em>: the first time a symbol appears in a given
-context, that observation is excluded from the count table the model
-uses to predict it.</p>
-<p>The practical effect: with <code>update_exclusion = TRUE</code>,
-observing a symbol for the first time in a given context does not
-immediately boost that symbol’s predicted probability for the next
-identical context. The count only contributes from the second occurrence
-onward. This prevents a form of circular self-prediction.</p>
+<div class="section level3">
+<h3 id="update-exclusion-stm_update_exclusion-ltm_update_exclusion">Update exclusion — <code>stm_update_exclusion</code> /
+<code>ltm_update_exclusion</code><a class="anchor" aria-label="anchor" href="#update-exclusion-stm_update_exclusion-ltm_update_exclusion"></a>
+</h3>
+<p>Delays <em>learning</em> (not prediction). When on, a pattern’s very
+first occurrence doesn’t yet count toward predicting that same pattern —
+the model only starts using it from the second time that pattern occurs
+onward. This stops a one-off event from making itself look expected the
+instant it happens.</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>Situation</th>
+<th>Value</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Want a pattern to start informing predictions only after it repeats
+at least once (STM default)</td>
+<td><code>TRUE</code></td>
+</tr>
+<tr class="even">
+<td>Want every occurrence, including the first, to count
+immediately</td>
+<td><code>FALSE</code></td>
+</tr>
+<tr class="odd">
+<td>Matching ppidyom/IDyOM STM defaults</td>
+<td><code>stm_update_exclusion = TRUE</code></td>
+</tr>
+<tr class="even">
+<td>Matching ppm, or IDyOM LTM defaults</td>
+<td><code>FALSE</code></td>
+</tr>
+<tr class="odd">
+<td>No strong preference</td>
+<td>Use the constructor defaults
+(<code>stm_update_exclusion = TRUE</code>,
+<code>ltm_update_exclusion = FALSE</code>)</td>
+</tr>
+</tbody>
+</table>
 <table class="table">
 <colgroup>
 <col width="25%">
@@ -355,7 +759,7 @@ onward. This prevents a form of circular self-prediction.</p>
 <th>ppidyom</th>
 <th>ppm</th>
 <th>IDyOM (stmo/ltmo)</th>
-<th>Default</th>
+<th></th>
 </tr></thead>
 <tbody><tr class="odd">
 <td>
@@ -364,27 +768,43 @@ onward. This prevents a form of circular self-prediction.</p>
 </td>
 <td><code>update_exclusion</code></td>
 <td><code>:update-exclusion</code></td>
-<td>ppidyom: <code>TRUE</code> (stm) / <code>FALSE</code> (ltm); ppm:
-<code>FALSE</code>; IDyOM: <code>FALSE</code>
-</td>
+<td></td>
 </tr></tbody>
 </table>
-<hr>
 </div>
-<div class="section level2">
-<h2 id="ltm-beginning-of-sequence-token-ltm_start_token">LTM beginning-of-sequence token (<code>ltm_start_token</code>)<a class="anchor" aria-label="anchor" href="#ltm-beginning-of-sequence-token-ltm_start_token"></a>
-</h2>
+<div class="section level3">
+<h3 id="ltm-start-token-ltm_start_token">LTM start token — <code>ltm_start_token</code><a class="anchor" aria-label="anchor" href="#ltm-start-token-ltm_start_token"></a>
+</h3>
+<p>Only relevant for <code>"ltm"</code>, <code>"ltm+"</code>,
+<code>"both"</code>, or <code>"both+"</code>.</p>
 <p><strong>What it controls:</strong> When building the long-term model
 from a training corpus, should position 1 of each training sequence
 contribute to the count tables? At that position there is no prior
 context — the preceding N−1 events are undefined — so it can only be
 counted as an unconditional observation.</p>
-<p>IDyOM’s answer is no: it silently skips positions where the context
-window would extend before the start of the sequence. This is a
-practical choice — sequence beginnings represent a special, structurally
-specific context that may not generalise well. It also means the total
-count at order 0 (the root of the suffix tree) is lower, which affects
-the base prior.</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>Situation</th>
+<th>Value</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Matching ppm conventions, or no reason to deviate</td>
+<td>
+<code>TRUE</code> (ppidyom default)</td>
+</tr>
+<tr class="even">
+<td>Matching IDyOM</td>
+<td>
+<code>FALSE</code> — IDyOM silently skips positions with no
+preceding context during training</td>
+</tr>
+</tbody>
+</table>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -412,78 +832,45 @@ context</td>
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># IDyOM-compatible LTM</span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
-<span>  N               <span class="op">=</span> <span class="fl">3L</span>,</span>
-<span>  alphabet        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"C"</span><span class="op">)</span>,</span>
-<span>  ltm_start_token <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
 <p>ppm has no LTM and therefore no equivalent parameter.</p>
-<hr>
 </div>
-<div class="section level2">
-<h2 id="probability-type">Probability type<a class="anchor" aria-label="anchor" href="#probability-type"></a>
-</h2>
-<p><strong>What it controls:</strong> When a given context order has no
-observations, there are two strategies for assigning probability to the
-current event:</p>
-<ul>
-<li>
-<strong>Interpolation</strong> blends predictions from <em>all</em>
-orders simultaneously. Every order contributes — high orders via their
-counts, low orders via the mass that escapes from above. The result is a
-smooth distribution even for unseen contexts.</li>
-<li>
-<strong>Backoff</strong> finds the highest order that <em>does</em>
-have observations and uses only that, renormalising its distribution to
-sum to 1. All lower orders are ignored unless every higher order has
-zero counts.</li>
-</ul>
-<p>Interpolation (the default in ppm and IDyOM) generally gives smoother
-IC profiles; backoff is more “winner-takes-all.”</p>
-<table class="table">
-<colgroup>
-<col width="33%">
-<col width="33%">
-<col width="33%">
-</colgroup>
-<thead><tr class="header">
-<th>ppidyom <code>ppm_type</code>
-</th>
-<th>ppm</th>
-<th>IDyOM <code>ppm-mixtures</code> slot</th>
-</tr></thead>
-<tbody>
-<tr class="odd">
-<td><code>"interpolation"</code></td>
-<td>only option in <code>new_ppm_simple</code>
-</td>
-<td>
-<code>mixtures = t</code> (TRUE, default)</td>
-</tr>
-<tr class="even">
-<td><code>"backoff"</code></td>
-<td>—</td>
-<td>
-<code>mixtures = nil</code> (FALSE)</td>
-</tr>
-</tbody>
-</table>
-<hr>
-</div>
-<div class="section level2">
-<h2 id="base-distribution-order-1">Base distribution (order −1)<a class="anchor" aria-label="anchor" href="#base-distribution-order-1"></a>
-</h2>
+<div class="section level3">
+<h3 id="base-distribution-idyom_base">Base distribution — <code>idyom_base</code><a class="anchor" aria-label="anchor" href="#base-distribution-idyom_base"></a>
+</h3>
 <p><strong>What it controls:</strong> Every PPM model needs an ultimate
 fallback prior — the distribution that catches all probability mass that
 escapes every context order. At this lowest level (order −1), every
 symbol receives an equal share. But <em>how large</em> that share is
-depends on how many symbols are considered “possible.”</p>
-<p>This choice has a surprisingly large effect on IC values, especially
-at the beginning of a sequence (when counts are thin and escaping is
-frequent) and in LTM prediction (where the base is fixed from training
-rather than growing with the test sequence).</p>
+depends on how many symbols are considered “possible.” This choice has a
+surprisingly large effect on IC values, especially early in a sequence
+(when counts are thin) and in LTM prediction (where the base is fixed
+from training rather than growing with the test sequence).</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>Situation</th>
+<th>Value</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Matching ppm, or STM-only work with no replication target</td>
+<td>
+<code>FALSE</code> (ppidyom default)</td>
+</tr>
+<tr class="even">
+<td>Matching IDyOM in any configuration</td>
+<td><code>TRUE</code></td>
+</tr>
+<tr class="odd">
+<td>Using LTM/both and want the base prior to reflect the training
+corpus rather than the shrinking test-sequence count</td>
+<td><code>TRUE</code></td>
+</tr>
+</tbody>
+</table>
 <table class="table">
 <colgroup>
 <col width="25%">
@@ -540,145 +927,55 @@ the test sequence so far by construction. The LTM row differs
 critically: IDyOM’s base is fixed by the training corpus, not the test
 sequence. For a LTM trained on all three symbols, the base prior is
 <code>1/(3+1-3) = 1.0</code> — a constant.</p>
-<p>Full explanation with IDyOM source:
+<p>Only has a visible numeric effect when
+<code>exclusion = FALSE</code>, or whenever LTM is involved
+(training-corpus counts and test-sequence counts diverge). Full
+explanation with IDyOM source:
 <code>vignette("implementation-discrepancy")</code> §1–2.</p>
-<hr>
 </div>
-<div class="section level2">
-<h2 id="mixture-weight-exponent-b-both-both-models">Mixture weight exponent <em>b</em> (<code>both</code> /
-<code>both+</code> models)<a class="anchor" aria-label="anchor" href="#mixture-weight-exponent-b-both-both-models"></a>
-</h2>
+<div class="section level3">
+<h3 id="mixture-exponent-b-only-for-both-both">Mixture exponent <code>b</code> (only for <code>"both"</code> /
+<code>"both+"</code>)<a class="anchor" aria-label="anchor" href="#mixture-exponent-b-only-for-both-both"></a>
+</h3>
 <p><strong>What it controls:</strong> When blending STM and LTM
 predictions, how strongly should the model that is <em>more certain</em>
 (lower entropy) dominate? This is controlled by the exponent <em>b</em>
-in the entropy-based weighting formula.</p>
-<p>With b = 1, the blend is relatively equal — both models contribute
-proportionally to their confidence. With b = 7 (IDyOM’s default), the
-lower-entropy model almost completely takes over; the blend becomes
-nearly winner-take-all.</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mi>i</mi></msub><mo>∝</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><msub><mi>H</mi><mi>i</mi></msub><msub><mi>H</mi><mo>max</mo></msub></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>−</mi><mi>b</mi></mrow></msup><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>H</mi><mo>max</mo></msub><mo>=</mo><msub><mo>log</mo><mn>2</mn></msub><mrow><mo stretchy="true" form="prefix">|</mo><mi>a</mi><mi>l</mi><mi>p</mi><mi>h</mi><mi>a</mi><mi>b</mi><mi>e</mi><mi>t</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">
+in the entropy-based weighting formula:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mi>i</mi></msub><mo>∝</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><msub><mi>H</mi><mi>i</mi></msub><msub><mi>H</mi><mi mathvariant="normal">max</mi></msub></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>−</mi><mi>b</mi></mrow></msup><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>H</mi><mi mathvariant="normal">max</mi></msub><mo>=</mo><msub><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mn>2</mn></msub><mo stretchy="false" form="prefix">|</mo><mi>a</mi><mi>l</mi><mi>p</mi><mi>h</mi><mi>a</mi><mi>b</mi><mi>e</mi><mi>t</mi><mo stretchy="false" form="prefix">|</mo></mrow><annotation encoding="application/x-tex">
 w_i \propto \left(\frac{H_i}{H_{\max}}\right)^{-b}, \quad H_{\max} = \log_2 |alphabet|
 </annotation></semantics></math></p>
+<p>With b = 1, the blend is relatively equal — both models contribute
+proportionally to their confidence. With b = 7 (IDyOM’s default), the
+lower-entropy model almost completely takes over — a nearly
+winner-take-all blend.</p>
 <table class="table">
 <colgroup>
-<col width="33%">
-<col width="33%">
-<col width="33%">
+<col width="50%">
+<col width="50%">
 </colgroup>
 <thead><tr class="header">
-<th>ppidyom <code>b</code>
-</th>
-<th>IDyOM default</th>
-<th>Effect</th>
+<th>Situation</th>
+<th>Value</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>
-<code>1</code> (ppidyom default)</td>
-<td>—</td>
-<td>gentle weighting; both models contribute noticeably</td>
+<td>Matching IDyOM</td>
+<td><code>b = 7</code></td>
 </tr>
 <tr class="even">
-<td><code>7</code></td>
+<td>Want STM and LTM to contribute roughly proportionally to their
+confidence</td>
 <td>
-<strong>IDyOM default</strong> (Pearce 2005)</td>
-<td>sharp weighting; lower-entropy model strongly dominates</td>
+<code>b = 1</code> (ppidyom default)</td>
+</tr>
+<tr class="odd">
+<td>Not using <code>both</code>/<code>both+</code>
+</td>
+<td>not applicable</td>
 </tr>
 </tbody>
 </table>
-<p>Pass <code>b = 7</code> to <code>predict_sequence()</code> or
-<code>run_ppidyom()</code> to match IDyOM’s default behaviour. All
-<code>both</code>/<code>both+</code> IDyOM comparison tests use
-<code>b = 7</code>.</p>
-<p>ppm does not support mixture models.</p>
-<hr>
 </div>
-<div class="section level2">
-<h2 id="quick-reference-matrix">Quick-reference matrix<a class="anchor" aria-label="anchor" href="#quick-reference-matrix"></a>
-</h2>
-<table class="table">
-<colgroup>
-<col width="25%">
-<col width="25%">
-<col width="25%">
-<col width="25%">
-</colgroup>
-<thead><tr class="header">
-<th>Concept</th>
-<th>ppidyom</th>
-<th>ppm (<code>new_ppm_simple</code>)</th>
-<th>IDyOM (<code>:stmo</code> / <code>:ltmo</code>)</th>
-</tr></thead>
-<tbody>
-<tr class="odd">
-<td>max context length</td>
-<td><code>N</code></td>
-<td><code>order_bound</code></td>
-<td><code>:order-bound</code></td>
-</tr>
-<tr class="even">
-<td>escape method</td>
-<td>
-<code>stm_lambda</code> / <code>ltm_lambda</code> ∈ {A,B,C,D,X}</td>
-<td>
-<code>escape</code> ∈ {a,b,c,d,ax}</td>
-<td>
-<code>:escape</code> ∈ {:a,:b,:c,:d,:x} ¹</td>
-</tr>
-<tr class="odd">
-<td>exclusion</td>
-<td>
-<code>stm_exclusion</code> / <code>ltm_exclusion</code>
-</td>
-<td><code>exclusion</code></td>
-<td><code>:exclusion</code></td>
-</tr>
-<tr class="even">
-<td>update exclusion</td>
-<td>
-<code>stm_update_exclusion</code> /
-<code>ltm_update_exclusion</code>
-</td>
-<td><code>update_exclusion</code></td>
-<td><code>:update-exclusion</code></td>
-</tr>
-<tr class="odd">
-<td>LTM start token</td>
-<td><code>ltm_start_token</code></td>
-<td>—</td>
-<td>implicit (always skips)</td>
-</tr>
-<tr class="even">
-<td>base distribution</td>
-<td>
-<code>idyom_base</code> flag</td>
-<td>always shrinking</td>
-<td>depends on <code>exclusion</code>
-</td>
-</tr>
-<tr class="odd">
-<td>interpolation vs backoff</td>
-<td><code>ppm_type</code></td>
-<td>always interpolation</td>
-<td>
-<code>mixtures</code> slot</td>
-</tr>
-<tr class="even">
-<td>mixture exponent</td>
-<td>
-<code>b</code> (default 1)</td>
-<td>—</td>
-<td>implicit b = 7</td>
-</tr>
-<tr class="odd">
-<td>shortest deterministic</td>
-<td>— (not implemented)</td>
-<td><code>shortest_deterministic</code></td>
-<td>auto when <code>order-bound = nil</code>
-</td>
-</tr>
-</tbody>
-</table>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

@@ -1,12 +1,12 @@
-pandoc: 3.1.11.1
-pkgdown: 2.2.0
-pkgdown_sha: ~
+pandoc: 3.8.3
+pkgdown: 2.2.0.9000
+pkgdown_sha: c07d935583c90125586821e3b39ed52f16593e42
 articles:
   ExampleCalls: ExampleCalls.html
   ImplementationDiscrepancy: ImplementationDiscrepancy.html
   Overview: Overview.html
   ParameterCorrespondence: ParameterCorrespondence.html
-last_built: 2026-07-06T12:59Z
+last_built: 2026-07-15T16:52Z
 urls:
   reference: https://ppidyom.ccml.gtcmt.gatech.edu/reference
   article: https://ppidyom.ccml.gtcmt.gatech.edu/articles
