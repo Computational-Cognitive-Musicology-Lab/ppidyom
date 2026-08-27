@@ -4,7 +4,15 @@
 \alias{ppm_backoff}
 \title{Compute PPM Probabilities for all symbols with Backoff}
 \usage{
-ppm_backoff(x, N, alphabet, order_counts, escape_func = escape_C)
+ppm_backoff(
+  x,
+  N,
+  alphabet,
+  order_counts,
+  escape_func = escape_C,
+  exclusion = FALSE,
+  idyom_base = FALSE
+)
 }
 \arguments{
 \item{x}{Character vector of events}
@@ -22,36 +30,51 @@ ppm_backoff(x, N, alphabet, order_counts, escape_func = escape_C)
 
 \item{escape_func}{Escape function (e.g., `escape_C`).
 Signature: `function(t, t1)` returning `list(subtract, esc_numer)`; see escape.R.}
+
+\item{exclusion}{Logical. If TRUE, symbols seen at higher orders are excluded
+from the context count at lower orders (Cleary & Witten 1984).}
+
+\item{idyom_base}{Logical. Selects the order-(-1) base distribution.
+TRUE = IDyOM-compatible (1/|alphabet| or shrinking with exclusion);
+FALSE = Harrison's ppm-compatible shrinking denominator.}
 }
 \value{
 data.table with columns: index, Event, P, IC, Entropy
 }
 \description{
-Implements a vectorized PPM backoff.  Starting from the highest order,
-each order assigns probability to symbols it has seen (Ce > 0); any
-probability mass not allocated by that order survives to lower orders.
-Symbols not seen at any order receive the remaining mass divided by the
-uniform base distribution.
+Implements the PPM non-mixture (backoff) model that matches IDyOM's
+`:mixtures nil` behaviour.  Each symbol is finalized at the deepest order
+whose context has observed it (highest order wins); symbols not seen at any
+order receive the accumulated escape mass scaled by the base prior.  The
+final per-timestep distribution is renormalized to sum to 1.
 }
 \details{
-## How compute_local_probs and the backoff cascade relate
+## Cascade algorithm
 
-`compute_local_probs` converts raw counts into per-symbol local weights:
+esc_mass[t] tracks remaining probability mass for timestep t (starts at 1).
+At each order, only symbols not yet finalized AND not excluded are eligible.
 
-  prob_local(s) = max(Ce(s) - subtract, 0) / denom
-                  where denom and subtract come from escape_func
-
-For escape_C: denom = C + t, subtract = 0, so prob_local(s) = Ce(s)/(C+t).
-Summing over all seen symbols: Σ prob_local = C/(C+t) = 1 - esc.
-
-The backoff cascade (p_mass tracks unallocated probability):
-
-  p_mass starts at 1
   for n = N downto 0:
-    for each seen symbol s (Ce_n > 0):
-      P(s) = p_mass(s) · prob_local_n(s)   ← allocate a share
-      p_mass(s) *= (1 - prob_local_n(s))   ← reduce remaining share
-  after loop:
-    unseen symbols: P(s) = p_mass(s) / |alphabet|
+    for each eligible symbol s (Ce_n(s) > 0, unfixed, not excluded):
+      P(s) = esc_mass[t] * prob_local_n(s)    <- finalize at highest order
+    esc_mass[t] *= esc_n[t]                   <- remaining mass flows down
+    if exclusion: mark all Ce>0 symbols as excluded
+  for each symbol s still unset:
+    P(s) = esc_mass[t] * base(s)              <- base prior
+  normalize P[t] so that sum = 1
+
+## Exclusion (Cleary & Witten 1984)
+
+Same as `ppm_interpolated`: once a symbol has Ce > 0 at any order it is
+marked excluded and removed from the context count (ctx) at lower orders.
+The escape numerator (esc_numer) uses the ORIGINAL t (including excluded),
+matching Harrison's ppm and IDyOM behaviour (see `ppm_interpolated` docs).
+
+## Base distribution
+
+Mirrors `ppm_interpolated`:
+  idyom_base + !exclusion  ->  1 / |alphabet|
+  idyom_base +  exclusion  ->  1 / (|alphabet| + 1 - t_root)
+  !idyom_base              ->  1 / (|alphabet| + 1 - |seen_at_t|)
 }
 \keyword{internal}

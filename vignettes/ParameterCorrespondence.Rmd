@@ -21,7 +21,55 @@ For the algorithmic discrepancies that go beyond parameter naming see
 
 ---
 
-## Model type
+## Quick-reference matrix
+
+| Concept | ppidyom | ppm (`new_ppm_simple`) | IDyOM (`:stmo` / `:ltmo`) |
+|---|---|---|---|
+| model type | `model_type` | — (STM only) | `:models` |
+| max context length | `N` | `order_bound` | `:order-bound` |
+| interpolation vs backoff | `ppm_type` | always interpolation | `mixtures` slot |
+| escape method | `stm_lambda` / `ltm_lambda` ∈ {A,B,C,D,X} | `escape` ∈ {a,b,c,d,ax} | `:escape` ∈ {:a,:b,:c,:d,:x} |
+| exclusion | `stm_exclusion` / `ltm_exclusion` | `exclusion` | `:exclusion` |
+| update exclusion | `stm_update_exclusion` / `ltm_update_exclusion` | `update_exclusion` | `:update-exclusion` |
+| LTM start token | `ltm_start_token` | — | implicit (always skips) |
+| base distribution | `idyom_base` flag | always shrinking | depends on `exclusion` |
+| mixture exponent | `b` (default 1) | — | implicit b = 7 |
+| shortest deterministic | — (not implemented) | `shortest_deterministic` | auto when `order-bound = nil` |
+
+---
+
+## Decision tree: choosing your parameters
+
+Not sure which parameters you actually need to touch? Not sure what value to use? 
+Learn about what each parameter means and the default values in each implementation.
+
+### What is your goal?
+
+- **General use** — analysing music or testing a hypothesis, no numerical
+  replication target. Use the "general use" values throughout.
+- **Match ppm** — reproduce Harrison's `ppm` package numerically. Use the
+  "match ppm" values throughout.
+- **Match IDyOM** — reproduce IDyOM (Common Lisp) numerically. Use the
+  "match IDyOM" values throughout.
+- **Exploring a parameter** — e.g. comparing escape methods or order
+  sensitivity. Read the relevant section below; the "general use" values are a
+  safe baseline to vary from.
+  
+| Parameter | General use | Match ppm | Match IDyOM |
+|---|---|---|---|
+| `model_type` | `stm` or `ltm`, read below | `"stm"` only | match `:models` |
+| `N` | 3–5 | match `order_bound` | match `:order-bound` |
+| `ppm_type` | `"interpolation"` | `"interpolation"` | `"interpolation"` (or `"backoff"` for `mixtures=nil`) |
+| `stm_lambda` / `ltm_lambda` | `"C"` | match `escape` | match `:escape` |
+| `stm_exclusion` | `TRUE` | `FALSE` (ppm default) or match `exclusion` | `TRUE` (IDyOM default) or match `:exclusion` |
+| `ltm_exclusion` | `TRUE` | n/a (no LTM) | `TRUE` (IDyOM default) or match `:exclusion` |
+| `stm_update_exclusion` | `TRUE` | `FALSE` (ppm default) or match `update_exclusion` | `FALSE` (IDyOM default) or match `:update-exclusion` |
+| `ltm_update_exclusion` | `FALSE` | n/a (no LTM) | `FALSE` (IDyOM default) or match `:update-exclusion` |
+| `ltm_start_token` | `TRUE` | n/a (no LTM) | `FALSE` |
+| `idyom_base` | `FALSE` | `FALSE` | `TRUE` |
+| `b` | `1` | n/a (no mixtures) | `7` |
+
+### Model Type `model_type`
 
 **What it represents:** PPM models a listener who hears a musical sequence
 event by event and forms expectations about what comes next.  The model type
@@ -60,6 +108,17 @@ how much probability mass flows down to lower-order models at each level.
 
 Escaping more means relying on general patterns; escaping less means staying
 closer to the specific context even when counts are thin.
+
+| Situation | Value |
+|---|---|
+| No reason to deviate | `"C"` (Witten-Bell; default in ppm, effectively default in IDyOM) |
+| Want the most conservative escaping — trust the specific context even with thin data | `"A"` |
+| Want escape probability directly proportional to how many distinct symbols follow | `"B"` |
+| Want absolute discounting | `"D"` |
+| Want singleton-based escaping (Moffat 1990) | `"X"` |
+
+STM and LTM can use different escape methods if you have a specific reason;
+most users set both the same.
 
 Every escape method answers: *given that we have observed C total events in
 context c, with t distinct following symbols, what fraction of probability
