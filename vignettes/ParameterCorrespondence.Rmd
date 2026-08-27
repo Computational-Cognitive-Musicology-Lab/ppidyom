@@ -1,0 +1,285 @@
+---
+title: "Parameter Correspondence: ppidyom, ppm, and IDyOM"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Parameter Correspondence: ppidyom, ppm, and IDyOM}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+This vignette maps every tunable parameter across the three implementations.
+For each parameter, we first explain what it controls conceptually — in terms
+of what kind of listener or memory it represents — then give the technical
+definition, and finally the parameter names in each package.
+
+For the algorithmic discrepancies that go beyond parameter naming see
+`vignette("implementation-discrepancy")`.
+
+---
+
+## Quick-reference matrix
+
+| Concept | ppidyom | ppm (`new_ppm_simple`) | IDyOM (`:stmo` / `:ltmo`) |
+|---|---|---|---|
+| model type | `model_type` | — (STM only) | `:models` |
+| max context length | `N` | `order_bound` | `:order-bound` |
+| interpolation vs backoff | `ppm_type` | always interpolation | `mixtures` slot |
+| escape method | `stm_lambda` / `ltm_lambda` ∈ {A,B,C,D,X} | `escape` ∈ {a,b,c,d,ax} | `:escape` ∈ {:a,:b,:c,:d,:x} |
+| exclusion | `stm_exclusion` / `ltm_exclusion` | `exclusion` | `:exclusion` |
+| update exclusion | `stm_update_exclusion` / `ltm_update_exclusion` | `update_exclusion` | `:update-exclusion` |
+| LTM start token | `ltm_start_token` | — | implicit (always skips) |
+| base distribution | `idyom_base` flag | always shrinking | depends on `exclusion` |
+| mixture exponent | `b` (default 1) | — | implicit b = 7 |
+| shortest deterministic | — (not implemented) | `shortest_deterministic` | auto when `order-bound = nil` |
+
+---
+
+## Decision tree: choosing your parameters
+
+Not sure which parameters you actually need to touch? Not sure what value to use? 
+Learn about what each parameter means and the default values in each implementation.
+
+### What is your goal?
+
+- **General use** — analysing music or testing a hypothesis, no numerical
+  replication target. Use the "general use" values throughout.
+- **Match ppm** — reproduce Harrison's `ppm` package numerically. Use the
+  "match ppm" values throughout.
+- **Match IDyOM** — reproduce IDyOM (Common Lisp) numerically. Use the
+  "match IDyOM" values throughout.
+- **Exploring a parameter** — e.g. comparing escape methods or order
+  sensitivity. Read the relevant section below; the "general use" values are a
+  safe baseline to vary from.
+  
+| Parameter | General use | Match ppm | Match IDyOM |
+|---|---|---|---|
+| `model_type` | `stm` or `ltm`, read below | `"stm"` only | match `:models` |
+| `N` | 3–5 | match `order_bound` | match `:order-bound` |
+| `ppm_type` | `"interpolation"` | `"interpolation"` | `"interpolation"` (or `"backoff"` for `mixtures=nil`) |
+| `stm_lambda` / `ltm_lambda` | `"C"` | match `escape` | match `:escape` |
+| `stm_exclusion` | `TRUE` | `FALSE` (ppm default) or match `exclusion` | `TRUE` (IDyOM default) or match `:exclusion` |
+| `ltm_exclusion` | `TRUE` | n/a (no LTM) | `TRUE` (IDyOM default) or match `:exclusion` |
+| `stm_update_exclusion` | `TRUE` | `FALSE` (ppm default) or match `update_exclusion` | `FALSE` (IDyOM default) or match `:update-exclusion` |
+| `ltm_update_exclusion` | `FALSE` | n/a (no LTM) | `FALSE` (IDyOM default) or match `:update-exclusion` |
+| `ltm_start_token` | `TRUE` | n/a (no LTM) | `FALSE` |
+| `idyom_base` | `FALSE` | `FALSE` | `TRUE` |
+| `b` | `1` | n/a (no mixtures) | `7` |
+
+### Model Type `model_type`
+
+**What it represents:** PPM models a listener who hears a musical sequence
+event by event and forms expectations about what comes next.  The model type
+determines what *memory* that listener draws on:
+
+- A listener recalling only the current piece — counting how often each
+  pattern has occurred so far in this sequence → **STM** (short-term model)
+- A listener drawing entirely on accumulated musical experience, encoded from
+  a training corpus before the current piece began → **LTM** (long-term model)
+- A listener using both simultaneously, blending them according to how
+  confident each is → **both** / **both+**
+
+The LTM is built by calling `train_sequence()` on a corpus before prediction
+begins.  In `both`/`both+` models the STM and LTM distributions are combined
+using an entropy-weighted geometric mean (see parameter `b` for the blend exponent).
+
+| Research question | `model_type` | Needs `train_sequence()` first? | Relevant params |
+|---|---|---|---|
+| How surprising is this, given only what's been heard so far *in this piece*? | `"stm"` | No | `stm_*` only |
+| How surprising is this to someone who knows the style, but not this specific piece? | `"ltm"` | Yes | `ltm_*` only |
+| Same, but long-term knowledge keeps updating as the piece is heard | `"ltm+"` | Yes | `ltm_*` only |
+| How surprising is this to someone who knows the style *and* is learning this piece, trusting whichever source is currently more confident? | `"both"` | Yes | `stm_*`, `ltm_*`, `b` |
+| Same, with long-term knowledge also updating online | `"both+"` | Yes | `stm_*`, `ltm_*`, `b` |
+
+
+### Order bound `N`
+
+**What it controls:** The length of the context window — how many preceding
+events the model uses when predicting the next one. A longer window can
+capture longer-range patterns (e.g. "what note usually follows this exact
+5-note run?"), but at the cost of sparser statistics: long specific patterns
+are rarely repeated exactly, so the model escapes to shorter contexts more
+often.
+
+| Situation | Recommendation |
+|---|---|
+| No strong reason to deviate | `N = 3` to `5` (start with 3) |
+| Short sequences, or a large alphabet (e.g. raw pitch, not scale degree) | Lower N (2–3) — higher orders rarely find matches and just add escape overhead |
+| Large corpus, want to capture long-range idiomatic patterns | Try N = 5+ and compare |
+| Replicating a specific paper | Use the N reported there — it must match exactly for numeric comparison |
+
+| ppidyom | ppm | IDyOM |
+|---|---|---|
+| `N` (constructor arg) | `order_bound` | `:order-bound` in `:stmo` / `:ltmo` |
+
+All three use the same semantics: contexts longer than *N* are truncated.
+IDyOM additionally supports `order-bound = nil`, which activates
+*shortest-deterministic state selection* — the model automatically finds
+the longest reliable context without a fixed bound. 
+ppidyom does not support shortest-deterministic yet (to be implemented).
+
+### Interpolation vs backoff — `ppm_type`
+
+**What it controls:** When a given context order has no observations, there
+are two strategies for assigning probability to the current event:
+
+- **Interpolation** blends predictions from *all* orders simultaneously.
+  Every order contributes — high orders via their counts, low orders via the
+  mass that escapes from above. The result is a smooth distribution even for
+  unseen contexts.
+- **Backoff** finds the highest order that *does* have observations and uses
+  only that, renormalising its distribution to sum to 1. Lower orders are
+  ignored unless every higher order has zero counts.
+
+| Situation | Value |
+|---|---|
+| No reason to deviate | `"interpolation"` (default; matches ppm and IDyOM's default `mixtures = t`) |
+| Matching IDyOM run with `mixtures = nil` | `"backoff"` |
+| Want smoother IC trajectories | `"interpolation"` |
+| Want a stricter "most specific context with data wins" model | `"backoff"` |
+
+
+### Escape method — `stm_lambda` / `ltm_lambda`
+
+**What it controls:** When the model has never observed a particular
+context–symbol pair (zero count), it cannot assign probability from that
+context alone. Instead it *escapes* — falling back to shorter contexts that
+have more data. The escape method determines how aggressively this happens:
+how much probability mass flows down to lower-order models at each level.
+Escaping more means relying on general patterns; escaping less means staying
+closer to the specific context even when counts are thin.
+
+| Situation | Value |
+|---|---|
+| No reason to deviate | `"C"` (Witten-Bell; default in ppm, effectively default in IDyOM) |
+| Want the most conservative escaping — trust the specific context even with thin data | `"A"` |
+| Want escape probability directly proportional to how many distinct symbols follow | `"B"` |
+| Want absolute discounting | `"D"` |
+| Want singleton-based escaping (Moffat 1990) | `"X"` |
+
+STM and LTM can use different escape methods if you have a specific reason;
+most users set both the same.
+
+Every escape method answers: *given that we have observed C total events in
+context c, with t distinct following symbols, what fraction of probability
+mass should escape to the next-shorter context?*
+
+| ppidyom | ppm | IDyOM | Escape probability | Notes |
+|---|---|---|---|---|
+| `"A"` | `"a"` | `:a` | `1 / (C + 1)` | very conservative; escapes rarely |
+| `"B"` | `"b"` | `:b` | `t / C` | escapes in proportion to novelty |
+| `"C"` | `"c"` | `:c` | `t / (C + t)` — Witten-Bell | **default**; balances novelty and count stability |
+| `"D"` | `"d"` | `:d` | `t / (2C)` | absolute discounting with d = 0.5 |
+| `"X"` | `"ax"` | `:x` ¹ | `(t₁ + 1) / (C + t₁ + 1)` — Moffat 1990 | escapes based on singleton count |
+
+*C* = total events in this context; *t* = distinct symbols seen after this
+context; *t₁* = singletons (symbols seen exactly once).
+
+ppidyom uses uppercase letters; ppm and IDyOM use lowercase.
+See [`R/escape.R`](../R/escape.R) for the exact formulas.
+
+> ¹ **AX note:** IDyOM's internal AX keyword is `:x`, not `:ax`.
+
+### Exclusion — `stm_exclusion` / `ltm_exclusion`
+
+Exclusion says: if a symbol has already been given some
+probability by a longer context, don't let it also grab a
+share of the probability handed down to the shorter contexts —
+that leftover should go only to symbols nothing has predicted yet.
+
+| Situation | Value |
+|---|---|
+| No strong reason to deviate — the standard modern PPM setting | `TRUE` (ppidyom default) |
+| Want every context length to guess over the full alphabet, unaware of what other lengths already predicted | `FALSE` |
+| Matching Harrison's ppm default | `FALSE` |
+| Matching IDyOM default | `TRUE` |
+
+| ppidyom | ppm | IDyOM (stmo/ltmo) |
+|---|---|---|---|
+| `stm_exclusion` / `ltm_exclusion` | `exclusion` | `:exclusion` |
+
+> **Base-distribution interaction:** the exclusion flag also controls which
+> order −1 formula IDyOM uses. See `vignette("implementation-discrepancy")`
+> for the full explanation.
+
+### Update exclusion — `stm_update_exclusion` / `ltm_update_exclusion`
+
+Controls learning, not prediction. 
+With update exclusion on, the model walks from the longest context
+down and stops recording as soon as it hits a length where this exact
+context→event pattern has already been seen before — the shorter, more
+general lengths below that point don't get updated for this occurrence,
+since they already learned about the pattern the first time it appeared.
+This prevents a repeated pattern from inflating the counts at every level
+of generality each time it recurs.
+
+| Situation | Value |
+|---|---|
+| Want a recurring pattern counted once, at the longest context where it's new, rather than inflating every shorter context each time it repeats (STM/IDyOM default) | `TRUE` |
+| Want every occurrence to update the counts at every context length, even for repeats | `FALSE` |
+| Matching ppidyom/IDyOM STM defaults | `stm_update_exclusion = TRUE` |
+| Matching ppm, or IDyOM LTM defaults | `FALSE` |
+| No strong preference | Use the constructor defaults (`stm_update_exclusion = TRUE`, `ltm_update_exclusion = FALSE`) |
+
+| ppidyom | ppm | IDyOM (stmo/ltmo) |
+|---|---|---|---|
+| `stm_update_exclusion` / `ltm_update_exclusion` | `update_exclusion` | `:update-exclusion` |
+
+### LTM start token — `ltm_start_token`
+
+Only relevant for `"ltm"`, `"ltm+"`, `"both"`, or `"both+"`.
+
+**What it controls:** When building the long-term model from a training
+corpus, should position 1 of each training sequence contribute to the count
+tables? At that position there is no prior context — the preceding N−1
+events are undefined — so it can only be counted as an unconditional
+observation.
+
+| ppidyom `ltm_start_token` | Behaviour | 
+|---|---|
+| `TRUE` (default) | all positions counted, including those with no preceding context |
+| `FALSE` | positions with undefined context (NA lags) are skipped (matching IDyOM) |
+
+### Base distribution — `idyom_base`
+
+**What it controls:** Every PPM model needs an ultimate fallback prior — the
+distribution that catches all probability mass that escapes every context
+order. At this lowest level (order −1), every symbol receives an equal
+share. But *how large* that share is depends on how many symbols are
+considered "possible." 
+
+| ppidyom `idyom_base` | exclusion | Formula | Matches |
+|---|---|---|---|
+| `FALSE` (default) | any | `1 / (|α| + 1 − |seen in x[1..t-1]|)` — shrinks as the test sequence grows | ppm |
+| `TRUE` | OFF | `1 / |alphabet|` — flat uniform over all symbols | IDyOM excl=OFF |
+| `TRUE` | ON, STM | `1 / (|α| + 1 − t_root_STM)` where `t_root` = distinct symbols seen so far | IDyOM STM excl=ON |
+| `TRUE` | ON, LTM/ltm+ | `1 / (|α| + 1 − t_root_LTM)` where `t_root` = distinct symbols in **training data** (fixed) | IDyOM LTM excl=ON |
+
+
+Only has a visible numeric effect when `exclusion = FALSE`, or whenever LTM
+is involved (training-corpus counts and test-sequence counts diverge). Full
+explanation with IDyOM source: `vignette("implementation-discrepancy")`.
+
+### Mixture exponent `b` (only for `"both"` / `"both+"`)
+
+**What it controls:** When blending STM and LTM predictions, how strongly
+should the model that is *more certain* (lower entropy) dominate? This is
+controlled by the exponent *b* in the entropy-based weighting formula:
+
+$$
+w_i \propto \left(\frac{H_i}{H_{\max}}\right)^{-b}, \quad H_{\max} = \log_2 |alphabet|
+$$
+
+With b = 1, the blend is relatively equal — both models contribute
+proportionally to their confidence. With b = 7 (IDyOM's default), the
+lower-entropy model almost completely takes over — a nearly winner-take-all
+blend.
+
+| Situation | Value |
+|---|---|
+| Want the more confident (lower-entropy) model to dominate almost completely | `b = 7` (matching IDyOM default) |
+| Want STM and LTM to contribute roughly proportionally to their confidence | `b = 1` (ppidyom default) |
+| Not using `both`/`both+` | not applicable |

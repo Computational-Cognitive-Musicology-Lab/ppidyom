@@ -1,0 +1,63 @@
+url: https://ppidyom.ccml.gtcmt.gatech.edu
+home: 
+  sidebar:
+    structure: [links, license, community, citation, authors, dev, toc]
+  links:
+  - text: R language official website
+    href: https://www.r-project.org
+  - text: Computational and Cognitive Musicology Lab
+    href: https://ccml.gtcmt.gatech.edu/
+  - text: Georgia Tech Center for Music Technology
+    href: https://gtcmt.gatech.edu/
+  - text: HumdrumR 
+    href: https://humdrumR.ccml.gtcmt.gatech.edu/
+navbar:
+  structure: 
+    left: [news, reference, articles, GUI]
+    right: [github, search]
+  components:
+    news:
+      text: News
+      href: news/index.html
+footer:
+  structure:
+    left: logo
+    right: ccml
+  components:
+    logo: <a href="https://ppidyom.ccml.gtcmt.gatech.edu"><img src="ppidyom_logo.svg" alt="ppidyom logo" style="height:120px;"></a>
+    ccml: Developed by Nat Condit-Schultz and Ling Qi<br/>[Georgia Tech](https://gatech.edu)<br/>[School of Music](https://music.gatech.edu)<br/>[Computational and Cognitive Musicology Lab](https://ccml.gtcmt.gatech.edu)</span>
+  
+template:
+  includes:
+    before_title: <a href="https://gatech.edu"><img src="gt-logo.svg" alt="Georgia Tech" style="height:50px; padding-right:20px;"/></a> <a href="https://ccml.gtcmt.gatech.edu"><img src="CCMLbanner.png" alt="CCMLab" style="height:80px; padding-right:20px;"/></a>
+  bootstrap: 5
+  bootswatch: flatly
+articles:
+- title: Basics
+  navbar: Theory
+  contents:
+  - Overview
+  - NGrams
+  - InfoTheory
+- title: Usage
+  navbar: Usage
+  contents:
+  - ExampleCalls
+  - HumdrumRCalls
+- title: Algorithm Details
+  desc: Details of how algorithm can be controlled
+  navbar: Algorithm Parameters
+  contents:
+  - ImplementationDiscrepancy
+  - ParameterCorrespondence
+  - Defaults
+reference:
+- title: "Section "
+  desc: "These tools ."
+- subtitle: "XXX "
+  contents:
+  - ppidyom
+  - ppidyomModel
+  - run_ppidyom
+  - count_tables
+  - lag_matrix
