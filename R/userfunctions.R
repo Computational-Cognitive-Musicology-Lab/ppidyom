@@ -147,7 +147,7 @@ ppidyom.humdrumR <- function(humdrumR, ...) {
 
 	if (!any(ns == '')) quos <- c(rlang::quo(.), quos)
 
-	rlang::eval_tidy(rlang::expr(within(humdrumR, ICppidyom <- ppidyom.default(!!!quos, shortTermGroups = list(Spine, Piece), longTermGroups = list(Piece))$IC, dataTypes = 'D')))
+	rlang::eval_tidy(rlang::expr(within(humdrumR,  ppidyom.default(!!!quos, shortTermGroups = list(Spine, Piece), longTermGroups = list(Piece))[ , list(IC, Entropy)], dataTypes = 'D')))
 
 }
 
