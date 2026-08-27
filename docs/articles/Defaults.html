@@ -120,10 +120,10 @@ simple. <code>ppidyom</code> is no exception:</p>
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ppidyom.ccml.gtcmt.gatech.edu">ppidyom</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://humdrumR.ccml.gtcmt.gatech.edu" class="external-link">humdrumR</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">chorales</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/humdrumR/man/readHumdrum.html" class="external-link">readHumdrum</a></span><span class="op">(</span><span class="va">humdrumRroot</span>, <span class="st">'HumdrumData/BachChorales/*krn'</span><span class="op">)</span></span>
+<span><span class="va">chorales</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://humdrumR.ccml.gtcmt.gatech.edu/reference/readHumdrum.html" class="external-link">readHumdrum</a></span><span class="op">(</span><span class="va">humdrumRroot</span>, <span class="st">'HumdrumData/BachChorales/*krn'</span><span class="op">)</span></span>
 <span></span>
 <span></span>
-<span><span class="va">chorales</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/pkg/humdrumR/man/solfa.html" class="external-link">solfa</a></span><span class="op">(</span>simple <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">chorales</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://humdrumR.ccml.gtcmt.gatech.edu/reference/solfa.html" class="external-link">solfa</a></span><span class="op">(</span>simple <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/ppidyom.html">ppidyom</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>It worked! But, how <em>exactly</em> did it work?</p>
 <p>One of the peeves that motivated the creation of <code>ppidyom</code>
 is that papers get published using, for example, IDyOM or ppm, without

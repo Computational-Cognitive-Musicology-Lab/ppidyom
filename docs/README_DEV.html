@@ -337,6 +337,14 @@
 <div class="section level3">
 <h3 id="id_45-what-the-dockerfile-installs">4.5 What the Dockerfile installs<a class="anchor" aria-label="anchor" href="#id_45-what-the-dockerfile-installs"></a></h3>
 <p><code>inst/validation/Dockerfile</code> installs: - <code>sbcl</code> — Steel Bank Common Lisp (the Lisp compiler IDyOM runs on) - <code>quicklisp</code> — Common Lisp package manager (downloads IDyOM automatically) - <code>idyom</code> — Pearce’s IDyOM system from GitHub - <code>python3</code> + <code>pandas</code> — to run the generator script and parse <code>.dat</code> outputs</p>
+</div>
+<div class="section level3">
+<h3 id="id_46-random-combination-fuzz-test-test-idyom-random-fuzzr">4.6 Random-combination fuzz test (<code>test-idyom-random-fuzz.R</code>)<a class="anchor" aria-label="anchor" href="#id_46-random-combination-fuzz-test-test-idyom-random-fuzzr"></a></h3>
+<p>To cover parameter combinations that we may have missed in the existing tests, this fuzz test draws N random combinations across every axis at once and checks each against a <strong>live</strong> IDyOM run in the same Docker image (not the pre-generated fixture). Opt-in and skipped by default (slow, needs Docker):</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>RUN_IDYOM_FUZZ_TESTS <span class="op">=</span> <span class="st">"true"</span><span class="op">)</span></span>
+<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">test</a></span><span class="op">(</span>filter <span class="op">=</span> <span class="st">"idyom-random-fuzz"</span><span class="op">)</span></span></code></pre></div>
+<p>Tunable via env vars: <code>IDYOM_FUZZ_N</code> (trial count, default 50) and <code>IDYOM_FUZZ_SEED</code> (RNG seed — random by default, so each run samples a fresh slice of the parameter space; the seed used is printed at test time, so set it explicitly to reproduce a specific failure).</p>
 <hr></div>
 </div>
 <div class="section level2">

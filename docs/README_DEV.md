@@ -296,6 +296,24 @@ manager (downloads IDyOM automatically) - `idyom` — Pearce’s IDyOM
 system from GitHub - `python3` + `pandas` — to run the generator script
 and parse `.dat` outputs
 
+### 4.6 Random-combination fuzz test (`test-idyom-random-fuzz.R`)
+
+To cover parameter combinations that we may have missed in the existing
+tests, this fuzz test draws N random combinations across every axis at
+once and checks each against a **live** IDyOM run in the same Docker
+image (not the pre-generated fixture). Opt-in and skipped by default
+(slow, needs Docker):
+
+``` r
+Sys.setenv(RUN_IDYOM_FUZZ_TESTS = "true")
+devtools::test(filter = "idyom-random-fuzz")
+```
+
+Tunable via env vars: `IDYOM_FUZZ_N` (trial count, default 50) and
+`IDYOM_FUZZ_SEED` (RNG seed — random by default, so each run samples a
+fresh slice of the parameter space; the seed used is printed at test
+time, so set it explicitly to reproduce a specific failure).
+
 ------------------------------------------------------------------------
 
 ## Typical Development Loop

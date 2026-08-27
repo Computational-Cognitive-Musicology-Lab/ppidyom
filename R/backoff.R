@@ -146,10 +146,13 @@ ppm_backoff <- function(x, N, alphabet, order_counts, escape_func = escape_C,
     prob_local <- ifelse(has_ctx & denom > 0, Ce_adj / denom, 0)
     esc_vec    <- ifelse(has_ctx & denom > 0, esc_numer / denom, NA_real_)
 
-    # Eligible: seen, not yet finalized, and (if exclusion) not already excluded.
-    seen    <- dt_n$Ce > 0
-    unfixed <- is.na(dt_final$P)
-    eligible <- if (exclusion) seen & unfixed & !is_excluded else seen & unfixed
+    # Eligible: seen, not yet finalized, not already excluded. The exclusion
+    # lockout applies regardless of the `exclusion` param (matches IDyOM);
+    # `exclusion` only gates the context-count exclusion above.
+    seen     <- dt_n$Ce > 0
+    unfixed  <- is.na(dt_final$P)
+    has_prob <- prob_local > 0
+    eligible <- seen & has_prob & unfixed & !is_excluded
 
     if (any(eligible)) {
       t_idx <- dt_n$index[eligible]
@@ -164,10 +167,9 @@ ppm_backoff <- function(x, N, alphabet, order_counts, escape_func = escape_C,
       esc_mass[esc_by_t$index] <- esc_mass[esc_by_t$index] * esc_by_t$esc_val
     }
 
-    # Expand exclusion set: symbols seen at this order become excluded in lower orders.
-    if (exclusion) {
-      is_excluded[!is_excluded & seen] <- TRUE
-    }
+    # Expand exclusion set: symbols seen at this order become excluded in
+    # lower orders, regardless of `exclusion` (see note above).
+    is_excluded[!is_excluded & seen] <- TRUE
   }
 
   # Symbols never finalized: base prior scaled by accumulated esc_mass.
