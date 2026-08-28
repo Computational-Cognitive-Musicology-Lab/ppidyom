@@ -10,9 +10,8 @@ library(data.table)
 #' lag_matrix(c("A", "B", "A", "C", "A"), N = 2)
 #' @export
 lag_matrix <- function(x, N = 3) {
-  dt <- data.table::as.data.table(lapply(N:0, function(n) data.table::shift(x, n)))
-  data.table::setnames(dt, paste0("Lag", N:0))
-  dt[, index := seq_len(.N)]
+  dt <- data.table::as.data.table(lapply(0:N, function(n) data.table::shift(x, n)))
+  data.table::setnames(dt, paste0("Lag", 0:N))
   dt
 }
 
@@ -26,13 +25,11 @@ precompute_contexts <- function(dt_lag, N) {
 
   context_list <- vector("list", N + 1)
 
-  for (n in 0:N) {
-    if (n == 0) {
-      context_list[[n+1]] <- rep("ROOT", nrow(dt_lag))
-    } else {
+	context_list[[1]] <- rep('ROOT', nrow(dt_lag))
+
+  for (n in 1:N) {
       cols <- paste0("Lag", n:1)
-      context_list[[n+1]] <- do.call(paste, c(dt_lag[, ..cols], sep = "_"))
-    }
+      context_list[[n + 1]] <- do.call(paste, c(dt_lag[, ..cols], sep = "_"))
   }
 
   context_list
