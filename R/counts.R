@@ -5,14 +5,64 @@ library(data.table)
 #' Creates a lagged representation of a sequence for N-gram modeling.
 #' @param x Character vector of symbols/events.
 #' @param N Maximum N-gram order.
-#' @return A `data.table` with columns LagN..Lag0 and index.
+#' @return A `data.table` with columns LagN..Event and index.
 #' @examples
 #' lag_matrix(c("A", "B", "A", "C", "A"), N = 2)
 #' @export
-lag_matrix <- function(x, N = 3) {
+lag_matrix <- function(x, N = 3, ...) {
+  groups <- if (length(list(...))) paste(..., sep = '_') else character(length(x))
+
   dt <- data.table::as.data.table(lapply(0:N, function(n) data.table::shift(x, n)))
-  data.table::setnames(dt, paste0("Lag", 0:N))
+  data.table::setnames(dt, c('Event', paste0("Lag", 1:N)))
+	dt[, index := 1:nrow(dt)]
+	dt[, group_by := groups]
   dt
+}
+
+computeCe <- function(sym, lag0, higherCe) {
+	exclusion <- cumsum(higherCe) > 0L
+	c(0L, head(cumsum(lag0 == sym & !exclusion), -1L))
+}
+
+stm_counts <- function(dt_lag, N = 3, alphabet = unique(dt_lag$Event), stm_update_exclusion = TRUE) {
+
+	counts <- vector('list', length(N) + 1L)
+
+	dt_lag[, c(alphabet) := 0L]
+	for (n in N:0) {
+		lags <- if (n > 0) paste0('Lag', 1:n)
+
+		dt_lag[ , C := seq_along(index) - 1L, by = lags]
+		dt_lag[ , t := cumsum(!duplicated(Event)) - 1L, by = lags]
+
+
+		dt_lag[ , c(alphabet) := lapply(alphabet, \(s) computeCe(s, lag0 = Event, higherCe = if (stm_update_exclusion) .SD[[s]] else 0L)), by = lags]
+		dt_lag$Ce <- do.call('Map', c(list(f = c), dt_lag[, alphabet, with = FALSE]))
+		dt_lag$t1 <- Reduce('+', lapply(dt_lag[ , alphabet, with = FALSE], \(col) col == 1))
+
+		counts[[n + 1L]] <- dt_lag[ , list(Ce, C, t, Event)]
+		
+	}
+
+	counts
+
+}
+ltm_counts <- function(dt_lag, N = 3, alphabet = unique(dt_lag$Event), ltm_update_exclusion = TRUE) {
+
+	counts <- vector('list', length(N) + 1L)
+
+	dt_lag[, c(alphabet) := 0L]
+	for (n in N:0) {
+		lags <- c('group_by', if (n > 0) paste0('Lag', 1:n))
+
+		###
+    ltm_counts[[n + 1L]] <- dt_lag[, list(C = length(index) , t = length(unique(Event)), Ce = list(table(factor(Lag0, alphabet)))), by = lags]
+		ltm_counts[[n + 1L]]$t1 <- rowSums(do.call('rbind', ltm_counts[[n + 1L]]$Ce) == 1L)
+		
+	}
+
+	counts
+
 }
 
 #' Precompute context identifiers for all orders
@@ -303,6 +353,7 @@ count_tables <- function(
   counts_stm <- updated$counts_stm
   counts_ltm <- updated$counts_ltm
   stm_tables_out <- updated$stm_tables_out
+
 
   # Build LTM tables
   if (use_ltm) {
