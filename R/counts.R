@@ -2,21 +2,31 @@ library(data.table)
 
 #' Generate Lagged N-gram Matrix
 #'
-#' Creates a lagged representation of a sequence for N-gram modeling.
+#' Creates a lagged representation of a sequence for N-gram modeling,
+#' grouped within blocks indicated in `...` vectors.
 #' @param x Character vector of symbols/events.
 #' @param N Maximum N-gram order.
+#' @param ... Zero or more grouping vectors.
+#'
 #' @return A `data.table` with columns LagN..Event and index.
 #' @examples
 #' lag_matrix(c("A", "B", "A", "C", "A"), N = 2)
 #' @export
 lag_matrix <- function(x, N = 3, ...) {
-  groups <- if (length(list(...))) paste(..., sep = '_') else character(length(x))
 
-  dt <- data.table::as.data.table(lapply(0:N, function(n) data.table::shift(x, n)))
-  data.table::setnames(dt, c('Event', paste0("Lag", 1:N)))
-	dt[, index := 1:nrow(dt)]
-	dt[, group_by := groups]
-  dt
+	dt_lag <- data.table(Event = x)
+	
+	lags <- paste('Lag', 1:N)
+
+	if (length(list(...))) {
+		dt_lag[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n)), by = .(...)]
+	} else{
+		dt_lag[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n))]
+	}
+
+	dt_lag[, index := 1:nrow(dt_lag)]
+  dt_lag[]
+
 }
 
 computeCe <- function(sym, lag0, higherCe) {
@@ -47,6 +57,10 @@ stm_counts <- function(dt_lag, N = 3, alphabet = unique(dt_lag$Event), stm_updat
 	counts
 
 }
+
+
+
+
 ltm_counts <- function(dt_lag, N = 3, alphabet = unique(dt_lag$Event), ltm_update_exclusion = TRUE) {
 
 	counts <- vector('list', length(N) + 1L)
