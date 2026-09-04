@@ -4,6 +4,7 @@ library(data.table)
 #'
 #' Creates a lagged representation of a sequence for N-gram modeling,
 #' grouped within blocks indicated in `...` vectors.
+#'
 #' @param x Character vector of symbols/events.
 #' @param N Maximum N-gram order.
 #' @param ... Zero or more grouping vectors.
@@ -16,7 +17,7 @@ lag_matrix <- function(x, N = 3, ...) {
 
 	dt_lag <- data.table(Event = x)
 	
-	lags <- paste('Lag', 1:N)
+	lags <- paste0('Lag', 1:N)
 
 	if (length(list(...))) {
 		dt_lag[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n)), by = .(...)]
@@ -29,29 +30,33 @@ lag_matrix <- function(x, N = 3, ...) {
 
 }
 
-computeCe <- function(sym, lag0, higherCe) {
-	exclusion <- cumsum(higherCe) > 0L
-	c(0L, head(cumsum(lag0 == sym & !exclusion), -1L))
-}
 
-stm_counts <- function(dt_lag, N = 3, alphabet = unique(dt_lag$Event), stm_update_exclusion = TRUE) {
+
+
+## model counts ----
+
+stm_counts <- function(dt_lag, alphabet = sort(unique(dt_lag$Event)), update_exclusion = TRUE) {
+
+	N <- sum(grepl(pattern = 'Lag[1-9]', names(dt_lag)))
 
 	counts <- vector('list', length(N) + 1L)
 
-	dt_lag[, c(alphabet) := 0L]
+
+	Ce_cols <- paste0('Ce.', alphabet)
+	dt_lag[, c(Ce_cols) := 0L]
+	dt_lag[, EventMutable := Event]
+
 	for (n in N:0) {
 		lags <- if (n > 0) paste0('Lag', 1:n)
 
-		dt_lag[ , C := seq_along(index) - 1L, by = lags]
-		dt_lag[ , t := cumsum(!duplicated(Event)) - 1L, by = lags]
+		dt_lag[ , c('C', 't') := list(seq_along(index) - 1L, cumsum(!duplicated(EventMutable)) - 1L), by = lags]
+		dt_lag[ , c(Ce_cols) := lapply(alphabet, \(sym) c(0L, head(cumsum(sym == EventMutable), -1L))), by = lags]
 
+		dt_lag[ , t1 := rowSums(.SD == 1), .SDcols = Ce_cols]
 
-		dt_lag[ , c(alphabet) := lapply(alphabet, \(s) computeCe(s, lag0 = Event, higherCe = if (stm_update_exclusion) .SD[[s]] else 0L)), by = lags]
-		dt_lag$Ce <- do.call('Map', c(list(f = c), dt_lag[, alphabet, with = FALSE]))
-		dt_lag$t1 <- Reduce('+', lapply(dt_lag[ , alphabet, with = FALSE], \(col) col == 1))
+		if (update_exclusion) dt_lag[ , EventMutable := c(Event, rep('', length(index) - 1L)), by = c('Event', lags)]
 
-		counts[[n + 1L]] <- dt_lag[ , list(Ce, C, t, Event)]
-		
+		counts[[n + 1L]] <- dt_lag[ , .SD, .SDcols = c('Event', 'index', 'C', 't', 't1', Ce_cols, lags)]
 	}
 
 	counts
@@ -61,20 +66,32 @@ stm_counts <- function(dt_lag, N = 3, alphabet = unique(dt_lag$Event), stm_updat
 
 
 
-ltm_counts <- function(dt_lag, N = 3, alphabet = unique(dt_lag$Event), ltm_update_exclusion = TRUE) {
+
+ltm_counts <- function(dt_lag, alphabet = unique(dt_lag$Event), update_exclusion = TRUE) {
+	N <- sum(grepl(pattern = 'Lag[1-9]', names(dt_lag)))
 
 	counts <- vector('list', length(N) + 1L)
 
-	dt_lag[, c(alphabet) := 0L]
+	Ce_cols <- paste0('Ce.', alphabet)
+
+
 	for (n in N:0) {
-		lags <- c('group_by', if (n > 0) paste0('Lag', 1:n))
+	
+		lags <- if (n > 0) paste0('Lag', 1:n)
+		ltm <- dt_lag[ , setNames(as.list(table(factor(Event, alphabet))), Ce_cols), by = lags]
 
-		###
-    ltm_counts[[n + 1L]] <- dt_lag[, list(C = length(index) , t = length(unique(Event)), Ce = list(table(factor(Lag0, alphabet)))), by = lags]
-		ltm_counts[[n + 1L]]$t1 <- rowSums(do.call('rbind', ltm_counts[[n + 1L]]$Ce) == 1L)
-		
+		if (update_exclusion) dt_lag <- dt_lag[ , .SD[1], by = c('Event', lags)]
+	
+		ltm[ , C := rowSums(.SD), .SDcols = Ce_cols] # this needs to happen after incrementing the Ce cols
+		ltm[ , t := rowSums(.SD > 0L), .SDcols = Ce_cols] # this needs to happen after incrementing the Ce cols
+		ltm[ , t1 := rowSums(.SD == 1L), .SDcols = Ce_cols]
+		ltm[ , Event := NA_character_]
+		ltm[ , index := NA_integer_]
+
+		setcolorder(ltm, c('Event', 'index', 'C', 't', 't1', Ce_cols, lags))
+		counts[[n + 1L]] <- ltm[]
+	
 	}
-
 	counts
 
 }
