@@ -106,6 +106,7 @@ ppm_interpolated <- function(
     base_prob[idx] <- p_base
   }
 
+
   # All vectors are length (T × |alphabet|): one entry per (timestep, symbol) pair.
   n_rows        <- T * alpha_len
   P             <- numeric(n_rows)      # accumulated probability
@@ -166,13 +167,14 @@ ppm_interpolated <- function(
       has_ctx <- ctx > 0
     }
 
+
     denom    <- ctx + esc_numer
     esc_prob <- ifelse(has_ctx & denom > 0, esc_numer / denom, 1)
     contrib  <- ifelse(has_ctx & denom > 0, Ce_adj / denom, 0)   # alpha[s]
+		
 
     P         <- P + remaining * contrib
     remaining <- remaining * esc_prob
-
     if (exclusion) {
       is_excluded[!is_excluded & dt_n$Ce > 0] <- TRUE
     }
@@ -196,3 +198,68 @@ ppm_interpolated <- function(
   dt_final[, Entropy := -sum(P * log2(P)), by = index]
   dt_final
 }
+
+
+
+ppidyom_interpolation <- function(counts, 
+																	N = length(counts) - 1L,
+																	alphabet = gsub('^Ce\\.', '', grep('^Ce\\.', colnames(counts[[1]]), value = TRUE)), 
+																	escape_func = escape_C, exclusion = TRUE, idyom_base = FALSE) {
+
+	T <- nrow(counts[[1]])
+	t_root <- counts[[1]]$t
+
+	# calculated baseline probability
+	base_prob <- if (idyom_base) {
+		1.0 / (if (exclusion) length(alphabet) + 1L - t_root else length(alphabet))
+	} else { 
+		1.0 / (length(alphabet) + 1L - c(0, head(cumsum(!duplicated(counts[[1]]$Event)), -1L)))
+	}
+
+
+  P             <- matrix(0.0, T, length(alphabet)) # accumulated probability
+  remaining     <- rep(1.0, T)    # R: ∏(esc_k) for k > current order
+  is_excluded   <- matrix(FALSE, T, length(alphabet)) # TRUE once Ce > 0 at any higher order
+
+  for (n in N:0) { 
+		countsN <- counts[[n + 1L]]
+		escape <- escape_func(countsN$t, countsN$t1)
+
+		Ce <- countsN[ , grepl('^Ce\\.', colnames(countsN)), with = FALSE] |> as.matrix()
+		Ce_adj <- pmax(Ce - escape$subtract, 0L)
+
+
+
+		denom <- if (exclusion) {
+				ctx <- rowSums(Ce_adj * !is_excluded)
+		} else {
+				countsN$C - (escape$subtract * countsN$t)
+		}
+		has_ctx <- denom > 0 # this comes before adding escape numer
+		denom <- denom + escape$esc_numer
+
+    esc_prob <- ifelse(has_ctx, escape$esc_numer / denom, 1.0)
+		contrib <- sweep(Ce_adj, 1, denom, '/')# alpha[s]
+		contrib[!has_ctx | denom == 0,] <- 0
+
+    P         <- P + sweep(contrib, 1, remaining, '*')
+    remaining <- remaining * esc_prob # this has to go after updating P
+
+
+    if (exclusion)  is_excluded[!is_excluded & Ce > 0] <- TRUE
+
+	}
+
+  # Leftover remaining mass goes to the base distribution.
+  P <- sweep(P, 1, remaining * base_prob, '+')
+
+  # Renormalize per timestep: handles floating-point drift and the IDyOM base
+  # model (base does not integrate to 1 over the alphabet, so raw sum ≠ 1).
+	P <- sweep(P, 1, rowSums(P), '/')
+	P[P == Inf] <- 1 / length(alphabet) # divide by zero
+
+
+	P
+
+}
+
