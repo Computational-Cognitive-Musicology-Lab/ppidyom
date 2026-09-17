@@ -104,34 +104,74 @@ stm_counts <- function(dt_lag, alphabet = sort(unique(dt_lag$Event)), update_exc
 
 }
 
+stm_counts2 <- function(dt_lag, alphabet = sort(unique(dt_lag$Event)), update_exclusion = TRUE) {
 
-
-
-
-ltm_counts <- function(dt_lag, alphabet = unique(dt_lag$Event), update_exclusion = TRUE) {
 	N <- sum(grepl(pattern = 'Lag[1-9]', names(dt_lag)))
 
 	counts <- vector('list', length(N) + 1L)
 
-	Ce_cols <- paste0('Ce.', alphabet)
 
+	dt_lag[, EventMutable := Event]
+	# EventMutable starts the same as Event, but if update_exclusion = TRUE, on each pass some events are set to "" (excluding them from later pass)
+
+	for (n in N:0) {
+		lags <- if (n > 0) paste0('Lag', 1:n)
+
+		#dt_lag[ , c(Ce_cols) := lapply(alphabet, \(sym) c(0L, head(cumsum(sym == EventMutable), -1L))), by = lags]
+		dt_lag[ , Ce := cumsum(EventMutable != '') - 1L, by = c('Event', lags)]
+
+		dt_lag[ , c('C', 't') := list(cumsum(EventMutable != '') - 1L, 
+																	c(0L, head(cumsum(!duplicated(EventMutable) & EventMutable != ''), -1L)))]
+		dt_lag[ , t1 := cumsum(t == 1L)]
+
+		dt_lag[dt_lag < 0] <- 0L
+
+		if (update_exclusion) dt_lag[ , EventMutable := c(Event, character(length(index) - 1L)), by = c('Event', lags)]
+
+		counts[[n + 1L]] <- dt_lag[ , .SD, .SDcols = c('Event', 'index', 'C', 't', 't1', 'Ce', lags)]
+	}
+
+	structure(counts, class = 'stm_counts')
+
+}
+
+
+
+
+ltm_counts2 <- function(dt_lag, alphabet = unique(dt_lag$Event), update_exclusion = TRUE) {
+	N <- sum(grepl(pattern = 'Lag[1-9]', names(dt_lag)))
+
+	counts <- vector('list', length(N) + 1L)
+
+	Ce.cols <- paste0('Ce.', alphabet)
+	Ce.vec <- integer(length(alphabet))
+	names(Ce.vec) <- alphabet
 
 	for (n in N:0) {
 	
-		lags <- if (n > 0) paste0('Lag', 1:n)
-		ltm <- dt_lag[ , setNames(as.list(table(factor(Event, alphabet))), Ce_cols), by = lags]
+		if (n == 0) {
+			lags <- NULL
+			ltm <- as.data.table(as.list(dt_lag[, table(factor(Event, levels = alphabet))]))
 
-		if (update_exclusion) dt_lag <- dt_lag[ , .SD[1], by = c('Event', lags)]
-	
-		ltm[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce_cols]
+		} else {
+			lags <- paste0('Lag', 1:n)
+			ltm <- dt_lag[ , list(Ce = length(index)), by = c('Event', lags)]
 
-		setcolorder(ltm, c('C', 't', 't1', Ce_cols, lags))
+			if (update_exclusion) dt_lag <- dt_lag[ , .SD[1], by = c('Event', lags)]
+			ltm <- dcast(ltm, ... ~ Event, value.var = 'Ce', fill = 0L)
+		}
+
+		setnames(ltm, alphabet, paste0('Ce.', alphabet))
+		ltm[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce.cols]
+
+	  setcolorder(ltm, c('C', 't', 't1', Ce.cols, lags))
 		counts[[n + 1L]] <- ltm[]
 	
 	}
-	structure(counts, class = 'ltm_counts')
+	structure(counts, class = 'ltm_counts', update_exclusion = update_exclusion)
 
 }
+
 
 ltm2dynamic_counts <- function(counts, dt_lag, N = length(counts) - 1L) {
 
@@ -144,7 +184,7 @@ ltm2dynamic_counts <- function(counts, dt_lag, N = length(counts) - 1L) {
   
 		new <- counts[[n + 1L]][dt_lag,  on = lags] 
 		setcolorder(new, c('Event', 'index', colnames(counts[[n + 1L]])))
-		setnafill(new, fill = 0L, cols = setdiff(colnames(new), c('Event', 'index', lags)))
+		#setnafill(new, fill = 0L, cols = setdiff(colnames(new), c('Event', 'index', lags)))
 
 		new_counts[[n + 1L]] <- new
 	}
