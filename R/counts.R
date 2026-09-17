@@ -8,12 +8,13 @@ library(data.table)
 #' @param x Character vector of symbols/events.
 #' @param N Maximum N-gram order.
 #' @param ... Zero or more grouping vectors.
+#' @param includeStart Logical switch to include or exclude incomplete contexts at the start.
 #'
 #' @return A `data.table` with columns LagN..Event and index.
 #' @examples
 #' lag_matrix(c("A", "B", "A", "C", "A"), N = 2)
 #' @export
-lag_matrix <- function(x, N = 3, ...) {
+lag_matrix <- function(x, N = 3, ..., includeStart = TRUE) {
 
 	dt_lag <- data.table(Event = x)
 	
@@ -25,11 +26,51 @@ lag_matrix <- function(x, N = 3, ...) {
 		dt_lag[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n))]
 	}
 
+	if (!includeStart) dt_lag <- dt_lag[!is.na(dt_lag[[paste0('Lag', N)]])]
+
 	dt_lag[, index := 1:nrow(dt_lag)]
+
   dt_lag[]
 
 }
 
+
+shortestDeterm <- function(x, maxN = length(x), alphabet = sort(unique(x))) { 
+
+		dt_lag <- data.table(Event = x, inde = seq_along(x))
+	
+
+		deterministic <- rep(length(unique(x)) == 1L, length(x))
+	  Ce_cols <- paste0('Ce.', alphabet)
+	  dt_lag[, c(Ce_cols) := 0L]
+
+		counts <- list()
+		N <- 1
+		while (any(!deterministic) & N <= maxN) {
+				lags <- paste0('Lag', 1:N) 
+			  curlag <- paste0('Lag', N)
+
+				dt_lag[ , (curlag) := data.table::shift(x, N)]
+				cur <- data.table::copy(dt_lag)
+
+		    cur[ , c(Ce_cols) := lapply(alphabet, \(sym) c(0L, head(cumsum(sym == Event), -1L))), by = lags]
+
+		    cur[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce_cols]
+
+				deterministic <- cur[, t == 1L]
+
+				counts[[N]] <- cur
+				N <- N + 1
+
+				dt_lag[deterministic == TRUE, Event := "" ]
+
+		}
+
+		counts
+
+
+
+}
 
 
 
@@ -45,21 +86,21 @@ stm_counts <- function(dt_lag, alphabet = sort(unique(dt_lag$Event)), update_exc
 	Ce_cols <- paste0('Ce.', alphabet)
 	dt_lag[, c(Ce_cols) := 0L]
 	dt_lag[, EventMutable := Event]
+	# EventMutable starts the same as Event, but if update_exclusion = TRUE, on each pass some events are set to "" (excluding them from later pass)
 
 	for (n in N:0) {
 		lags <- if (n > 0) paste0('Lag', 1:n)
 
-		dt_lag[ , c('C', 't') := list(seq_along(index) - 1L, cumsum(!duplicated(EventMutable)) - 1L), by = lags]
 		dt_lag[ , c(Ce_cols) := lapply(alphabet, \(sym) c(0L, head(cumsum(sym == EventMutable), -1L))), by = lags]
 
-		dt_lag[ , t1 := rowSums(.SD == 1), .SDcols = Ce_cols]
+		dt_lag[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce_cols]
 
 		if (update_exclusion) dt_lag[ , EventMutable := c(Event, rep('', length(index) - 1L)), by = c('Event', lags)]
 
 		counts[[n + 1L]] <- dt_lag[ , .SD, .SDcols = c('Event', 'index', 'C', 't', 't1', Ce_cols, lags)]
 	}
 
-	counts
+	structure(counts, class = 'stm_counts')
 
 }
 
@@ -82,19 +123,36 @@ ltm_counts <- function(dt_lag, alphabet = unique(dt_lag$Event), update_exclusion
 
 		if (update_exclusion) dt_lag <- dt_lag[ , .SD[1], by = c('Event', lags)]
 	
-		ltm[ , C := rowSums(.SD), .SDcols = Ce_cols] # this needs to happen after incrementing the Ce cols
-		ltm[ , t := rowSums(.SD > 0L), .SDcols = Ce_cols] # this needs to happen after incrementing the Ce cols
-		ltm[ , t1 := rowSums(.SD == 1L), .SDcols = Ce_cols]
-		ltm[ , Event := NA_character_]
-		ltm[ , index := NA_integer_]
+		ltm[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce_cols]
 
-		setcolorder(ltm, c('Event', 'index', 'C', 't', 't1', Ce_cols, lags))
+		setcolorder(ltm, c('C', 't', 't1', Ce_cols, lags))
 		counts[[n + 1L]] <- ltm[]
 	
 	}
-	counts
+	structure(counts, class = 'ltm_counts')
 
 }
+
+ltm2dynamic_counts <- function(counts, dt_lag, N = length(counts) - 1L) {
+
+	new_counts <- list()
+	new_counts[[1]] <- cbind(dt_lag[, list(Event, index)], counts[[1]])
+
+	for (n in 1:N) {
+
+		lags <- if (n > 0) paste0('Lag', 1:n)
+  
+		new <- counts[[n + 1L]][dt_lag,  on = lags] 
+		setcolorder(new, c('Event', 'index', colnames(counts[[n + 1L]])))
+		setnafill(new, fill = 0L, cols = setdiff(colnames(new), c('Event', 'index', lags)))
+
+		new_counts[[n + 1L]] <- new
+	}
+	new_counts
+
+	
+}
+
 
 #' Precompute context identifiers for all orders
 #'

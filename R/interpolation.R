@@ -240,7 +240,10 @@ ppidyom_interpolation <- function(counts,
 
     esc_prob <- ifelse(has_ctx, escape$esc_numer / denom, 1.0)
 		contrib <- sweep(Ce_adj, 1, denom, '/')# alpha[s]
+		browser()
+		if (all(rowSums(contrib) == 1, na.rm=T)) print('yes') else print(unique(rowSums(contrib) - 1))
 		contrib[!has_ctx | denom == 0,] <- 0
+
 
     P         <- P + sweep(contrib, 1, remaining, '*')
     remaining <- remaining * esc_prob # this has to go after updating P
@@ -250,6 +253,7 @@ ppidyom_interpolation <- function(counts,
 
 	}
 
+	print(unique(rowSums(P)))
   # Leftover remaining mass goes to the base distribution.
   P <- sweep(P, 1, remaining * base_prob, '+')
 
@@ -262,4 +266,35 @@ ppidyom_interpolation <- function(counts,
 	P
 
 }
+
+# l <- \(n) log(n, 2)
+# Let t be the total number of observations
+# Then the "unnormalized entropy" is H * t
+# and the "raw entropy" is H * t + log(t)*t
+# The "raw entropy" is the sum of the log of counts multiplied by the count.
+# For example, the "raw entropy" of the distribution [a, a, a, b, b, c, d, e] is
+#            log(3)*3 + log(2) * 2 + log(1) + log(1) + log(1)
+# You can get the entropy directly from raw entropy and t
+# 
+# ((l(3)*3 + l(2)*2 + l(1) + l(1) + l(1)) - l(8)*8) / 8
+
+# The new entropy, H_i, when a new count (k) is observed at time i is
+# H_(i-1) - l(k-1)*(k-1) + l(k)*k
+#
+# Thus the *change* in raw entropy when count k is observed is always 
+# l(k)*k - l(k-1)(k-1)
+# 
+# This can be computed as diff(l(k)*k)
+#
+# Starting (prior) raw entropy is 2 --- equivalent to prior observation of [a,a, b,c]
+# observe seq
+seq <- c('a','a','b','c','b','b','c','a')
+# 
+# The new count at each index is
+ count <- c(3, 4,2,2,3,4,3,5)
+ t <- c(5,6,7,8,9,10,11,12)
+# 
+#2 + cumsum(diff((0:14)*l(0:14))[count]))  # rolling raw entropy (plus prior raw entropy of 2)
+
+ #-(2 + cumsum(diff((0:14)*l(0:14))[count]) - l(t)*t) / t
 
