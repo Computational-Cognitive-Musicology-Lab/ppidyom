@@ -29,6 +29,7 @@ lag_matrix <- function(x, N = 3, ..., includeStart = TRUE) {
 	if (!includeStart) dt_lag <- dt_lag[!is.na(dt_lag[[paste0('Lag', N)]])]
 
 	dt_lag[, index := 1:nrow(dt_lag)]
+	
 
   dt_lag[]
 
@@ -138,33 +139,25 @@ stm_counts2 <- function(dt_lag, alphabet = sort(unique(dt_lag$Event)), update_ex
 
 
 
-ltm_counts2 <- function(dt_lag, alphabet = unique(dt_lag$Event), update_exclusion = TRUE) {
+ltm_counts <- function(dt_lag, alphabet = unique(dt_lag$Event), update_exclusion = TRUE, ...) {
+
+	groups <- list(...)
+	groupnames <- names(groups)
+	if (length(groups)) dt_lag[ , (groupnames) := groups]
+
 	N <- sum(grepl(pattern = 'Lag[1-9]', names(dt_lag)))
 
 	counts <- vector('list', length(N) + 1L)
 
-	Ce.cols <- paste0('Ce.', alphabet)
 	Ce.vec <- integer(length(alphabet))
 	names(Ce.vec) <- alphabet
 
 	for (n in N:0) {
+		lags <- if (n > 0) paste0('Lag', 1:n)
 	
-		if (n == 0) {
-			lags <- NULL
-			ltm <- as.data.table(as.list(dt_lag[, table(factor(Event, levels = alphabet))]))
+		ltm <- dt_lag[ , list(Ce = .N), by = c('Event', lags, groupnames)]
 
-		} else {
-			lags <- paste0('Lag', 1:n)
-			ltm <- dt_lag[ , list(Ce = length(index)), by = c('Event', lags)]
-
-			if (update_exclusion) dt_lag <- dt_lag[ , .SD[1], by = c('Event', lags)]
-			ltm <- dcast(ltm, ... ~ Event, value.var = 'Ce', fill = 0L)
-		}
-
-		setnames(ltm, alphabet, paste0('Ce.', alphabet))
-		ltm[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce.cols]
-
-	  setcolorder(ltm, c('C', 't', 't1', Ce.cols, lags))
+		if (update_exclusion) dt_lag <- dt_lag[ , .SD[1], by = c('Event', lags)]
 		counts[[n + 1L]] <- ltm[]
 	
 	}
@@ -172,6 +165,50 @@ ltm_counts2 <- function(dt_lag, alphabet = unique(dt_lag$Event), update_exclusio
 
 }
 
+ltm_index <- function(counts, expr) {
+	expr <- rlang::enquo(expr)
+
+	for (i in seq_along(counts)) {
+		counts[[i]] <- counts[[i]][rlang::eval_tidy(expr, data = counts[[i]])]
+	}
+	counts
+
+}
+
+
+ltm_collapseGroups <- function(counts) {
+	N <- length(counts) - 1L
+
+	cols <- colnames(counts[[1]])
+	if (all(grepl('^Lag', cols) | cols == 'Ce' | cols == 'Event')) return(counts) 
+
+  for (n in 0:N) {
+			lags <- if (n > 0) paste0('Lag', 1:n)
+
+			counts[[n + 1]] <- counts[[n + 1]][ , list(Ce = sum(Ce)), by = c('Event', lags)]
+	}
+	counts
+		
+}
+
+ltm_cast <- function(counts, alphabet = unique(counts[[1]]$Event)) {
+	N <- length(counts) - 1L
+	Ce.cols <- paste0('Ce.', alphabet)
+
+	for (n in 0:N) {
+		cur <- dcast(counts[[n + 1L]], ... ~ Event, value.var = 'Ce', fill = 0L) 
+
+		setnames(cur, alphabet, paste0('Ce.', alphabet))
+
+		cur[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce.cols]
+
+		if ("." %in% names(cur)) cur[ , "." := NULL] # this gets introduced when N == 0 and there are no groups
+
+		counts[[n + 1]] <- cur
+	}
+
+	counts
+}
 
 ltm2dynamic_counts <- function(counts, dt_lag, N = length(counts) - 1L) {
 
