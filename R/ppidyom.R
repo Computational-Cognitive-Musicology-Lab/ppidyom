@@ -301,6 +301,15 @@ ppidyomModel <- setRefClass(
 
 )
 
+get_H <- function(P, base = 2) {
+	-rowSums(log(P, base = base) * P)
+}
+
+get_p <- function(P) {
+	P[cbind(1:nrow(P), match(rownames(P), colnames(P)))]
+}
+
+
 combine_models <- function(alphabet, p_stm, p_ltm, b=1) {
   dt <- merge(
     p_stm[, .(index, Event, P_stm=P, H_stm=Entropy)],

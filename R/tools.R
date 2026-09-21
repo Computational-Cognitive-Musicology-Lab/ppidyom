@@ -1,6 +1,6 @@
 alphabetCheck <- function(x, alphabet) {
-	if (length(setdiff(k, alphabet))) {
-		bad <- setdiff(k, alphabet)
+	if (length(setdiff(x, alphabet))) {
+		bad <- setdiff(x, alphabet)
 		stop(call. = FALSE, 
 				 paste0("Your input sequence includes ", length(bad),
 								" unique values that are not present in the alphabet you have indicated.",

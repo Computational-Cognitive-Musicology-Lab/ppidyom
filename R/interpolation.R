@@ -240,8 +240,8 @@ ppidyom_interpolation <- function(counts,
 
     esc_prob <- ifelse(has_ctx, escape$esc_numer / denom, 1.0)
 		contrib <- sweep(Ce_adj, 1, denom, '/')# alpha[s]
-		browser()
-		if (all(rowSums(contrib) == 1, na.rm=T)) print('yes') else print(unique(rowSums(contrib) - 1))
+
+
 		contrib[!has_ctx | denom == 0,] <- 0
 
 
@@ -253,7 +253,6 @@ ppidyom_interpolation <- function(counts,
 
 	}
 
-	print(unique(rowSums(P)))
   # Leftover remaining mass goes to the base distribution.
   P <- sweep(P, 1, remaining * base_prob, '+')
 
@@ -262,6 +261,9 @@ ppidyom_interpolation <- function(counts,
 	P <- sweep(P, 1, rowSums(P), '/')
 	P[P == Inf] <- 1 / length(alphabet) # divide by zero
 
+
+	colnames(P) <- gsub('^Ce\\.', '', colnames(P))
+	rownames(P) <- counts[[1L]]$Event
 
 	P
 
@@ -288,11 +290,8 @@ ppidyom_interpolation <- function(counts,
 #
 # Starting (prior) raw entropy is 2 --- equivalent to prior observation of [a,a, b,c]
 # observe seq
-seq <- c('a','a','b','c','b','b','c','a')
 # 
 # The new count at each index is
- count <- c(3, 4,2,2,3,4,3,5)
- t <- c(5,6,7,8,9,10,11,12)
 # 
 #2 + cumsum(diff((0:14)*l(0:14))[count]))  # rolling raw entropy (plus prior raw entropy of 2)
 

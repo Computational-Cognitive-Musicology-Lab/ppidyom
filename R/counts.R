@@ -14,36 +14,44 @@ library(data.table)
 #' @examples
 #' lag_matrix(c("A", "B", "A", "C", "A"), N = 2)
 #' @export
-lag_matrix <- function(x, N = 3, ..., includeStart = TRUE) {
+lag_matrix <- function(x, N = 3, ..., alphabet = sort(unique(x)), includeStart = TRUE) {
 
-	dt_lag <- data.table(Event = x)
+	alphabetCheck(x, alphabet)
+
+	groupingFactors <- names(list(...))
+	lag_matrix <- data.table(Event = x, ...)
 	
 	lags <- paste0('Lag', 1:N)
 
-	if (length(list(...))) {
-		dt_lag[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n)), by = .(...)]
+	if (length(groupingFactors)) {
+		lag_matrix[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n)), by = groupingFactors]
 	} else{
-		dt_lag[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n))]
+		lag_matrix[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n))]
 	}
 
-	if (!includeStart) dt_lag <- dt_lag[!is.na(dt_lag[[paste0('Lag', N)]])]
+	if (!includeStart) lag_matrix <- lag_matrix[!is.na(lag_matrix[[paste0('Lag', N)]])]
 
-	dt_lag[, index := 1:nrow(dt_lag)]
+	lag_matrix[, index := 1:nrow(lag_matrix)]
 	
 
-  dt_lag[]
+	setattr(lag_matrix, 'modelPar', list(alphabet = alphabet, groupingFactors = groupingFactors, N = N)) 
+
+  lag_matrix[]
 
 }
 
 
+modelPar <- function(obj) attr(obj, 'modelPar')
+
+
 shortestDeterm <- function(x, maxN = length(x), alphabet = sort(unique(x))) { 
 
-		dt_lag <- data.table(Event = x, inde = seq_along(x))
+		lag_matrix <- data.table(Event = x, inde = seq_along(x))
 	
 
 		deterministic <- rep(length(unique(x)) == 1L, length(x))
 	  Ce_cols <- paste0('Ce.', alphabet)
-	  dt_lag[, c(Ce_cols) := 0L]
+	  lag_matrix[, c(Ce_cols) := 0L]
 
 		counts <- list()
 		N <- 1
@@ -51,8 +59,8 @@ shortestDeterm <- function(x, maxN = length(x), alphabet = sort(unique(x))) {
 				lags <- paste0('Lag', 1:N) 
 			  curlag <- paste0('Lag', N)
 
-				dt_lag[ , (curlag) := data.table::shift(x, N)]
-				cur <- data.table::copy(dt_lag)
+				lag_matrix[ , (curlag) := data.table::shift(x, N)]
+				cur <- data.table::copy(lag_matrix)
 
 		    cur[ , c(Ce_cols) := lapply(alphabet, \(sym) c(0L, head(cumsum(sym == Event), -1L))), by = lags]
 
@@ -63,7 +71,7 @@ shortestDeterm <- function(x, maxN = length(x), alphabet = sort(unique(x))) {
 				counts[[N]] <- cur
 				N <- N + 1
 
-				dt_lag[deterministic == TRUE, Event := "" ]
+				lag_matrix[deterministic == TRUE, Event := "" ]
 
 		}
 
@@ -77,59 +85,60 @@ shortestDeterm <- function(x, maxN = length(x), alphabet = sort(unique(x))) {
 
 ## model counts ----
 
-stm_counts <- function(dt_lag, alphabet = sort(unique(dt_lag$Event)), update_exclusion = TRUE) {
+stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 
-	N <- sum(grepl(pattern = 'Lag[1-9]', names(dt_lag)))
+	par        <- modelPar(lag_matrix)
 
-	counts <- vector('list', length(N) + 1L)
+	counts <- vector('list', length(par$N) + 1L)
 
 
-	Ce_cols <- paste0('Ce.', alphabet)
-	dt_lag[, c(Ce_cols) := 0L]
-	dt_lag[, EventMutable := Event]
+	Ce_cols <- paste0('Ce.', par$alphabet)
+	lag_matrix[, c(Ce_cols) := 0L]
+	lag_matrix[, EventMutable := Event]
 	# EventMutable starts the same as Event, but if update_exclusion = TRUE, on each pass some events are set to "" (excluding them from later pass)
 
-	for (n in N:0) {
+	for (n in (par$N):0) {
 		lags <- if (n > 0) paste0('Lag', 1:n)
 
-		dt_lag[ , c(Ce_cols) := lapply(alphabet, \(sym) c(0L, head(cumsum(sym == EventMutable), -1L))), by = lags]
+		lag_matrix[ , c(Ce_cols) := lapply(par$alphabet, \(sym) c(0L, head(cumsum(sym == EventMutable), -1L))), by = c(lags, par$groupingFactors)]
 
-		dt_lag[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce_cols]
+		lag_matrix[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce_cols]
 
-		if (update_exclusion) dt_lag[ , EventMutable := c(Event, rep('', length(index) - 1L)), by = c('Event', lags)]
+		if (update_exclusion) lag_matrix[ , EventMutable := c(Event, rep('', length(index) - 1L)), by = c('Event', lags, par$groupingFactors)]
 
-		counts[[n + 1L]] <- dt_lag[ , .SD, .SDcols = c('Event', 'index', 'C', 't', 't1', Ce_cols, lags)]
+		counts[[n + 1L]] <- lag_matrix[ , .SD, .SDcols = c('Event', par$groupingFactors, 'index', 'C', 't', 't1', Ce_cols, lags)]
 	}
 
-	structure(counts, class = 'stm_counts')
+	structure(counts, class = 'stm_counts', update_exclusion = update_exclusion, modelPar = par)
 
 }
 
-stm_counts2 <- function(dt_lag, alphabet = sort(unique(dt_lag$Event)), update_exclusion = TRUE) {
+# this is experimental speedup, doesn't full work yet (can't get t1)
+stm_counts2 <- function(lag_matrix, alphabet = sort(unique(lag_matrix$Event)), update_exclusion = TRUE) {
 
-	N <- sum(grepl(pattern = 'Lag[1-9]', names(dt_lag)))
+	N <- sum(grepl(pattern = 'Lag[1-9]', names(lag_matrix)))
 
 	counts <- vector('list', length(N) + 1L)
 
 
-	dt_lag[, EventMutable := Event]
+	lag_matrix[, EventMutable := Event]
 	# EventMutable starts the same as Event, but if update_exclusion = TRUE, on each pass some events are set to "" (excluding them from later pass)
 
 	for (n in N:0) {
 		lags <- if (n > 0) paste0('Lag', 1:n)
 
-		#dt_lag[ , c(Ce_cols) := lapply(alphabet, \(sym) c(0L, head(cumsum(sym == EventMutable), -1L))), by = lags]
-		dt_lag[ , Ce := cumsum(EventMutable != '') - 1L, by = c('Event', lags)]
+		#lag_matrix[ , c(Ce_cols) := lapply(alphabet, \(sym) c(0L, head(cumsum(sym == EventMutable), -1L))), by = lags]
+		lag_matrix[ , Ce := cumsum(EventMutable != '') - 1L, by = c('Event', lags)]
 
-		dt_lag[ , c('C', 't') := list(cumsum(EventMutable != '') - 1L, 
+		lag_matrix[ , c('C', 't') := list(cumsum(EventMutable != '') - 1L, 
 																	c(0L, head(cumsum(!duplicated(EventMutable) & EventMutable != ''), -1L)))]
-		dt_lag[ , t1 := cumsum(t == 1L)]
+		lag_matrix[ , t1 := cumsum(t == 1L)]
 
-		dt_lag[dt_lag < 0] <- 0L
+		lag_matrix[lag_matrix < 0] <- 0L
 
-		if (update_exclusion) dt_lag[ , EventMutable := c(Event, character(length(index) - 1L)), by = c('Event', lags)]
+		if (update_exclusion) lag_matrix[ , EventMutable := c(Event, character(length(index) - 1L)), by = c('Event', lags)]
 
-		counts[[n + 1L]] <- dt_lag[ , .SD, .SDcols = c('Event', 'index', 'C', 't', 't1', 'Ce', lags)]
+		counts[[n + 1L]] <- lag_matrix[ , .SD, .SDcols = c('Event', 'index', 'C', 't', 't1', 'Ce', lags)]
 	}
 
 	structure(counts, class = 'stm_counts')
@@ -139,29 +148,24 @@ stm_counts2 <- function(dt_lag, alphabet = sort(unique(dt_lag$Event)), update_ex
 
 
 
-ltm_counts <- function(dt_lag, alphabet = unique(dt_lag$Event), update_exclusion = TRUE, ...) {
+ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 
-	groups <- list(...)
-	groupnames <- names(groups)
-	if (length(groups)) dt_lag[ , (groupnames) := groups]
+	par <- modelPar(lag_matrix)
 
-	N <- sum(grepl(pattern = 'Lag[1-9]', names(dt_lag)))
+	counts <- vector('list', length(par$N) + 1L)
 
-	counts <- vector('list', length(N) + 1L)
-
-	Ce.vec <- integer(length(alphabet))
-	names(Ce.vec) <- alphabet
-
-	for (n in N:0) {
+	for (n in (par$N):0) {
 		lags <- if (n > 0) paste0('Lag', 1:n)
 	
-		ltm <- dt_lag[ , list(Ce = .N), by = c('Event', lags, groupnames)]
+		ltm <- lag_matrix[ , list(Ce = .N), by = c('Event', lags, par$groupingFactors)]
 
-		if (update_exclusion) dt_lag <- dt_lag[ , .SD[1], by = c('Event', lags)]
+		setcolorder(ltm, c('Event', par$groupingFactors, lags))
+
+		if (update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', lags)]
 		counts[[n + 1L]] <- ltm[]
 	
 	}
-	structure(counts, class = 'ltm_counts', update_exclusion = update_exclusion)
+	structure(counts, class = 'ltm_counts', update_exclusion = update_exclusion, modelPar = par)
 
 }
 
@@ -177,28 +181,31 @@ ltm_index <- function(counts, expr) {
 
 
 ltm_collapseGroups <- function(counts) {
-	N <- length(counts) - 1L
+	par <- modelPar(counts)
 
-	cols <- colnames(counts[[1]])
-	if (all(grepl('^Lag', cols) | cols == 'Ce' | cols == 'Event')) return(counts) 
+	if (length(par$groupingFactors) == 0L) return(counts)
 
-  for (n in 0:N) {
+  for (n in 0:(par$N)) {
 			lags <- if (n > 0) paste0('Lag', 1:n)
 
 			counts[[n + 1]] <- counts[[n + 1]][ , list(Ce = sum(Ce)), by = c('Event', lags)]
 	}
+	par$groupingFactors <- NULL
+	setattr(counts, 'modelPar', par)
 	counts
 		
 }
 
-ltm_cast <- function(counts, alphabet = unique(counts[[1]]$Event)) {
-	N <- length(counts) - 1L
-	Ce.cols <- paste0('Ce.', alphabet)
+ltm_cast <- function(counts) {
+	counts <- ltm_collapseGroups(counts)
+	par <- modelPar(counts)
 
-	for (n in 0:N) {
-		cur <- dcast(counts[[n + 1L]], ... ~ Event, value.var = 'Ce', fill = 0L) 
+	Ce.cols <- paste0('Ce.', par$alphabet)
 
-		setnames(cur, alphabet, paste0('Ce.', alphabet))
+	for (n in 0:(par$N)) {
+		cur <- dcast(counts[[n + 1L]], Event + ... ~ Event, value.var = 'Ce', fill = 0L)
+
+		setnames(cur, par$alphabet, paste0('Ce.', par$alphabet))
 
 		cur[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce.cols]
 
@@ -210,21 +217,23 @@ ltm_cast <- function(counts, alphabet = unique(counts[[1]]$Event)) {
 	counts
 }
 
-ltm2dynamic_counts <- function(counts, dt_lag, N = length(counts) - 1L) {
+ltm2dynamic_counts <- function(counts, lag_matrix) {
+	counts <- ltm_cast(counts)
+	par <- modelPar(counts)
 
 	new_counts <- list()
-	new_counts[[1]] <- cbind(dt_lag[, list(Event, index)], counts[[1]])
 
-	for (n in 1:N) {
+	for (n in 0:(par$N)) {
 
 		lags <- if (n > 0) paste0('Lag', 1:n)
   
-		new <- counts[[n + 1L]][dt_lag,  on = lags] 
-		setcolorder(new, c('Event', 'index', colnames(counts[[n + 1L]])))
-		#setnafill(new, fill = 0L, cols = setdiff(colnames(new), c('Event', 'index', lags)))
+		new <- counts[[n + 1L]][lag_matrix[ , c('Event', 'index', lags), with = FALSE],  on = c('Event', lags)] 
+		setcolorder(new, unique(c('Event', 'index', colnames(counts[[n + 1L]]))))
+		setnafill(new, fill = 0L, cols = setdiff(colnames(new), c('Event', 'index', lags)))
 
 		new_counts[[n + 1L]] <- new
 	}
+	setattr(new_counts, 'modelPar', par)
 	new_counts
 
 	
@@ -233,19 +242,19 @@ ltm2dynamic_counts <- function(counts, dt_lag, N = length(counts) - 1L) {
 
 #' Precompute context identifiers for all orders
 #'
-#' @param dt_lag Lag matrix from lag_matrix()
+#' @param lag_matrix Lag matrix from lag_matrix()
 #' @param N Maximum n-gram order
 #' @return List of length N+1, each element is a character vector of context IDs
 #' @keywords internal
-precompute_contexts <- function(dt_lag, N) {
+precompute_contexts <- function(lag_matrix, N) {
 
   context_list <- vector("list", N + 1)
 
-	context_list[[1]] <- rep('ROOT', nrow(dt_lag))
+	context_list[[1]] <- rep('ROOT', nrow(lag_matrix))
 
   for (n in 1:N) {
       cols <- paste0("Lag", n:1)
-      context_list[[n + 1]] <- do.call(paste, c(dt_lag[, ..cols], sep = "_"))
+      context_list[[n + 1]] <- do.call(paste, c(lag_matrix[, ..cols], sep = "_"))
   }
 
   context_list
@@ -486,8 +495,8 @@ count_tables <- function(
 ) {
   model_type <- match.arg(model_type)
   T <- length(x)
-  dt_lag <- lag_matrix(x, N)
-  context_list <- precompute_contexts(dt_lag, N)
+  lag_matrix <- lag_matrix(x, N)
+  context_list <- precompute_contexts(lag_matrix, N)
 
   # Initialize count stores
   use_stm <- (model_type %in% c("stm","both"))
@@ -667,8 +676,8 @@ build_online_ltm_timestep_counts <- function(x, N, alphabet, init_ltm,
   T         <- length(x)
   alpha_len <- length(alphabet)
 
-  dt_lag       <- lag_matrix(x, N)
-  context_list <- precompute_contexts(dt_lag, N)
+  lag_matrix       <- lag_matrix(x, N)
+  context_list <- precompute_contexts(lag_matrix, N)
 
   # Seed sparse environments from pre-trained LTM data.tables
   envs <- lapply(0:N, function(.) new.env(hash = TRUE, parent = emptyenv()))
