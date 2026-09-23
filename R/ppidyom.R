@@ -350,3 +350,29 @@ combine_models <- function(alphabet, p_stm, p_ltm, b=1) {
   dt[, .(index, Event, P, IC, Entropy)]
 }
 
+
+ppidyom_run <- function(x, N = 3, update_exclusion = TRUE, base = 2, ...) {
+
+	lag_matrix <- lag_matrix(x, N = N, ...)
+
+
+	stm_counts(lag_matrix, update_exclusion) |> 
+	ppidyom_interpolation() -> stmP
+
+	ltm_counts(lag_matrix, update_exclusion) |> 
+		ltm2dynamic_counts(lag_matrix) |> 
+		ppidyom_interpolation() -> ltmP
+
+
+	P <- combine_P(stmP, ltmP, base = base)
+
+
+	output <- data.table(Symbol = x, P = get_p(P), H = get_H(P), ...)
+
+
+	setattr(output, 'modelPar', modelPar(ltmP))
+
+	output
+
+
+}

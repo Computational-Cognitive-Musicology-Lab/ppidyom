@@ -202,12 +202,14 @@ ppm_interpolated <- function(
 
 
 ppidyom_interpolation <- function(counts, 
-																	N = length(counts) - 1L,
-																	alphabet = gsub('^Ce\\.', '', grep('^Ce\\.', colnames(counts[[1]]), value = TRUE)), 
 																	escape_func = escape_C, exclusion = TRUE, idyom_base = FALSE) {
 
 	T <- nrow(counts[[1]])
 	t_root <- counts[[1]]$t
+
+	par <- modelPar(counts)
+	alphabet <- par$alphabet
+
 
 	# calculated baseline probability
 	base_prob <- if (idyom_base) {
@@ -217,11 +219,11 @@ ppidyom_interpolation <- function(counts,
 	}
 
 
-  P             <- matrix(0.0, T, length(alphabet)) # accumulated probability
+  P             <- matrix(0.0, T, length(par$alphabet)) # accumulated probability
   remaining     <- rep(1.0, T)    # R: ∏(esc_k) for k > current order
   is_excluded   <- matrix(FALSE, T, length(alphabet)) # TRUE once Ce > 0 at any higher order
 
-  for (n in N:0) { 
+  for (n in (par$N):0) { 
 		countsN <- counts[[n + 1L]]
 		escape <- escape_func(countsN$t, countsN$t1)
 
@@ -265,7 +267,13 @@ ppidyom_interpolation <- function(counts,
 	colnames(P) <- gsub('^Ce\\.', '', colnames(P))
 	rownames(P) <- counts[[1L]]$Event
 
+
+	P <- P[ , alphabet] # make sure order matches alphabet
+
+	attr(P, 'modelPar') <- par
+
 	P
+
 
 }
 

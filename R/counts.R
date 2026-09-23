@@ -100,7 +100,11 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 	for (n in (par$N):0) {
 		lags <- if (n > 0) paste0('Lag', 1:n)
 
-		lag_matrix[ , c(Ce_cols) := lapply(par$alphabet, \(sym) c(0L, head(cumsum(sym == EventMutable), -1L))), by = c(lags, par$groupingFactors)]
+		if (n > 0 || length(par$groupingFactors)) {
+				lag_matrix[ , c(Ce_cols) := lapply(par$alphabet, \(sym) c(0L, head(cumsum(sym == EventMutable), -1L))), by = c(lags, par$groupingFactors)]
+		} else {
+				lag_matrix[ , c(Ce_cols) := lapply(par$alphabet, \(sym) c(0L, head(cumsum(sym == EventMutable), -1L)))]
+		}
 
 		lag_matrix[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce_cols]
 
@@ -233,6 +237,8 @@ ltm2dynamic_counts <- function(counts, lag_matrix) {
 
 		new_counts[[n + 1L]] <- new
 	}
+	
+	par$alphabet <- union(modelPar(lag_matrix)$alphabet, par$alphabet)
 	setattr(new_counts, 'modelPar', par)
 	new_counts
 

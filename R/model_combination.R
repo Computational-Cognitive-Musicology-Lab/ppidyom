@@ -1,4 +1,32 @@
 # combining stm and ltm models
+
+
+combine_P <- function(P1, P2, b = 1, base = 2) {
+
+	if (!identical(dimnames(P1), dimnames(P2)) || !identical(modelPar(P1), modelPar(P2))) stop("Something is wrong. These two probability matrices don't match. combine_P() doesn't know what to do.")
+
+	par <- modelPar(P1)
+
+	maxHpossible <- log(length(par$alphabet), 2)
+
+	H_1 <- (get_H(P1) / maxHpossible)^(-b)# normalized and weighted
+	H_2 <- (get_H(P2) / maxHpossible)^(-b) # normalized and weighted
+  
+
+	H_sum <- H_1 + H_2
+	H_1 <- H_1 / H_sum
+	H_2 <- H_2 / H_sum
+
+
+	P <- sweep(P1, 1, H_1, '^') * sweep(P2, 1, H_2, '^')
+
+	rawSums <- rowSums(P)
+	dontNormalize <- rawSums > 0.999 & rawSums < 1.0
+	P[!dontNormalize, ] <- sweep(P[!dontNormalize,], 1, rawSums[!dontNormalize], '/')
+
+	P
+
+}
 combine_models <- function(alphabet, p_stm, p_ltm, b=1) {
   dt <- merge(
     p_stm[, .(index, Event, P_stm=P, H_stm=Entropy)],
