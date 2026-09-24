@@ -85,7 +85,7 @@ shortestDeterm <- function(x, maxN = length(x), alphabet = sort(unique(x))) {
 
 ## model counts ----
 
-stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
+stm_counts_old <- function(lag_matrix, update_exclusion = TRUE) {
 
 	par        <- modelPar(lag_matrix)
 
@@ -117,8 +117,68 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 
 }
 
+
+cumgroup <- function(x, groups) {
+
+	groupid <- rleidv(groups)
+	change <- which(diff(groupid) != 0L)
+
+	counts <- cumsum(x)
+	offset <- integer(length(counts))
+
+	offset[change + 1L] <- counts[change]
+
+	Ce <- counts - cummax(offset)
+
+	Ce <- c(0L, head(Ce, -1L))
+	Ce[change + 1L] <- 0L # this makes the zero-padded index shift within each group
+
+	Ce 
+
+}
+
+
+
+
+stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
+
+	par        <- modelPar(lag_matrix)
+
+	counts <- vector('list', length(par$N) + 1L)
+
+	Ce_cols <- paste0('Ce.', par$alphabet)
+
+	lag_matrix[, EventMutable := Event]
+	# EventMutable starts the same as Event, but if update_exclusion = TRUE, on each pass some events are set to "" (excluding them from later pass)
+
+	expanded <- lag_matrix[CJ(index, Sym = Event, unique = TRUE), on = 'index']
+
+	for (n in (par$N):0) {
+
+
+		lags <- if (n > 0) paste0('Lag', 1:n)
+
+		setorderv(expanded, c('Sym', lags, par$groupingFactors, 'index'))
+
+		expanded[, Ce := cumgroup(Sym == EventMutable, .SD), .SDcols = c('Sym', lags, par$groupingFactors)]
+
+		if (n > 0L && update_exclusion) expanded[Ce > 0L, EventMutable := '']
+
+		countN <- dcast(expanded[ , -"EventMutable"], ... ~ Sym, value.var = 'Ce', fill = 0)
+		setorder(countN, index)
+		setnames(countN, par$alphabet, Ce_cols)
+		countN[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce_cols]
+
+		counts[[n + 1L]] <- countN[ , .SD, .SDcols = c('Event', 'index', par$groupingFactors, lags, 'C','t','t1', Ce_cols)]
+
+	}
+
+	structure(counts, class = 'stm_counts', update_exclusion = update_exclusion, modelPar = par)
+
+}
+
 # this is experimental speedup, doesn't full work yet (can't get t1)
-stm_counts2 <- function(lag_matrix, alphabet = sort(unique(lag_matrix$Event)), update_exclusion = TRUE) {
+stm_counts_experiment <- function(lag_matrix, alphabet = sort(unique(lag_matrix$Event)), update_exclusion = TRUE) {
 
 	N <- sum(grepl(pattern = 'Lag[1-9]', names(lag_matrix)))
 
@@ -165,7 +225,7 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 
 		setcolorder(ltm, c('Event', par$groupingFactors, lags))
 
-		if (update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', lags)]
+		if (n > 0L && update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', lags)]
 		counts[[n + 1L]] <- ltm[]
 	
 	}
@@ -207,15 +267,15 @@ ltm_cast <- function(counts) {
 	Ce.cols <- paste0('Ce.', par$alphabet)
 
 	for (n in 0:(par$N)) {
-		cur <- dcast(counts[[n + 1L]], Event + ... ~ Event, value.var = 'Ce', fill = 0L)
+		countN <- dcast(counts[[n + 1L]], Event + ... ~ Event, value.var = 'Ce', fill = 0L)
 
-		setnames(cur, par$alphabet, paste0('Ce.', par$alphabet))
+		setnames(countN, par$alphabet, paste0('Ce.', par$alphabet))
 
-		cur[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce.cols]
+		countN[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce.cols]
 
-		if ("." %in% names(cur)) cur[ , "." := NULL] # this gets introduced when N == 0 and there are no groups
+		if ("." %in% names(countN)) countN[ , "." := NULL] # this gets introduced when N == 0 and there are no groups
 
-		counts[[n + 1]] <- cur
+		counts[[n + 1]] <- countN
 	}
 
 	counts
