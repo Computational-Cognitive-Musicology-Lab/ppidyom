@@ -146,8 +146,6 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 
 	counts <- vector('list', length(par$N) + 1L)
 
-	Ce_cols <- paste0('Ce.', par$alphabet)
-
 	lag_matrix[, EventMutable := Event]
 	# EventMutable starts the same as Event, but if update_exclusion = TRUE, on each pass some events are set to "" (excluding them from later pass)
 
@@ -164,12 +162,8 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 
 		if (n > 0L && update_exclusion) expanded[Ce > 0L, EventMutable := '']
 
-		countN <- dcast(expanded[ , -"EventMutable"], ... ~ Sym, value.var = 'Ce', fill = 0)
-		setorder(countN, index)
-		setnames(countN, par$alphabet, Ce_cols)
-		countN[ , c('C', 't', 't1') := list(rowSums(.SD), rowSums(.SD > 0L), rowSums(.SD == 1L)), .SDcols = Ce_cols]
 
-		counts[[n + 1L]] <- countN[ , .SD, .SDcols = c('Event', 'index', par$groupingFactors, lags, 'C','t','t1', Ce_cols)]
+		counts[[n + 1L]] <- expanded[ , .SD, .SDcols = c('Event', 'index', par$groupingFactors, lags, 'Ce')]
 
 	}
 
@@ -303,6 +297,15 @@ ltm2dynamic_counts <- function(counts, lag_matrix) {
 	new_counts
 
 	
+}
+
+totals <- function(counts) lapply(counts, \(countN) countN[, list(Event = Event[1], C = sum(Ce), t = sum(Ce > 0L), t1 = sum(Ce == 1L)), by = index])
+
+totals_inplace <- function(counts) {
+	for (i in seq_along(counts)) {
+		counts[[i]][ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0), sum(Ce == 1)), by = index]
+	}
+	counts
 }
 
 

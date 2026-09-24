@@ -204,6 +204,8 @@ ppm_interpolated <- function(
 ppidyom_interpolation <- function(counts, 
 																	escape_func = escape_C, exclusion = TRUE, idyom_base = FALSE) {
 
+	totals_inplace(counts)
+
 	T <- nrow(counts[[1]])
 	t_root <- counts[[1]]$t
 
@@ -215,63 +217,54 @@ ppidyom_interpolation <- function(counts,
 	base_prob <- if (idyom_base) {
 		1.0 / (if (exclusion) length(alphabet) + 1L - t_root else length(alphabet))
 	} else { 
-		1.0 / (length(alphabet) + 1L - c(0, head(cumsum(!duplicated(counts[[1]]$Event)), -1L)))
+		1.0 / (length(alphabet) + 1L - t_root) # In Ling's code, she seems to recompute t_root here and I'm not sure whyc(0, head(cumsum(!duplicated(counts[[1]]$Event)), -1L)))
 	}
 
 
-  P             <- matrix(0.0, T, length(par$alphabet)) # accumulated probability
+  P             <- numeric(T) # accumulated probability
   remaining     <- rep(1.0, T)    # R: ∏(esc_k) for k > current order
-  is_excluded   <- matrix(FALSE, T, length(alphabet)) # TRUE once Ce > 0 at any higher order
+  is_excluded   <- logical(T) # TRUE once Ce > 0 at any higher order
 
   for (n in (par$N):0) { 
 		countsN <- counts[[n + 1L]]
 		escape <- escape_func(countsN$t, countsN$t1)
 
-		Ce <- countsN[ , grepl('^Ce\\.', colnames(countsN)), with = FALSE] |> as.matrix()
-		Ce_adj <- pmax(Ce - escape$subtract, 0L)
+		countsN[ , Ce_adj := pmax(Ce - escape$subtract, 0L)]
 
+		countsN[, Excluded := is_excluded]
 
-
-		denom <- if (exclusion) {
-				ctx <- rowSums(Ce_adj * !is_excluded)
+		if (exclusion) {
+		    countsN[, Denom := sum(Ce_adj * !Excluded), by = index]
 		} else {
-				countsN$C - (escape$subtract * countsN$t)
+			 	countsN[ , Denom := C - (escape$subtract * t)]
 		}
-		has_ctx <- denom > 0 # this comes before adding escape numer
-		denom <- denom + escape$esc_numer
-
-    esc_prob <- ifelse(has_ctx, escape$esc_numer / denom, 1.0)
-		contrib <- sweep(Ce_adj, 1, denom, '/')# alpha[s]
+		has_ctx <- countsN$Denom > 0 # this comes before adding escape numer
+		countsN[ , Denom := Denom + escape$esc_numer] 
 
 
-		contrib[!has_ctx | denom == 0,] <- 0
+    esc_prob <- ifelse(has_ctx, escape$esc_numer / countsN$Denom, 1.0)
+		contrib <- countsN[, ifelse(!has_ctx | Denom == 0L, 0.0, Ce_adj / Denom)] # alpha[s]
 
-
-    P         <- P + sweep(contrib, 1, remaining, '*')
+    P         <- P + contrib * remaining
     remaining <- remaining * esc_prob # this has to go after updating P
 
 
-    if (exclusion)  is_excluded[!is_excluded & Ce > 0] <- TRUE
+    if (exclusion)  is_excluded[!is_excluded & countsN$Ce > 0] <- TRUE
 
 	}
 
   # Leftover remaining mass goes to the base distribution.
-  P <- sweep(P, 1, remaining * base_prob, '+')
+  P <- P + remaining * base_prob
 
   # Renormalize per timestep: handles floating-point drift and the IDyOM base
   # model (base does not integrate to 1 over the alphabet, so raw sum ≠ 1).
-	P <- sweep(P, 1, rowSums(P), '/')
-	P[P == Inf] <- 1 / length(alphabet) # divide by zero
-
-
-	colnames(P) <- gsub('^Ce\\.', '', colnames(P))
-	rownames(P) <- counts[[1L]]$Event
-
-
-	P <- P[ , alphabet] # make sure order matches alphabet
+	P <- data.table(P = P, Event = counts[[1]]$Event, index = counts[[1]]$index)
+	P[ , P := P / sum(P), by = index]
+	P[P == Inf, P := 1 / length(alphabet)]
 
 	attr(P, 'modelPar') <- par
 
+	setorder(P, index)
 	P
 
 
