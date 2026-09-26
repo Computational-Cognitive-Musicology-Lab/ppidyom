@@ -212,10 +212,18 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 
 	counts <- vector('list', length(par$N) + 1L)
 
+	alphabet <- par$alphabet
+	tmp <- integer(length(alphabet))
+
 	for (n in (par$N):0) {
 		lags <- if (n > 0) paste0('Lag', 1:n)
 	
-		ltm <- lag_matrix[ , list(Ce = .N), by = c('Event', lags, par$groupingFactors)]
+		ltm <- lag_matrix[ , {
+
+			tmp[alphabet == Event] <- .N
+			list(Ce = tmp, Sym = alphabet, index = min(index))
+
+		}, by = c('Event', lags, par$groupingFactors)]
 
 		setcolorder(ltm, c('Event', par$groupingFactors, lags))
 
