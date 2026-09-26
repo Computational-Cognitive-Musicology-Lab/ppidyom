@@ -221,7 +221,7 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 		ltm <- lag_matrix[ , {
 
 			tmp[alphabet == Event] <- .N
-			list(Ce = tmp, Sym = alphabet, index = min(index))
+			list(Ce = tmp, Sym = alphabet)
 
 		}, by = c('Event', lags, par$groupingFactors)]
 
@@ -285,7 +285,7 @@ ltm_cast <- function(counts) {
 }
 
 ltm2dynamic_counts <- function(counts, lag_matrix) {
-	counts <- ltm_cast(counts)
+	#counts <- ltm_cast(counts)
 	par <- modelPar(counts)
 
 	new_counts <- list()
@@ -294,9 +294,9 @@ ltm2dynamic_counts <- function(counts, lag_matrix) {
 
 		lags <- if (n > 0) paste0('Lag', 1:n)
   
-		new <- counts[[n + 1L]][lag_matrix[ , c('Event', 'index', lags), with = FALSE],  on = c('Event', lags)] 
+		new <- counts[[n + 1L]][lag_matrix[ , c('Event', 'index', lags), with = FALSE],  on = c('Event', lags), allow.cartesian = TRUE] 
 		setcolorder(new, unique(c('Event', 'index', colnames(counts[[n + 1L]]))))
-		setnafill(new, fill = 0L, cols = setdiff(colnames(new), c('Event', 'index', lags)))
+		setnafill(new, fill = 0L, cols = setdiff(colnames(new), c('Event', 'index', 'Sym', lags)))
 
 		new_counts[[n + 1L]] <- new
 	}

@@ -302,11 +302,11 @@ ppidyomModel <- setRefClass(
 )
 
 get_H <- function(P, base = 2) {
-	-rowSums(log(P, base = base) * P)
+	P[ , list(H = -sum(log(P, base = base) * P)), by = index]$H
 }
 
 get_p <- function(P) {
-	P[cbind(1:nrow(P), match(rownames(P), colnames(P)))]
+	P[Event == Sym, P]
 }
 
 
