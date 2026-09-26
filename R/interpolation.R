@@ -258,7 +258,8 @@ ppidyom_interpolation <- function(counts,
 
   # Renormalize per timestep: handles floating-point drift and the IDyOM base
   # model (base does not integrate to 1 over the alphabet, so raw sum ≠ 1).
-	P <- data.table(P = P, Event = counts[[1]]$Event, index = counts[[1]]$index)
+	browser()
+	P <- data.table(P = P, Event = counts[[1]]$Sym, index = counts[[1]]$index)
 	P[ , P := P / sum(P), by = index]
 	P[P == Inf, P := 1 / length(alphabet)]
 

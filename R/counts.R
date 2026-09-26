@@ -163,7 +163,7 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 		if (n > 0L && update_exclusion) expanded[Ce > 0L, EventMutable := '']
 
 
-		counts[[n + 1L]] <- expanded[ , .SD, .SDcols = c('Event', 'index', par$groupingFactors, lags, 'Ce')]
+		counts[[n + 1L]] <- expanded[ , .SD, .SDcols = c('Event', 'Sym', 'index', par$groupingFactors, lags, 'Ce')]
 
 	}
 
@@ -188,15 +188,15 @@ stm_counts_experiment <- function(lag_matrix, alphabet = sort(unique(lag_matrix$
 		#lag_matrix[ , c(Ce_cols) := lapply(alphabet, \(sym) c(0L, head(cumsum(sym == EventMutable), -1L))), by = lags]
 		lag_matrix[ , Ce := cumsum(EventMutable != '') - 1L, by = c('Event', lags)]
 
-		lag_matrix[ , c('C', 't') := list(cumsum(EventMutable != '') - 1L, 
-																	c(0L, head(cumsum(!duplicated(EventMutable) & EventMutable != ''), -1L)))]
-		lag_matrix[ , t1 := cumsum(t == 1L)]
+		#lag_matrix[ , c('C', 't') := list(cumsum(EventMutable != '') - 1L, 
+	#																c(0L, head(cumsum(!duplicated(EventMutable) & EventMutable != ''), -1L)))]
+		#lag_matrix[ , t1 := cumsum(t == 1L)]
 
 		lag_matrix[lag_matrix < 0] <- 0L
 
 		if (update_exclusion) lag_matrix[ , EventMutable := c(Event, character(length(index) - 1L)), by = c('Event', lags)]
 
-		counts[[n + 1L]] <- lag_matrix[ , .SD, .SDcols = c('Event', 'index', 'C', 't', 't1', 'Ce', lags)]
+		counts[[n + 1L]] <- lag_matrix[ , .SD, .SDcols = c('Event', 'index', 'Ce', lags)]
 	}
 
 	structure(counts, class = 'stm_counts')
@@ -220,6 +220,7 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 		setcolorder(ltm, c('Event', par$groupingFactors, lags))
 
 		if (n > 0L && update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', lags)]
+
 		counts[[n + 1L]] <- ltm[]
 	
 	}
