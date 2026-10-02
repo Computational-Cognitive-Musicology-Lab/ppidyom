@@ -162,8 +162,11 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 
 		if (n > 0L && update_exclusion) expanded[Ce > 0L, EventMutable := '']
 
+		expanded[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = index]
 
-		counts[[n + 1L]] <- expanded[ , .SD, .SDcols = c('Event', 'Sym', 'index', par$groupingFactors, lags, 'Ce')]
+			
+
+		counts[[n + 1L]] <- expanded[ , .SD, .SDcols = c('Event', 'Sym', 'index', par$groupingFactors, 'C','t','t1','Ce', lags)]
 
 	}
 
@@ -218,16 +221,21 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 	for (n in (par$N):0) {
 		lags <- if (n > 0) paste0('Lag', 1:n)
 	
-		ltm <- lag_matrix[ , {
+		ltm <- lag_matrix[ , list(Ce = .N), by = c('Event', lags, par$groupingFactors)]
 
-			tmp[alphabet == Event] <- .N
-			list(Ce = tmp, Sym = alphabet)
-
-		}, by = c('Event', lags, par$groupingFactors)]
-
-		setcolorder(ltm, c('Event', par$groupingFactors, lags))
 
 		if (n > 0L && update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', lags)]
+
+
+		if (n > 0L) {
+				ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = lags]
+		} else {
+
+				ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L))]
+		}
+
+		setnames(ltm, 'Event', 'Sym')
+		setcolorder(ltm, c('Sym', par$groupingFactors, 'C', 't', 't1', 'Ce', lags))
 
 		counts[[n + 1L]] <- ltm[]
 	
@@ -292,10 +300,24 @@ ltm2dynamic_counts <- function(counts, lag_matrix) {
 
 	for (n in 0:(par$N)) {
 
-		lags <- if (n > 0) paste0('Lag', 1:n)
+		if (n > 0) {
+			lags <- paste0('Lag', 1:n)
+			new <- counts[[n + 1L]][lag_matrix[ , c('Event', 'index', lags), with = FALSE],  on = (lags), allow.cartesian = TRUE] 
+
+		} else {
+			lags <- NULL
+			new <- counts[[n + 1L]][rep(1L:nrow(counts[[n + 1L]]), nrow(lag_matrix))]
+			new[ , index := rep(lag_matrix$index, each = nrow(counts[[n + 1L]]))]
+			new[ , Event := rep(lag_matrix$Event, each = nrow(counts[[n + 1L]]))]
+
+		}
   
-		new <- counts[[n + 1L]][lag_matrix[ , c('Event', 'index', lags), with = FALSE],  on = c('Event', lags), allow.cartesian = TRUE] 
-		setcolorder(new, unique(c('Event', 'index', colnames(counts[[n + 1L]]))))
+		setcolorder(new, unique(c('Event', 'Sym', 'index', colnames(counts[[n + 1L]]))))
+
+	
+		# get complete distribution for each index
+
+		new <- new[CJ(index = unique(index), Sym = unique(Sym)), on = c('index', 'Sym')]
 		setnafill(new, fill = 0L, cols = setdiff(colnames(new), c('Event', 'index', 'Sym', lags)))
 
 		new_counts[[n + 1L]] <- new
@@ -308,7 +330,7 @@ ltm2dynamic_counts <- function(counts, lag_matrix) {
 	
 }
 
-totals <- function(counts) lapply(counts, \(countN) countN[, list(Event = Event[1], C = sum(Ce), t = sum(Ce > 0L), t1 = sum(Ce == 1L)), by = index])
+totals <- function(counts) lapply(counts, \(countN) countN[, list(Event = Event, C = sum(Ce), t = sum(Ce > 0L), t1 = sum(Ce == 1L)), by = index])
 
 totals_inplace <- function(counts) {
 	for (i in seq_along(counts)) {

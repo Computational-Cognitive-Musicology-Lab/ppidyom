@@ -18,13 +18,14 @@ combine_P <- function(P1, P2, b = 1, base = 2) {
 	H_2 <- H_2 / H_sum
 
 
-	P <- sweep(P1, 1, H_1, '^') * sweep(P2, 1, H_2, '^')
+	P <- data.table(P = P1[ , P^H_1[index]] * P2[ , P^H_2[index]], index = P1$index, Event = P1$Event, Sym = P1$Sym)
 
-	rawSums <- rowSums(P)
-	dontNormalize <- rawSums > 0.999 & rawSums < 1.0
-	P[!dontNormalize, ] <- sweep(P[!dontNormalize,], 1, rawSums[!dontNormalize], '/')
 
-	P
+	P[ , rawSums := sum(P), by = index]
+	P[ , dontNormalize := rawSums > 0.999 & rawSums < 1.0]
+	P[dontNormalize == FALSE, P := P / rawSums]
+
+	P[, list(P, Event, Sym, index)]
 
 }
 combine_models <- function(alphabet, p_stm, p_ltm, b=1) {
