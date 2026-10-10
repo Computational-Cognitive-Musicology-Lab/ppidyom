@@ -218,26 +218,25 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 	alphabet <- par$alphabet
 	tmp <- integer(length(alphabet))
 
+
 	for (n in (par$N):0) {
 		lags <- if (n > 0) paste0('Lag', 1:n)
 	
-		ltm <- lag_matrix[ , list(Ce = .N), by = c('Event', lags, par$groupingFactors)]
 
+		ltm <-	lag_matrix[ , list(Ce = .N),  by = c('Event', lags, par$groupingFactors)]
+
+		
+		setnames(ltm, 'Event', 'Sym')
+
+		#if (n > 0L || length(par$groupingFactors)) ltm <- ltm[do.call(CJ, c(list(unique = TRUE), ltm[ , .SD, .SDcols = c('Sym', lags, par$groupingFactors)])), on = c('Sym', lags, par$groupingFactors)]
 
 		if (n > 0L && update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', lags)]
 
+		
+		#setorderv(ltm, c(lags, 'Sym'))
+		#setcolorder(ltm, c('Sym', par$groupingFactors, 'Ce', lags))
 
-		if (n > 0L) {
-				ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = lags]
-		} else {
-
-				ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L))]
-		}
-
-		setnames(ltm, 'Event', 'Sym')
-		setcolorder(ltm, c('Sym', par$groupingFactors, 'C', 't', 't1', 'Ce', lags))
-
-		counts[[n + 1L]] <- ltm[]
+		counts[[n + 1L]] <- ltm[ , .SD, .SDcols = c('Sym', par$groupingFactors, 'Ce', lags)]
 	
 	}
 	structure(counts, class = 'ltm_counts', update_exclusion = update_exclusion, modelPar = par)
@@ -254,6 +253,26 @@ ltm_index <- function(counts, expr) {
 
 }
 
+ltm_totals <- function(counts) {
+	  # make this a separate function because it has to be computed after cross validation
+	par <- modelPar(counts)
+
+	for (n in (par$N):0) {
+		lags <- if (n > 0) paste0('Lag', 1:n)
+
+		countN <- counts[[n + 1L]]
+	
+		if (n > 0L || length(par$groupingFactors)) {
+				countN[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = c(lags, par$groupingFactors)]
+	
+		} else {
+				countN[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L))]
+		}
+		counts[[n + 1L]] <- countN[]
+	}
+	counts
+}
+
 
 ltm_collapseGroups <- function(counts) {
 	par <- modelPar(counts)
@@ -263,7 +282,7 @@ ltm_collapseGroups <- function(counts) {
   for (n in 0:(par$N)) {
 			lags <- if (n > 0) paste0('Lag', 1:n)
 
-			counts[[n + 1]] <- counts[[n + 1]][ , list(Ce = sum(Ce)), by = c('Event', lags)]
+			counts[[n + 1]] <- counts[[n + 1]][ , list(Ce = sum(Ce)), by = c('Sym', lags)]
 	}
 	par$groupingFactors <- NULL
 	setattr(counts, 'modelPar', par)
@@ -294,15 +313,17 @@ ltm_cast <- function(counts) {
 
 ltm2dynamic_counts <- function(counts, lag_matrix) {
 	#counts <- ltm_cast(counts)
+	counts <- ltm_totals(counts)
+
 	par <- modelPar(counts)
 
 	new_counts <- list()
 
 	for (n in 0:(par$N)) {
 
-		if (n > 0) {
-			lags <- paste0('Lag', 1:n)
-			new <- counts[[n + 1L]][lag_matrix[ , c('Event', 'index', lags), with = FALSE],  on = (lags), allow.cartesian = TRUE] 
+		if (n > 0 || length(par$groupingFactors)) {
+			lags <- if (n > 0L) paste0('Lag', 1:n)
+			new <- counts[[n + 1L]][lag_matrix[ , c('Event', 'index', lags, par$groupingFactors), with = FALSE],  on = c(lags, par$groupingFactors), allow.cartesian = TRUE] 
 
 		} else {
 			lags <- NULL
@@ -318,7 +339,7 @@ ltm2dynamic_counts <- function(counts, lag_matrix) {
 		# get complete distribution for each index
 
 		new <- new[CJ(index = unique(index), Sym = unique(Sym)), on = c('index', 'Sym')]
-		setnafill(new, fill = 0L, cols = setdiff(colnames(new), c('Event', 'index', 'Sym', lags)))
+		setnafill(new, fill = 0L, cols = c('C', 'Ce', 't', 't1'))
 
 		new_counts[[n + 1L]] <- new
 	}
@@ -330,13 +351,30 @@ ltm2dynamic_counts <- function(counts, lag_matrix) {
 	
 }
 
-totals <- function(counts) lapply(counts, \(countN) countN[, list(Event = Event, C = sum(Ce), t = sum(Ce > 0L), t1 = sum(Ce == 1L)), by = index])
 
-totals_inplace <- function(counts) {
-	for (i in seq_along(counts)) {
-		counts[[i]][ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0), sum(Ce == 1)), by = index]
+ltm_cross_validate <- function(counts) {
+	par <- modelPar(counts)
+	if (length(par$groupingFactors) == 0L) return(counts)
+
+	groups <- unique(counts[[1]][[par$groupingFactors]])
+
+	for (n in 0:(par$N)) {
+			lags <- if (n > 0) paste0('Lag', 1:n)
+		countN <- counts[[n + 1L]]
+		lapply(groups,
+					 \(group) {
+						 cur <- countN[countN[[par$groupingFactors]] != group, list(Ce = sum(Ce)), by = c('Sym', lags)]
+
+						 cur[[par$groupingFactors]] <- group
+
+						 cur
+					 }) |> do.call(what = 'rbind') -> countN
+
+		counts[[n + 1L]] <- countN
 	}
+
 	counts
+	
 }
 
 
