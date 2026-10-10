@@ -252,8 +252,7 @@ ppidyom_interpolation <- function(counts,
     if (exclusion)  is_excluded[!is_excluded & countsN$Ce > 0] <- TRUE
 
 	}
-
-  # Leftover remaining mass goes to the base distribution.
+ # Leftover remaining mass goes to the base distribution.
   P <- P + remaining * base_prob
 
   # Renormalize per timestep: handles floating-point drift and the IDyOM base
