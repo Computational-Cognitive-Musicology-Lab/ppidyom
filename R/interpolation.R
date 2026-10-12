@@ -200,70 +200,11 @@ ppm_interpolated <- function(
 }
 
 
-interpolation2 <- function(counts, 
-																	escape_func = escape_C, exclusion = TRUE, idyom_base = FALSE) {
-
-
-	T <- nrow(counts[[1]])
-	t_root <- counts[[1]]$t
-
-	par <- modelPar(counts)
-	alphabet <- par$alphabet
-
-
-
-
-  P             <- numeric(T) # accumulated probability
-  remaining     <- rep(1.0, T)    # R: ∏(esc_k) for k > current order
-  is_excluded   <- logical(T) # TRUE once Ce > 0 at any higher order
-
-	lapply(counts,
-				 \(countsN) {
-						escape <- escape_func(countsN$t, countsN$t1)
-
-						countsN[ , Numer := pmax(Ce - escape$subtract, 0L)]
-
-						countsN[ , Denom := C - (escape$subtract * t) + escape$esc_numer]
-
-						countsN[ , Escape := escape$esc_numer / Denom]
-
-						countsN[ , P := Numer / Denom]
-
-						countsN[ , Exclude := Ce > 0]
-				 })
-
-	# calculated baseline probability and insert into first sum
-	base_prob <- 1.0 / (if (exclusion) length(alphabet) + 1L - t_root else length(alphabet))
-	counts[[1]][ , Sum := P + base_prob * Escape]
-				 		
-	browser()
-	P <- Reduce(counts, f = \(N0, N) {
-
-						lags <- c('Sym', grep('Lag', colnames(N0), value = TRUE))
-						N[N0, on = lags, Sum := (Sum  * Escape) + P]
-						N
-				 })
-
-
-  # Leftover remaining mass goes to the base distribution.
-
-	browser()
-  # Renormalize per timestep: handles floating-point drift and the IDyOM base
-  # model (base does not integrate to 1 over the alphabet, so raw sum ≠ 1).
-	lags <- grep('Lag', colnames(P), value = TRUE)
-	P[ , P := Sum / sum(Sum), by = lags] 
-	P[P == Inf, P := 1 / length(alphabet)]
-
-	attr(P, 'modelPar') <- par
-
-	P
-
-
-}
 
 ppidyom_interpolation <- function(counts, 
 																	escape_func = escape_C, exclusion = TRUE, idyom_base = FALSE) {
 
+	totals_inplace(counts)
 
 	T <- nrow(counts[[1]])
 	t_root <- counts[[1]]$t
@@ -276,9 +217,7 @@ ppidyom_interpolation <- function(counts,
 	base_prob <- if (idyom_base) {
 		1.0 / (if (exclusion) length(alphabet) + 1L - t_root else length(alphabet))
 	} else { 
-		1.0 / (length(alphabet) + 1L - t_root) 
-
-		# In Ling's code, she seems to recompute t_root here and I'm not sure whyc(0, head(cumsum(!duplicated(counts[[1]]$Event)), -1L)))
+		1.0 / (length(alphabet) + 1L - t_root) # In Ling's code, she seems to recompute t_root here and I'm not sure whyc(0, head(cumsum(!duplicated(counts[[1]]$Event)), -1L)))
 	}
 
 
