@@ -227,8 +227,8 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 		if (n > 0L && update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', lags)]
 
 
-		if (n > 0L) {
-				ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = lags]
+		if (n > 0L || length(par$groupingFactors)) {
+				ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = c(lags, par$groupingFactors)]
 		} else {
 
 				ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L))]
