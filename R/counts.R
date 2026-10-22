@@ -214,7 +214,9 @@ stm_counts_experiment <- function(lag_matrix, alphabet = sort(unique(lag_matrix$
 
 
 
-ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
+# For the first n events of a piece there are fewer than n earlier events, so the order-n context contains NA lags.
+# ltm_start_token = TRUE counts these NA contexts like any other; ltm_start_token = FALSE skips them (matches IDyOM).
+ltm_counts <- function(lag_matrix,  update_exclusion = TRUE, ltm_start_token = TRUE) {
 
 	par <- modelPar(lag_matrix)
 
@@ -226,10 +228,14 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 	for (n in (par$N):0) {
 		lags <- if (n > 0) paste0('Lag', 1:n)
 	
-		ltm <- lag_matrix[ , list(Ce = .N), by = c('Event', lags, par$groupingFactors)]
+		# Rows with an NA in their order-n context (fewer than n earlier events in the piece); not counted at this order when ltm_start_token = FALSE.
+		incomplete <- if (n > 0L && !ltm_start_token) is.na(lag_matrix[[paste0('Lag', n)]]) else FALSE
 
+		ltm <- lag_matrix[!incomplete, list(Ce = .N), by = c('Event', lags, par$groupingFactors)]
 
-		if (n > 0L && update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', lags)]
+		# Update exclusion: only the first occurrence of each (event, context) reaches lower orders.
+		# NA-context rows skipped above were not counted at this order, so they all pass down to the next order.
+		if (n > 0L && update_exclusion) lag_matrix <- lag_matrix[incomplete | !duplicated(lag_matrix, by = c('Event', lags))]
 
 
     # Is it necessary to compute C, t, t1 here if we are computing these context-level values in totals_inplace()?
@@ -248,16 +254,17 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 		counts[[n + 1L]] <- ltm[]
 	
 	}
-	structure(counts, class = 'ltm_counts', update_exclusion = update_exclusion, modelPar = par)
+	structure(counts, class = 'ltm_counts', update_exclusion = update_exclusion, ltm_start_token = ltm_start_token, modelPar = par)
 
 }
 
-# BUG:
+# BUG: 
 # I see this is used for the leave-one-out training. 
 # Say expr = Piece!=3 and we remove Piece=3 here from the counts. 
 # What if update_exclusion=TRUE, and Piece 3 held the first occurrence of (Sym, context), 
 # and later pieces' counts were already excluded because of it.
 # Dropping piece 3 here doesn't restore them, so this may differ from training from scratch without Piece 3.
+# I am adding a Ce_full column (Ce before update exclusion) to the count table for shortest_deterministic, which can provide a way to solve this bug.
 ltm_index <- function(counts, expr) {
 	expr <- rlang::enquo(expr)
 
@@ -277,12 +284,11 @@ ltm_collapseGroups <- function(counts) {
   for (n in 0:(par$N)) {
 			lags <- if (n > 0) paste0('Lag', 1:n)
 
-			counts[[n + 1]] <- counts[[n + 1]][ , list(Ce = sum(Ce)), by = c('Event', lags)]
+			counts[[n + 1]] <- counts[[n + 1]][ , list(Ce = sum(Ce)), by = c('Sym', lags)] # ltm_counts() names the symbol column 'Sym'
 	}
-	par$groupingFactors <- NULL
+	par['groupingFactors'] <- list(NULL) # keep the element (par$x <- NULL would drop it and change modelPar's shape)
 	setattr(counts, 'modelPar', par)
 	counts
-		
 }
 
 ltm_cast <- function(counts) {
@@ -308,7 +314,12 @@ ltm_cast <- function(counts) {
 
 ltm2dynamic_counts <- function(counts, lag_matrix) {
 	#counts <- ltm_cast(counts)
+	# Sum per-piece counts into corpus counts first. The join below matches on context only, so separate rows
+	# for the same (symbol, context) in different pieces would duplicate symbols at a timestep and misalign the orders.
+	counts <- ltm_collapseGroups(counts)
 	par <- modelPar(counts)
+	# Output rows are the test sequence's timesteps, so they carry its grouping (combine_P() checks it matches the STM).
+	par['groupingFactors'] <- list(modelPar(lag_matrix)$groupingFactors)
 	# Use the union of the training and test alphabets, so test symbols the LTM never saw still get a row below.
 	par$alphabet <- union(modelPar(lag_matrix)$alphabet, par$alphabet)
 
