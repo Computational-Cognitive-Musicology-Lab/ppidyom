@@ -21,15 +21,20 @@ lag_matrix <- function(x, N = 3, ..., alphabet = sort(unique(x)), includeStart =
 	groupingFactors <- names(list(...))
 	lag_matrix <- data.table(Event = x, ...)
 	
-	lags <- paste0('Lag', 1:N)
+	# seq_len(N), not 1:N: with N = 0, 1:0 is c(1, 0) and would create Lag1 and Lag0 columns.
+  # If user wants to build a zeroth-order model, they can set N=0.
+	lags <- paste0('Lag', seq_len(N))
 
-	if (length(groupingFactors)) {
-		lag_matrix[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n)), by = groupingFactors]
-	} else{
-		lag_matrix[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n))]
+	if (N > 0L) {
+		if (length(groupingFactors)) {
+			lag_matrix[ , c(lags) := lapply(seq_len(N), \(n) data.table::shift(Event, n)), by = groupingFactors]
+		} else{
+			lag_matrix[ , c(lags) := lapply(seq_len(N), \(n) data.table::shift(Event, n))]
+		}
 	}
 
-	if (!includeStart) lag_matrix <- lag_matrix[!is.na(lag_matrix[[paste0('Lag', N)]])]
+	# N = 0 has no lag columns, so every context is complete and nothing is dropped.
+	if (!includeStart && N > 0L) lag_matrix <- lag_matrix[!is.na(lag_matrix[[paste0('Lag', N)]])]
 
 	lag_matrix[, index := 1:nrow(lag_matrix)]
 	
@@ -144,12 +149,13 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 
 	par        <- modelPar(lag_matrix)
 
-	counts <- vector('list', length(par$N) + 1L)
+	counts <- vector('list', par$N + 1L) # one table per order 0..N (length(par$N) is always 1, which left N = 0 with an empty slot)
 
 	lag_matrix[, EventMutable := Event]
 	# EventMutable starts the same as Event, but if update_exclusion = TRUE, on each pass some events are set to "" (excluding them from later pass)
 
-	expanded <- lag_matrix[CJ(index, Sym = Event, unique = TRUE), on = 'index']
+	# Expand over the full alphabet, not just the symbols in x, so symbols absent from this sequence still get a row (and their share of the base probability).
+	expanded <- lag_matrix[CJ(index, Sym = par$alphabet, unique = TRUE), on = 'index']
 
 	for (n in (par$N):0) {
 
@@ -164,10 +170,9 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 
 		expanded[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = index]
 
-			
-
 		counts[[n + 1L]] <- expanded[ , .SD, .SDcols = c('Event', 'Sym', 'index', par$groupingFactors, 'C','t','t1','Ce', lags)]
-
+    # ppidyom_interpolation() combines orders by row position, so every order's table must list the same (timestep, symbol) pairs in the same order.
+    setorder(counts[[n + 1L]], index, Sym)
 	}
 
 	structure(counts, class = 'stm_counts', update_exclusion = update_exclusion, modelPar = par)
@@ -213,7 +218,7 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 
 	par <- modelPar(lag_matrix)
 
-	counts <- vector('list', length(par$N) + 1L)
+	counts <- vector('list', par$N + 1L) # one table per order 0..N
 
 	alphabet <- par$alphabet
 	tmp <- integer(length(alphabet))
@@ -227,6 +232,9 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 		if (n > 0L && update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', lags)]
 
 
+    # Is it necessary to compute C, t, t1 here if we are computing these context-level values in totals_inplace()?
+    # Including these columns here also means that setnafill() in ltm2dynamic_counts() will fill them with 0 for unseen symbols
+    # after this lags context, but Ce=0 doesn't mean C, t, and t1 are 0.
 		if (n > 0L) {
 				ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = lags]
 		} else {
@@ -244,6 +252,12 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 
 }
 
+# BUG:
+# I see this is used for the leave-one-out training. 
+# Say expr = Piece!=3 and we remove Piece=3 here from the counts. 
+# What if update_exclusion=TRUE, and Piece 3 held the first occurrence of (Sym, context), 
+# and later pieces' counts were already excluded because of it.
+# Dropping piece 3 here doesn't restore them, so this may differ from training from scratch without Piece 3.
 ltm_index <- function(counts, expr) {
 	expr <- rlang::enquo(expr)
 
@@ -295,6 +309,8 @@ ltm_cast <- function(counts) {
 ltm2dynamic_counts <- function(counts, lag_matrix) {
 	#counts <- ltm_cast(counts)
 	par <- modelPar(counts)
+	# Use the union of the training and test alphabets, so test symbols the LTM never saw still get a row below.
+	par$alphabet <- union(modelPar(lag_matrix)$alphabet, par$alphabet)
 
 	new_counts <- list()
 
@@ -317,13 +333,14 @@ ltm2dynamic_counts <- function(counts, lag_matrix) {
 	
 		# get complete distribution for each index
 
-		new <- new[CJ(index = unique(index), Sym = unique(Sym)), on = c('index', 'Sym')]
+		new <- new[CJ(index = lag_matrix$index, Sym = par$alphabet, unique = TRUE), on = c('index', 'Sym')]
 		setnafill(new, fill = 0L, cols = setdiff(colnames(new), c('Event', 'index', 'Sym', lags)))
+		# Rows added by the CJ join have no Event; restore it from the timestep so get_p() can find the actual event.
+		new[ , Event := lag_matrix$Event[match(index, lag_matrix$index)]]
 
 		new_counts[[n + 1L]] <- new
 	}
-	
-	par$alphabet <- union(modelPar(lag_matrix)$alphabet, par$alphabet)
+
 	setattr(new_counts, 'modelPar', par)
 	new_counts
 
@@ -352,7 +369,7 @@ precompute_contexts <- function(lag_matrix, N) {
 
 	context_list[[1]] <- rep('ROOT', nrow(lag_matrix))
 
-  for (n in 1:N) {
+  for (n in seq_len(N)) {
       cols <- paste0("Lag", n:1)
       context_list[[n + 1]] <- do.call(paste, c(lag_matrix[, ..cols], sep = "_"))
   }
