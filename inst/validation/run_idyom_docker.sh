@@ -3,13 +3,15 @@
 # reference-data generator script inside it.
 #
 # Usage (from the repo root or from inst/validation/):
-#   bash inst/validation/run_idyom_docker.sh
+#   bash inst/validation/run_idyom_docker.sh                                  # main fixture
+#   bash inst/validation/run_idyom_docker.sh generate_idyom_sd_reference.py   # shortest-deterministic fixture
 #
-# Output: tests/testthat/fixtures/idyom_reference_ic.csv
+# Output: tests/testthat/fixtures/idyom_reference_ic.csv (or idyom_reference_sd.csv)
 
 set -euo pipefail
 
 IMAGE="ppidyom-idyom-validation"
+GENERATOR="${1:-generate_idyom_reference.py}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
@@ -26,13 +28,12 @@ else
 fi
 
 echo ""
-echo "Running generate_idyom_reference.py inside container..."
+echo "Running $GENERATOR inside container..."
 docker run --rm \
     -v "$REPO_ROOT:/work" \
     -w "/work/inst/validation" \
     "$IMAGE" \
-    python3 generate_idyom_reference.py
+    python3 "$GENERATOR"
 
 echo ""
-echo "Done. Fixture written to:"
-echo "  $REPO_ROOT/tests/testthat/fixtures/idyom_reference_ic.csv"
+echo "Done. Fixture written to tests/testthat/fixtures/ (see the generator's output above)."

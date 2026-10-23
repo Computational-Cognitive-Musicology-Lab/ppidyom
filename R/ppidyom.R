@@ -356,11 +356,13 @@ ppidyom_run <- function(x, N = 3, update_exclusion = TRUE, base = 2, ...) {
 	lag_matrix <- lag_matrix(x, N = N, ...)
 
 
-	stm_counts(lag_matrix, update_exclusion) |> 
+	stm_counts(lag_matrix, update_exclusion) |>
+	shortest_deterministic() |> # no-op unless N = NULL
 	ppidyom_interpolation() -> stmP
 
-	ltm_counts(lag_matrix, update_exclusion) |> 
-		ltm2dynamic_counts(lag_matrix) |> 
+	ltm_counts(lag_matrix, update_exclusion) |>
+		ltm2dynamic_counts(lag_matrix) |>
+		shortest_deterministic() |> # no-op unless N = NULL
 		ppidyom_interpolation() -> ltmP
 
 

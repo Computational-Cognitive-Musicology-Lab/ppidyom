@@ -20,7 +20,12 @@ lag_matrix <- function(x, N = 3, ..., alphabet = sort(unique(x)), includeStart =
 
 	groupingFactors <- names(list(...))
 	lag_matrix <- data.table(Event = x, ...)
-	
+
+	# N = NULL: no order bound + shortest-deterministic selection (IDyOM :order-bound nil)
+  # N (max order bound) = longest repeated context, as longer ones are never seen.
+	shortestDeterministic <- is.null(N)
+	if (shortestDeterministic) N <- effective_order_bound(x)
+
 	# seq_len(N), not 1:N: with N = 0, 1:0 is c(1, 0) and would create Lag1 and Lag0 columns.
   # If user wants to build a zeroth-order model, they can set N=0.
 	lags <- paste0('Lag', seq_len(N))
@@ -39,10 +44,26 @@ lag_matrix <- function(x, N = 3, ..., alphabet = sort(unique(x)), includeStart =
 	lag_matrix[, index := 1:nrow(lag_matrix)]
 	
 
-	setattr(lag_matrix, 'modelPar', list(alphabet = alphabet, groupingFactors = groupingFactors, N = N)) 
+	setattr(lag_matrix, 'modelPar', list(alphabet = alphabet, groupingFactors = groupingFactors, N = N,
+	                                     shortestDeterministic = shortestDeterministic))
 
   lag_matrix[]
 
+}
+
+# Order bound for N = NULL: the longest context that occurs more than once in x (longer contexts are never seen, so never used);
+# The effective order bound estimation ignores pieces, so it can only overestimate.
+# LTM model should pass training + test.
+effective_order_bound <- function(x) {
+	ctx <- data.table(index = seq_along(x))
+	for (n in seq_along(x)) {
+		ctx <- ctx[index > n]                                                 # timesteps with at least n preceding events
+		ctx[ , (paste0('Lag', n)) := x[index - n]]                            # add the n-th preceding event to each context
+		lags <- paste0('Lag', 1:n)
+		ctx <- ctx[duplicated(ctx, by = lags) | duplicated(ctx, by = lags, fromLast = TRUE)] # keep contexts that repeat
+		if (!nrow(ctx)) return(n - 1L)                                        # no length-n context repeats, so n-1 is the longest context
+	}
+	0L
 }
 
 
@@ -166,11 +187,16 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 
 		expanded[, Ce := cumgroup(Sym == EventMutable, .SD), .SDcols = c('Sym', lags, par$groupingFactors)]
 
+		# Full counts (no update exclusion), used by N = NULL only
+    # to prevent update exclusion from higher order to affect the count if we use a lower start order according to shortest-deterministic
+		if (par$shortestDeterministic) expanded[, Ce_full := cumgroup(Sym == Event, .SD), .SDcols = c('Sym', lags, par$groupingFactors)]
+
 		if (n > 0L && update_exclusion) expanded[Ce > 0L, EventMutable := '']
 
 		expanded[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = index]
 
-		counts[[n + 1L]] <- expanded[ , .SD, .SDcols = c('Event', 'Sym', 'index', par$groupingFactors, 'C','t','t1','Ce', lags)]
+		counts[[n + 1L]] <- expanded[ , .SD, .SDcols = c('Event', 'Sym', 'index', par$groupingFactors, 'C','t','t1','Ce',
+		                                                 if (par$shortestDeterministic) 'Ce_full', lags)]
     # ppidyom_interpolation() combines orders by row position, so every order's table must list the same (timestep, symbol) pairs in the same order.
     setorder(counts[[n + 1L]], index, Sym)
 	}
@@ -225,6 +251,19 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE, ltm_start_token = T
 	alphabet <- par$alphabet
 	tmp <- integer(length(alphabet))
 
+  # keep a copy for Ce_full for shortest-deterministic start order. lag_matrix itself is filtered by update exclusion below
+	full <- lag_matrix 
+	# N = NULL only: IDyOM counts a piece's end as a continuation, so a context that has been seen before and also ended a piece is NOT deterministic.
+	if (par$shortestDeterministic) {
+		allLags <- if (par$N > 0L) paste0('Lag', seq_len(par$N)) # (paste0('Lag', integer(0)) would give "Lag")
+    # Record each piece's last row
+		last <- if (length(par$groupingFactors)) full[ , .SD[.N], by = c(par$groupingFactors)] else full[.N]
+		pieceEnds <- last[ , c('Event', head(allLags, -1L)), with = FALSE]
+		setnames(pieceEnds, c(allLags, if (par$N == 0L) 'Event'))
+    # Empty list to be filled out at each order
+		ends <- vector('list', par$N + 1L)                                         
+	}
+
 	for (n in (par$N):0) {
 		lags <- if (n > 0) paste0('Lag', 1:n)
 	
@@ -232,6 +271,17 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE, ltm_start_token = T
 		incomplete <- if (n > 0L && !ltm_start_token) is.na(lag_matrix[[paste0('Lag', n)]]) else FALSE
 
 		ltm <- lag_matrix[!incomplete, list(Ce = .N), by = c('Event', lags, par$groupingFactors)]
+
+		# Full counts (no update exclusion) for N = NULL, counted from every row.
+		if (par$shortestDeterministic) {
+			skip <- if (n > 0L && !ltm_start_token) is.na(full[[paste0('Lag', n)]]) else FALSE
+			keys <- c('Event', lags, par$groupingFactors)
+			ltm[full[!skip, list(N = .N), by = keys], Ce_full := i.N, on = keys]
+
+      # Dedupe endings with the same lags and record per-order ends for use in shortest-deterministic selection.
+			endSkip <- if (n > 0L && !ltm_start_token) is.na(pieceEnds[[paste0('Lag', n)]]) else FALSE
+			ends[[n + 1L]] <- unique(pieceEnds[!endSkip, lags, with = FALSE])
+		}
 
 		# Update exclusion: only the first occurrence of each (event, context) reaches lower orders.
 		# NA-context rows skipped above were not counted at this order, so they all pass down to the next order.
@@ -254,7 +304,8 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE, ltm_start_token = T
 		counts[[n + 1L]] <- ltm[]
 	
 	}
-	structure(counts, class = 'ltm_counts', update_exclusion = update_exclusion, ltm_start_token = ltm_start_token, modelPar = par)
+	structure(counts, class = 'ltm_counts', update_exclusion = update_exclusion, ltm_start_token = ltm_start_token,
+	          ends = if (par$shortestDeterministic) ends, modelPar = par)
 
 }
 
@@ -284,7 +335,8 @@ ltm_collapseGroups <- function(counts) {
   for (n in 0:(par$N)) {
 			lags <- if (n > 0) paste0('Lag', 1:n)
 
-			counts[[n + 1]] <- counts[[n + 1]][ , list(Ce = sum(Ce)), by = c('Sym', lags)] # ltm_counts() names the symbol column 'Sym'
+			Ce.cols <- intersect(c('Ce', 'Ce_full'), names(counts[[n + 1]])) # Ce_full exists only for N = NULL
+			counts[[n + 1]] <- counts[[n + 1]][ , lapply(.SD, sum), by = c('Sym', lags), .SDcols = Ce.cols] # ltm_counts() names the symbol column 'Sym'
 	}
 	par['groupingFactors'] <- list(NULL) # keep the element (par$x <- NULL would drop it and change modelPar's shape)
 	setattr(counts, 'modelPar', par)
@@ -349,6 +401,19 @@ ltm2dynamic_counts <- function(counts, lag_matrix) {
 		# Rows added by the CJ join have no Event; restore it from the timestep so get_p() can find the actual event.
 		new[ , Event := lag_matrix$Event[match(index, lag_matrix$index)]]
 
+		# N = NULL only: SeenAtEnd = TRUE if this timestep's context was seen at the end of a training piece (one more continuation).
+		ends <- attr(counts, 'ends')
+		if (!is.null(ends)) {
+			if (n == 0L) {
+        # order 0 (no context): every piece ended with <NA>
+				seenAtEndIndex <- lag_matrix$index
+			} else {
+         # timesteps whose order-n context has been seen at ending of some training pieces
+				seenAtEndIndex <- lag_matrix[ends[[n + 1L]], on = lags, nomatch = NULL, index]
+			}
+			new[ , SeenAtEnd := index %in% seenAtEndIndex]
+		}
+
 		new_counts[[n + 1L]] <- new
 	}
 
@@ -363,6 +428,49 @@ totals <- function(counts) lapply(counts, \(countN) countN[, list(Event = Event,
 totals_inplace <- function(counts) {
 	for (i in seq_along(counts)) {
 		counts[[i]][ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0), sum(Ce == 1)), by = index]
+	}
+	counts
+}
+
+# Shortest-deterministic selection (IDyOM :order-bound nil): rewrites Ce so each timestep starts at its shortest deterministic order.
+shortest_deterministic <- function(counts) {
+	par <- modelPar(counts)
+	if (!isTRUE(par$shortestDeterministic)) return(counts)
+
+	nSymbols <- length(par$alphabet)                                   # rows per timestep in every order's table
+	nTimesteps <- nrow(counts[[1]]) / nSymbols
+
+	# Distinct followers per timestep at one order: distinct symbols that followed the context, plus 1 (the piece ending) if it was seen at the end of a piece.
+	countDistinctFollowers <- function(orderCounts) {
+    # symbol x timestep grid: has this symbol followed this timestep's context?
+		followedGrid <- matrix(orderCounts$Ce_full > 0L, nrow = nSymbols)
+    # distinct symbols that followed the context per timestep
+		distinctFollowersPerTimestep <- colSums(followedGrid)                            
+		if (!is.null(orderCounts$SeenAtEnd)) {
+      # SeenAtEnd is the same on all rows of a timestep
+			firstRowOfTimestep <- seq(1L, by = nSymbols, length.out = nTimesteps) 
+      # +1 if the context was seen at the end of a piece
+			distinctFollowersPerTimestep <- distinctFollowersPerTimestep + orderCounts$SeenAtEnd[firstRowOfTimestep] 
+		}
+		distinctFollowersPerTimestep
+	}
+	distinctFollowersByOrder <- matrix(vapply(counts, countDistinctFollowers, numeric(nTimesteps)), nrow = nTimesteps) # timestep x order
+
+	# If order n was seen, its shorter suffixes (orders 0..n-1) were too.
+	longestSeenOrder <- pmax(rowSums(distinctFollowersByOrder > 0L) - 1L, 0L)
+	# number of deterministic orders among 1..longest. order 0 is never deterministic in IDyOM.
+	nDeterministic <- rowSums(distinctFollowersByOrder[ , -1L, drop = FALSE] == 1L)
+  # Deterministic orders are the top nDeterministic seen orders, so the shortest is nDeterministic - 1 below the longest.
+	startOrder <- longestSeenOrder - pmax(nDeterministic - 1L, 0L)
+
+  # Repeat each timestep's values nSymbols times, one per row of counts[[n]].
+	rowStartOrder <- rep(startOrder, each = nSymbols)
+	rowLongestOrder <- rep(longestSeenOrder, each = nSymbols)
+	for (n in seq_along(counts) - 1L) {
+    # orders above the start are skipped by zeroing their Ce (escape probability 1)
+		counts[[n + 1L]][n > rowStartOrder, Ce := 0L]
+    # When start order is lower than longest seen order, use Ce_full before update exclusion for that order
+		counts[[n + 1L]][n == rowStartOrder & rowStartOrder < rowLongestOrder, Ce := Ce_full]
 	}
 	counts
 }
