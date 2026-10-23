@@ -240,3 +240,36 @@ test_that("run_ppidyom (STM) matches ppm: all escape × exclusion × update_excl
   }
 })
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 6. OPTIMIZED PIPELINE vs PPM — full grid: escape × exclusion × update_exclusion × N
+#    lag_matrix() → stm_counts() → ppidyom_interpolation(), STM + interpolation.
+#    idyom_base = FALSE (default) matches ppm's shrinking order-(-1) base.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Run the optimized STM pipeline and return IC for the observed sequence.
+optimized_stm_ic <- function(x, alphabet, N, method, exclusion, update_exclusion) {
+  counts <- stm_counts(lag_matrix(x, N = N, alphabet = alphabet), update_exclusion = update_exclusion)
+  P      <- ppidyom_interpolation(counts, escape_func = escape_functions[[method]], exclusion = exclusion)
+  -log2(get_p(P))
+}
+
+test_that("optimized pipeline (STM) matches ppm: all escape × exclusion × update_exclusion × N", {
+  for (m in names(escape_functions)) {   # A B C D X
+    for (excl in c(FALSE, TRUE)) {
+      for (upd in c(FALSE, TRUE)) {
+        for (N in c(1, 3, 5)) {
+          label <- sprintf("optimized STM m=%s excl=%s upd=%s N=%d", m, excl, upd, N)
+          for (x in list(x1, x2)) {
+            compare_ic(
+              optimized_stm_ic(x, alphabet, N, m, excl, upd),
+              ppm_stm_ic      (x, alphabet, N = N, method = m,
+                               exclusion = excl, update_exclusion = upd),
+              label = label
+            )
+          }
+        }
+      }
+    }
+  }
+})

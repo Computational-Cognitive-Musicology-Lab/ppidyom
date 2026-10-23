@@ -19,10 +19,13 @@ library(data.table)
 #                            parameter space every run; printed at test time, so set
 #                            it explicitly to reproduce a specific failure)
 #   IDYOM_FUZZ_ORDER_BOUND - "3" (default), "nil" or "random" (per trial).
-#                            "nil" runs IDyOM with :order-bound nil against the
-#                            shortest-deterministic pipeline (lag_matrix(N = NULL) ->
-#                            stm_counts()/ltm_counts() -> shortest_deterministic() ->
-#                            ppidyom_interpolation()), which covers interpolated STM and LTM.
+#                            "nil" runs IDyOM with :order-bound nil against the optimized
+#                            pipeline with N = NULL (shortest deterministic), which covers
+#                            interpolated STM and LTM.
+#
+# With order bound 3, ppidyomModel is checked on every trial, and the optimized pipeline
+# (lag_matrix() -> stm_counts()/ltm_counts() -> ppidyom_interpolation()) is also checked
+# on interpolated STM and LTM trials, against the same IDyOM run.
 # ══════════════════════════════════════════════════════════════════════════════
 
 DOCKER_IMG <- "ppidyom-idyom-validation"
@@ -36,8 +39,10 @@ if (Sys.getenv("RUN_IDYOM_FUZZ_TESTS") != "true") {
   )
 } else if (Sys.which("docker") == "") {
   skip_reason <- "Docker not found on PATH."
-} else if (system2("docker", c("image", "inspect", DOCKER_IMG),
-                    stdout = FALSE, stderr = FALSE) != 0) {
+} else if (!nzchar(paste(system2("docker", c("images", "-q", DOCKER_IMG),
+                                  stdout = TRUE, stderr = FALSE), collapse = ""))) {
+  # `docker images -q`, as in run_idyom_docker.sh: `docker image inspect` intermittently
+  # reports existing images as missing under Docker Desktop, which would skip every trial.
   skip_reason <- paste(
     "Docker image", DOCKER_IMG, "not built.",
     "Run: bash inst/validation/run_idyom_docker.sh"
@@ -83,27 +88,31 @@ if (is.null(skip_reason)) {
     res[observed, on = .(index, Event)][, .(index, Event, P, IC, Entropy)]
   }
 
-  # ── ppidyom side, shortest deterministic (:order-bound nil) ─────────────────
+  # ── ppidyom side, optimized pipeline (interpolated STM / LTM) ───────────────
+  # lag_matrix() -> stm_counts() / ltm_counts() -> shortest_deterministic() -> ppidyom_interpolation().
+  # N = NULL is :order-bound nil (shortest deterministic); a number is a fixed order bound.
   pp2escape <- list(A = escape_A, B = escape_B, C = escape_C, D = escape_D, X = escape_AX)
 
-  ppidyom_predict_sd <- function(x, cfg) {
+  ppidyom_predict_optimized <- function(x, cfg, N) {
     if (cfg$model == "stm") {
-      counts <- stm_counts(lag_matrix(x, N = NULL, alphabet = alphabet), update_exclusion = cfg$stm_update_exclusion)
+      counts <- stm_counts(lag_matrix(x, N = N, alphabet = alphabet), update_exclusion = cfg$stm_update_exclusion)
     } else {
       # No train/test entry point for N = NULL yet: the bound must cover test contexts
       # that occur in training, so compute it from both and mark the training lag matrix.
-      N_ltm <- effective_order_bound(c(unlist(train_seqs), x))
+      N_ltm <- if (is.null(N)) effective_order_bound(c(unlist(train_seqs), x)) else N
       train <- lag_matrix(unlist(train_seqs), N = N_ltm, alphabet = alphabet,
                           Piece = rep(seq_along(train_seqs), lengths(train_seqs)))
-      par <- modelPar(train)
-      par$shortestDeterministic <- TRUE
-      setattr(train, "modelPar", par)
+      if (is.null(N)) {
+        par <- modelPar(train)
+        par$shortestDeterministic <- TRUE
+        setattr(train, "modelPar", par)
+      }
       counts <- ltm_counts(train, update_exclusion = cfg$ltm_update_exclusion, ltm_start_token = FALSE)
       counts <- ltm2dynamic_counts(counts, lag_matrix(x, N = N_ltm, alphabet = alphabet))
     }
     side <- if (cfg$model == "stm") "stm" else "ltm"
     P <- ppidyom_interpolation(
-      shortest_deterministic(counts),
+      shortest_deterministic(counts),   # no-op for a fixed N
       escape_func = pp2escape[[cfg[[paste0(side, "_escape")]]]],
       exclusion   = cfg[[paste0(side, "_exclusion")]],
       idyom_base  = TRUE
@@ -180,7 +189,7 @@ if (is.null(skip_reason)) {
   set.seed(seed)
 
   models   <- c("stm", "ltm", "ltm+", "both", "both+")
-  sd_models <- c("stm", "ltm")   # what the shortest-deterministic pipeline covers (interpolated)
+  sd_models <- c("stm", "ltm")   # what the optimized pipeline covers (interpolated)
   escapes  <- names(idyom2pp)
   bs       <- c(1, 3, 7, 10)
   order_bound_env <- Sys.getenv("IDYOM_FUZZ_ORDER_BOUND", "3")
@@ -213,7 +222,7 @@ if (is.null(skip_reason)) {
 
     test_that(paste("random fuzz:", label), {
       x    <- test_seqs[[cfg$seq_label]]
-      pp   <- if (cfg$order_bound == "nil") ppidyom_predict_sd(x, cfg) else ppidyom_predict(x, cfg)
+      pp   <- if (cfg$order_bound == "nil") ppidyom_predict_optimized(x, cfg, NULL) else ppidyom_predict(x, cfg)
       work <- tempfile("idyom_fuzz_")
       dir.create(work)
       on.exit(unlink(work, recursive = TRUE), add = TRUE)
@@ -222,6 +231,13 @@ if (is.null(skip_reason)) {
 
       expect_equal(merged$IC, merged$IC_idyom, tolerance = TOLERANCE, label = paste("IC", label))
       expect_equal(merged$Entropy, merged$H_idyom, tolerance = TOLERANCE, label = paste("Entropy", label))
+
+      # Fixed order bound: also check the optimized pipeline where it applies (same IDyOM run).
+      if (cfg$order_bound == "3" && cfg$model %in% sd_models && cfg$mixtures) {
+        opt <- ppidyom_predict_optimized(x, cfg, N)[idy, on = .(index, Event)]
+        expect_equal(opt$IC, opt$IC_idyom, tolerance = TOLERANCE, label = paste("optimized IC", label))
+        expect_equal(opt$Entropy, opt$H_idyom, tolerance = TOLERANCE, label = paste("optimized Entropy", label))
+      }
     })
   }
 }

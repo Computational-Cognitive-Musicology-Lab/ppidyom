@@ -87,3 +87,19 @@ test_that("detrain_sequence restores LTM state with ltm_update_exclusion=TRUE", 
   )
 })
 
+
+test_that("ppidyom_run returns one valid probability per event", {
+  x     <- c("I","IV","V","I","I","IV","I","V","I")
+  piece <- c(1, 1, 1, 1, 2, 2, 2, 2, 2)
+
+  for (N in list(2, NULL)) {   # fixed order bound, and shortest deterministic
+    plain   <- ppidyom_run(x, N = N)
+    grouped <- ppidyom_run(x, N = N, Piece = piece)
+    for (res in list(plain, grouped)) {
+      expect_equal(nrow(res), length(x))
+      expect_equal(res$Symbol, x)
+      expect_true(all(res$P > 0 & res$P <= 1))
+      expect_false(anyNA(res$H))
+    }
+  }
+})

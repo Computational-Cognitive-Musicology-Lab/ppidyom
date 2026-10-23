@@ -28,3 +28,23 @@ test_that("probability distributions sum to 1 at each timestep", {
   sums <- result[, .(total = sum(P)), by = index]
   expect_true(all(abs(sums$total - 1) < 1e-9))
 })
+
+test_that("optimized pipeline: observed probabilities in (0, 1] and distributions sum to 1", {
+
+  set.seed(42)
+  alphabet <- LETTERS[1:5]
+  x <- sample(alphabet, 50, replace = TRUE)
+
+  for (N in list(3, NULL)) {   # fixed order bound, and shortest deterministic
+    counts <- shortest_deterministic(stm_counts(lag_matrix(x, N = N, alphabet = alphabet)))
+    result <- ppidyom_interpolation(counts, exclusion = TRUE)
+
+    p <- get_p(result)
+    expect_length(p, length(x))
+    expect_true(all(p > 0))
+    expect_true(all(p <= 1))
+
+    sums <- result[, .(total = sum(P)), by = index]
+    expect_true(all(abs(sums$total - 1) < 1e-9))
+  }
+})

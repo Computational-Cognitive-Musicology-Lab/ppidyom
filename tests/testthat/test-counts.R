@@ -122,3 +122,49 @@ test_that("LTM prior counts accumulate correctly", {
   expect_equal(actual_ltm2$t1, expected_ltm2$t1)
 })
 
+
+
+# ── Optimized pipeline: same expected counts from stm_counts() / ltm_counts() ──
+# count_tables() defaults: no update exclusion, ltm_start_token = TRUE.
+# stm_counts() tables are sorted by (index, Sym), matching the expected row order.
+# ltm_counts() tables are sparse (only pairs that occurred), so they are compared
+# on the non-zero counts.
+
+test_that("optimized STM exact counts for order 0 match expectations", {
+  stm0 <- stm_counts(lag_matrix(seq1, N = N, alphabet = alphabet), update_exclusion = FALSE)[[1]]
+  expect_equal(stm0$Ce, expected_stm_order0$Ce)
+  expect_equal(stm0$C,  expected_stm_order0$C)
+  expect_equal(stm0$t,  expected_stm_order0$t)
+  expect_equal(stm0$t1, expected_stm_order0$t1)
+})
+
+test_that("optimized LTM exact counts for order 0 match expectations", {
+  ltm0 <- ltm_counts(lag_matrix(seq1, N = N, alphabet = alphabet), update_exclusion = FALSE)[[1]]
+  setorder(ltm0, Sym)
+  expect_equal(ltm0$Sym, expected_ltm_order0$Event)
+  expect_equal(ltm0$Ce,  expected_ltm_order0$Ce)
+  expect_equal(ltm0$C,   expected_ltm_order0$C)
+  expect_equal(ltm0$t,   expected_ltm_order0$t)
+  expect_equal(ltm0$t1,  expected_ltm_order0$t1)
+})
+
+test_that("optimized LTM counts accumulate across training pieces", {
+  seq2 <- c("C","A","B","A")
+
+  # STM order 2 for seq2 alone: every context is new, so all counts are 0.
+  stm2 <- stm_counts(lag_matrix(seq2, N = N, alphabet = alphabet), update_exclusion = FALSE)[[3]]
+  expect_equal(stm2$Ce, expected_stm_order2$Ce)
+  expect_equal(stm2$C,  expected_stm_order2$C)
+
+  # LTM trained on seq1 then seq2, one piece each, summed across pieces.
+  train <- lag_matrix(c(seq1, seq2), N = N, alphabet = alphabet, Piece = rep(1:2, each = 4))
+  ltm2  <- ltm_collapseGroups(ltm_counts(train, update_exclusion = FALSE))[[3]]
+  ltm2[ , context_id := paste(ifelse(is.na(Lag2), "NA", Lag2), ifelse(is.na(Lag1), "NA", Lag1), sep = "_")]
+  setorderv(ltm2, c("context_id", "Sym"))
+
+  expected <- data.table::copy(expected_ltm_order2)[Ce > 0]
+  setorderv(expected, c("context_id", "Event"))
+  expect_equal(ltm2$context_id, expected$context_id)
+  expect_equal(ltm2$Sym,        expected$Event)
+  expect_equal(ltm2$Ce,         expected$Ce)
+})

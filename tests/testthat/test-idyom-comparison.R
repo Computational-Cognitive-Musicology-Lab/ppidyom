@@ -6,6 +6,8 @@ library(data.table)
 #
 # Compares ppidyom IC/entropy against ground-truth IDyOM (Common Lisp) output.
 # For STM configs, also validates the three-way ppidyom ↔ ppm ↔ IDyOM match.
+# For interpolated STM and LTM configs, also checks the optimized pipeline
+# (lag_matrix() → stm_counts() / ltm_counts() → ppidyom_interpolation()).
 #
 # PREREQUISITES — run once before this test suite:
 #   bash inst/validation/run_idyom_docker.sh
@@ -87,6 +89,35 @@ ppidyom_predict <- function(x, cfg) {
   # Filter to observed events (result has one row per symbol per timestep)
   observed <- data.table(index = seq_along(x), Event = x)
   res[observed, on = .(index, Event)]
+}
+
+# IDyOM escape code → escape function, for the optimized pipeline.
+idyom2escape <- list(a = escape_A, b = escape_B, c = escape_C, d = escape_D, x = escape_AX)
+
+# Run the optimized pipeline (lag_matrix() → stm_counts() / ltm_counts() →
+# ppidyom_interpolation()) at the same order bound N, and return a data.table
+# of (IC, Entropy) for observed events. Covers interpolated STM and LTM.
+optimized_predict <- function(x, cfg) {
+  if (cfg$model == "stm") {
+    counts <- stm_counts(lag_matrix(x, N = N, alphabet = alphabet),
+                         update_exclusion = as.logical(cfg$stm_update_exclusion))
+  } else {
+    train <- lag_matrix(unlist(train_seqs), N = N, alphabet = alphabet,
+                        Piece = rep(seq_along(train_seqs), lengths(train_seqs)))
+    # IDyOM does not include beginning-of-sequence positions in LTM counts.
+    counts <- ltm_counts(train,
+                         update_exclusion = as.logical(cfg$ltm_update_exclusion),
+                         ltm_start_token  = FALSE)
+    counts <- ltm2dynamic_counts(counts, lag_matrix(x, N = N, alphabet = alphabet))
+  }
+  side <- if (cfg$model == "stm") "stm" else "ltm"
+  P <- ppidyom_interpolation(
+    counts,
+    escape_func = idyom2escape[[cfg[[paste0(side, "_escape")]]]],
+    exclusion   = as.logical(cfg[[paste0(side, "_exclusion")]]),
+    idyom_base  = TRUE
+  )
+  data.table(IC = -log2(get_p(P)), Entropy = get_H(P))
 }
 
 # Run ppm package STM and return IC vector (STM comparison only).
@@ -174,6 +205,23 @@ if (file.exists(FIXTURE)) {
           label = paste("Entropy", label)
         )
       })
+
+      # ── Optimized pipeline vs IDyOM (interpolated STM / LTM) ─────────────
+      if (m %in% c("stm", "ltm") && isTRUE(as.logical(mix))) {
+        test_that(paste("optimized pipeline vs IDyOM:", label), {
+          pp <- optimized_predict(x, cfg)
+          expect_equal(
+            pp$IC,      ref_rows$IC_idyom,
+            tolerance = TOLERANCE,
+            label = paste("optimized IC",      label)
+          )
+          expect_equal(
+            pp$Entropy, ref_rows$H_idyom,
+            tolerance = TOLERANCE,
+            label = paste("optimized Entropy", label)
+          )
+        })
+      }
 
       # ── ppidyom vs ppm (STM only — ppm package has no LTM) ───────────────
       # Only compare against ppm when stm_exclusion=TRUE and mixtures=TRUE:
