@@ -14,27 +14,22 @@ library(data.table)
 #' @examples
 #' lag_matrix(c("A", "B", "A", "C", "A"), N = 2)
 #' @export
-lag_matrix <- function(x, N = 3, ..., alphabet = sort(unique(x)), includeStart = TRUE) {
+lag_matrix <- function(x, N = 3, ltmGroups = integer(length(x)), alphabet = sort(unique(x)), includeStart = TRUE) {
 
 	alphabetCheck(x, alphabet)
 
-	groupingFactors <- names(list(...))
-	lag_matrix <- data.table(Event = x, ...)
+	lag_matrix <- data.table(Event = x, ltmGroups = ltmGroups)
 	
 	lags <- paste0('Lag', 1:N)
 
-	if (length(groupingFactors)) {
-		lag_matrix[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n)), by = groupingFactors]
-	} else{
-		lag_matrix[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n))]
-	}
+	lag_matrix[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n)), by = ltmGroups]
 
 	if (!includeStart) lag_matrix <- lag_matrix[!is.na(lag_matrix[[paste0('Lag', N)]])]
 
 	lag_matrix[, index := 1:nrow(lag_matrix)]
 	
 
-	setattr(lag_matrix, 'modelPar', list(alphabet = alphabet, groupingFactors = groupingFactors, N = N)) 
+	setattr(lag_matrix, 'modelPar', list(alphabet = alphabet, ltmGroups = ltmGroups, N = N)) 
 
   lag_matrix[]
 
@@ -159,21 +154,16 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 	for (n in (par$N):0) {
 		lags <- if (n > 0) paste0('Lag', 1:n)
 	
-		ltm <- lag_matrix[ , list(Ce = .N), by = c('Event', lags, par$groupingFactors)]
+		ltm <- lag_matrix[ , list(Ce = .N), by = c('Event', lags, 'ltmGroups')]
 
 
-		if (n > 0L && update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', lags)]
+		if (n > 0L && update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', 'ltmGroups', lags)]
 
 
-		if (n > 0L || length(par$groupingFactors)) {
-				ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = c(lags, par$groupingFactors)]
-		} else {
-
-				ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L))]
-		}
+		ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = c(lags, 'ltmGroups')]
 
 		setnames(ltm, 'Event', 'Sym')
-		setcolorder(ltm, c('Sym', par$groupingFactors, 'C', 't', 't1', 'Ce', lags))
+		setcolorder(ltm, c('ltmGroups', 'Sym', 'C', 't', 't1', 'Ce', lags))
 
 		counts[[n + 1L]] <- ltm[]
 	

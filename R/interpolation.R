@@ -199,6 +199,66 @@ ppm_interpolated <- function(
   dt_final
 }
 
+interpolation2 <- function(ltm_counts) {
+	par <- modelPar(ltm_counts)
+
+
+	full <- ltm_counts[[length(ltm_counts)]]
+
+	full[ , P := 0.0]
+	full[ , E := 1.0]
+
+
+	full[ , P := Ce / (C + t)]
+	full[ , E := t / (C + t)]
+
+
+	for (n in (par$N - 1L):0) {
+		lags <- if (n > 0L) paste0("Lag", 1:n)
+
+		full[ltm_counts[[n + 1L]], on = c('Sym', 'ltmGroups', lags), c('P', 'E') := list(P + E * i.Ce / (i.t + i.C), E * (i.t / (i.t + i.C)))]
+
+	}
+
+	full[, P := P + E*(1/length(par$alphabet))]
+	#ltm_counts[, P := P / sum(P), by = c(paste0("Lag", 1:par$N))]
+	full[]
+}
+
+interpolationx <- function(ltm_counts) {
+	par <- modelPar(ltm_counts)
+	ltm_counts <- ltm_counts[[1]]
+
+
+
+	ltm_counts[ , P := 0.0]
+	ltm_counts[ , E := 1.0]
+
+	totals <- ltm_counts[ , list(C = sum(Ce), t = sum(Ce > 0), t1  = sum(Ce == 1L)), by = c(paste0('Lag', 1:(par$N)))]
+
+
+	for (n in (par$N):0) {
+		lags <- if (n > 0L) paste0("Lag", 1:n)
+
+
+		print(n)
+
+		if (n > 0L) {
+			ltm_counts[ltm_counts[, list(Ce = sum(Ce)), by = c('Sym', lags)][totals, on = lags, c(.SD, list(.P = Ce / (t + C), .E = t / (t + C)))], on = c("Sym", lags), 
+								 c('P', 'E') := list(P + .P * E, E * .E)]
+	  	totals <- totals[ , list(C = sum(C), t = max(t), t1 = min(t1)), by = c(head(lags, -1L))]
+		} else {
+			ltm_counts[with(totals, ltm_counts[, list(Ce = sum(Ce)), by = Sym][ ,list(Sym = Sym, .P = Ce / (t + C), .E = t / (t + C))]), on = c('Sym'),
+								 c('P', 'E') := list(P + .P * E, E * .E)]
+
+		}
+	}
+
+	ltm_counts[, P := P + E*(1/length(par$alphabet))]
+	ltm_counts[, E := NULL]
+	#ltm_counts[, P := P / sum(P), by = c(paste0("Lag", 1:par$N))]
+	ltm_counts[]
+}
 
 
 ppidyom_interpolation <- function(counts, 
