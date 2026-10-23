@@ -244,6 +244,97 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 
 }
 
+ltm_counts2 <- function(lag_matrix,  update_exclusion = TRUE) {
+
+	par <- modelPar(lag_matrix)
+
+
+	alphabet <- par$alphabet
+	alphaN <- length(alphabet)
+
+	lags <- paste0('Lag', 1:(par$N))
+
+
+	ltm <- lag_matrix[ , list(Ce = .N), by = c('Event', lags, par$groupingFactors)]
+
+	setnames(ltm, 'Event', 'Sym')
+
+
+	ltm <- ltm[lag_matrix[, list(Sym = alphabet), by = c(lags, par$groupingFactors)], on = c('Sym', lags, par$groupingFactors)]
+
+	setnafill(ltm, fill = 0L, cols = c('Ce'))
+
+
+	setcolorder(ltm, c('Sym', par$groupingFactors, 'Ce', lags))
+
+	ltm <- ltm[]
+	
+	
+	structure(list(ltm), class = 'ltm_counts', update_exclusion = update_exclusion, modelPar = par)
+}
+ltm_counts3 <- function(lag_matrix,  update_exclusion = TRUE) {
+
+	par <- modelPar(lag_matrix)
+
+
+	alphabet <- par$alphabet
+	alphaN <- length(alphabet)
+
+	lags <- paste0('Lag', 1:par$N)
+	setorderv(lag_matrix, lags)
+
+	groups <- frankv(lag_matrix, cols = lags, na.last = FALSE, ties.method = 'dense')
+	groupid <- match(lag_matrix$Event, alphabet) 
+
+	
+
+	nGroups <- max(groups)
+	
+	ltm <- unique(lag_matrix[, ..lags])
+	ltm <- ltm[rep(1:nrow(ltm), each = alphaN)]
+
+	ltm[ ,   Ce := tabulate((groups - 1L) * alphaN + groupid, nGroups * alphaN)]
+	ltm [ , Sym := rep(alphabet, nGroups)]
+
+	ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = c(lags, par$groupingFactors)]
+
+
+	setcolorder(ltm, c('Sym', par$groupingFactors, 'C', 't', 't1', 'Ce', lags))
+
+	ltm <- ltm[]
+	
+	
+	structure(list(ltm), class = 'ltm_counts', update_exclusion = update_exclusion, modelPar = par)
+}
+ltm_counts4 <- function(lag_matrix,  update_exclusion = TRUE) {
+
+	par <- modelPar(lag_matrix)
+
+
+
+
+	alphabet <- par$alphabet
+	alphaN <- length(alphabet)
+
+	lags <- paste0('Lag', 1:par$N)
+
+	lag_matrix[, EventID := match(Event, alphabet) ]
+	
+
+
+	ltm <- lag_matrix[ ,  list(Ce = tabulate(EventID, alphaN), Sym = alphabet), by = c(lags)]
+
+	ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = c(lags, par$groupingFactors)]
+
+
+	setcolorder(ltm, c('Sym', par$groupingFactors, 'C', 't', 't1', 'Ce', lags))
+
+	ltm <- ltm[]
+	
+	
+	structure(list(ltm), class = 'ltm_counts', update_exclusion = update_exclusion, modelPar = par)
+}
+
 ltm_index <- function(counts, expr) {
 	expr <- rlang::enquo(expr)
 
