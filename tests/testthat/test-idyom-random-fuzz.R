@@ -13,11 +13,16 @@ library(data.table)
 #   Sys.setenv(RUN_IDYOM_FUZZ_TESTS = "true")
 #   devtools::test(filter = "idyom-random-fuzz")
 #
-# Tunable via env vars (both optional):
-#   IDYOM_FUZZ_N    - number of random trials (default 50)
-#   IDYOM_FUZZ_SEED - RNG seed (random by default -- a fresh slice of the
-#                     parameter space every run; printed at test time, so set
-#                     it explicitly to reproduce a specific failure)
+# Tunable via env vars (all optional):
+#   IDYOM_FUZZ_N           - number of random trials (default 50)
+#   IDYOM_FUZZ_SEED        - RNG seed (random by default -- a fresh slice of the
+#                            parameter space every run; printed at test time, so set
+#                            it explicitly to reproduce a specific failure)
+#   IDYOM_FUZZ_ORDER_BOUND - "3" (default), "nil" or "random" (per trial).
+#                            "nil" runs IDyOM with :order-bound nil against the
+#                            shortest-deterministic pipeline (lag_matrix(N = NULL) ->
+#                            stm_counts()/ltm_counts() -> shortest_deterministic() ->
+#                            ppidyom_interpolation()), which covers interpolated STM and LTM.
 # ══════════════════════════════════════════════════════════════════════════════
 
 DOCKER_IMG <- "ppidyom-idyom-validation"
@@ -52,7 +57,9 @@ if (is.null(skip_reason)) {
   train_seqs <- list(c("A","B","C","A","B","C","A","C","B"),
                       c("B","C","A","B","A","C","A","B","C"))
   test_seqs  <- list(x1 = c("A","B","A","C","A","B","A","C","A"),
-                      x2 = c("B","A","B","C","A"))
+                      x2 = c("B","A","B","C","A"),
+                      # x3 repeats a phrase, so long contexts are seen (matters for :order-bound nil)
+                      x3 = c("A","B","C","A","B","C","A","B","A","C","A","B","C","A","B","C"))
   N          <- 3L
   idyom2pp   <- c(a = "A", b = "B", c = "C", d = "D", x = "X")
 
@@ -74,6 +81,34 @@ if (is.null(skip_reason)) {
     )
     observed <- data.table(index = seq_along(x), Event = x)
     res[observed, on = .(index, Event)][, .(index, Event, P, IC, Entropy)]
+  }
+
+  # ── ppidyom side, shortest deterministic (:order-bound nil) ─────────────────
+  pp2escape <- list(A = escape_A, B = escape_B, C = escape_C, D = escape_D, X = escape_AX)
+
+  ppidyom_predict_sd <- function(x, cfg) {
+    if (cfg$model == "stm") {
+      counts <- stm_counts(lag_matrix(x, N = NULL, alphabet = alphabet), update_exclusion = cfg$stm_update_exclusion)
+    } else {
+      # No train/test entry point for N = NULL yet: the bound must cover test contexts
+      # that occur in training, so compute it from both and mark the training lag matrix.
+      N_ltm <- effective_order_bound(c(unlist(train_seqs), x))
+      train <- lag_matrix(unlist(train_seqs), N = N_ltm, alphabet = alphabet,
+                          Piece = rep(seq_along(train_seqs), lengths(train_seqs)))
+      par <- modelPar(train)
+      par$shortestDeterministic <- TRUE
+      setattr(train, "modelPar", par)
+      counts <- ltm_counts(train, update_exclusion = cfg$ltm_update_exclusion, ltm_start_token = FALSE)
+      counts <- ltm2dynamic_counts(counts, lag_matrix(x, N = N_ltm, alphabet = alphabet))
+    }
+    side <- if (cfg$model == "stm") "stm" else "ltm"
+    P <- ppidyom_interpolation(
+      shortest_deterministic(counts),
+      escape_func = pp2escape[[cfg[[paste0(side, "_escape")]]]],
+      exclusion   = cfg[[paste0(side, "_exclusion")]],
+      idyom_base  = TRUE
+    )
+    data.table(index = seq_along(x), Event = x, IC = -log2(get_p(P)), Entropy = get_H(P))
   }
 
   # ── Live IDyOM side (writes a temp .lisp, runs it in the validation image) ──
@@ -98,16 +133,16 @@ if (is.null(skip_reason)) {
 (idyom-db:import-data :txt "/work/inputs/test.txt" "TEST_DATASET" 2002)
 (mvs:set-ltm-stm-bias %s)
 (idyom:idyom 2002 \'(cpitch) \'(cpitch) :k 1 :models :%s :detail 3 :pretraining-ids \'(1001)
-:stmo \'(:escape :%s :order-bound 3 :exclusion %s :update-exclusion %s :mixtures %s)
-:ltmo \'(:escape :%s :order-bound 3 :exclusion %s :update-exclusion %s :mixtures %s)
+:stmo \'(:escape :%s :order-bound %s :exclusion %s :update-exclusion %s :mixtures %s)
+:ltmo \'(:escape :%s :order-bound %s :exclusion %s :update-exclusion %s :mixtures %s)
 :output-path "/work/outputs" :overwrite nil :use-resampling-set-cache? nil :use-ltms-cache? nil)
 (idyom-db:delete-dataset 1001)
 (idyom-db:delete-dataset 2002)
 (quit)',
       cfg$b, cfg$model,
-      tolower(cfg$stm_escape), lisp_bool(cfg$stm_exclusion), lisp_bool(cfg$stm_update_exclusion),
+      tolower(cfg$stm_escape), cfg$order_bound, lisp_bool(cfg$stm_exclusion), lisp_bool(cfg$stm_update_exclusion),
       lisp_bool(cfg$mixtures),
-      tolower(cfg$ltm_escape), lisp_bool(cfg$ltm_exclusion), lisp_bool(cfg$ltm_update_exclusion),
+      tolower(cfg$ltm_escape), cfg$order_bound, lisp_bool(cfg$ltm_exclusion), lisp_bool(cfg$ltm_update_exclusion),
       lisp_bool(cfg$mixtures)
     )
     lisp_path <- file.path(work_dir, "compute.lisp")
@@ -145,23 +180,32 @@ if (is.null(skip_reason)) {
   set.seed(seed)
 
   models   <- c("stm", "ltm", "ltm+", "both", "both+")
+  sd_models <- c("stm", "ltm")   # what the shortest-deterministic pipeline covers (interpolated)
   escapes  <- names(idyom2pp)
   bs       <- c(1, 3, 7, 10)
+  order_bound_env <- Sys.getenv("IDYOM_FUZZ_ORDER_BOUND", "3")
+  stopifnot(order_bound_env %in% c("3", "nil", "random"))
 
-  configs <- lapply(seq_len(n_trials), function(i) list(
-    model = sample(models, 1),
-    stm_escape = idyom2pp[[sample(escapes, 1)]], ltm_escape = idyom2pp[[sample(escapes, 1)]],
-    stm_exclusion = sample(c(TRUE, FALSE), 1), ltm_exclusion = sample(c(TRUE, FALSE), 1),
-    stm_update_exclusion = sample(c(TRUE, FALSE), 1), ltm_update_exclusion = sample(c(TRUE, FALSE), 1),
-    mixtures = sample(c(TRUE, FALSE), 1), b = sample(bs, 1),
-    seq_label = sample(names(test_seqs), 1)
-  ))
+  configs <- lapply(seq_len(n_trials), function(i) {
+    order_bound <- if (order_bound_env == "random") sample(c("3", "nil"), 1) else order_bound_env
+    cfg <- list(
+      order_bound = order_bound,
+      model = sample(if (order_bound == "nil") sd_models else models, 1),
+      stm_escape = idyom2pp[[sample(escapes, 1)]], ltm_escape = idyom2pp[[sample(escapes, 1)]],
+      stm_exclusion = sample(c(TRUE, FALSE), 1), ltm_exclusion = sample(c(TRUE, FALSE), 1),
+      stm_update_exclusion = sample(c(TRUE, FALSE), 1), ltm_update_exclusion = sample(c(TRUE, FALSE), 1),
+      mixtures = sample(c(TRUE, FALSE), 1), b = sample(bs, 1),
+      seq_label = sample(names(test_seqs), 1)
+    )
+    if (order_bound == "nil") cfg$mixtures <- TRUE   # interpolation only
+    cfg
+  })
 
   for (i in seq_along(configs)) {
     cfg <- configs[[i]]
     label <- sprintf(
-      "#%02d model=%s se=%s le=%s sex=%s lex=%s seu=%s leu=%s mix=%s b=%s seq=%s",
-      i, cfg$model, cfg$stm_escape, cfg$ltm_escape,
+      "#%02d ob=%s model=%s se=%s le=%s sex=%s lex=%s seu=%s leu=%s mix=%s b=%s seq=%s",
+      i, cfg$order_bound, cfg$model, cfg$stm_escape, cfg$ltm_escape,
       as.integer(cfg$stm_exclusion), as.integer(cfg$ltm_exclusion),
       as.integer(cfg$stm_update_exclusion), as.integer(cfg$ltm_update_exclusion),
       as.integer(cfg$mixtures), cfg$b, cfg$seq_label
@@ -169,7 +213,7 @@ if (is.null(skip_reason)) {
 
     test_that(paste("random fuzz:", label), {
       x    <- test_seqs[[cfg$seq_label]]
-      pp   <- ppidyom_predict(x, cfg)
+      pp   <- if (cfg$order_bound == "nil") ppidyom_predict_sd(x, cfg) else ppidyom_predict(x, cfg)
       work <- tempfile("idyom_fuzz_")
       dir.create(work)
       on.exit(unlink(work, recursive = TRUE), add = TRUE)
