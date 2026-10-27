@@ -35,6 +35,23 @@ lag_matrix <- function(x, N = 3, ltmGroups = integer(length(x)), alphabet = sort
 
 }
 
+extend_lagMatrix <- function(lag_matrix, N) {
+	par <- modelPar(lag_matrix)
+
+	lags <- if (N > 0) paste0('Lag', 1:N)
+	alphabet <- par$alphabet
+
+	extension <- lag_matrix[, unique(.SD), .SDcols = c('ltmGroups', lags)][ , list(Event = alphabet, index = 0L), by = c('ltmGroups', lags)]
+
+	lag_matrix <- rbind(lag_matrix[ , .SD, .SDcols = c('Event', 'ltmGroups', lags, 'index')], extension)
+
+	setattr(lag_matrix, 'modelPar', par)
+
+	lag_matrix
+
+		
+}
+
 
 modelPar <- function(obj) attr(obj, 'modelPar')
 
@@ -154,42 +171,140 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 	for (n in (par$N):0) {
 		lags <- if (n > 0) paste0('Lag', 1:n)
 	
-		ltm <- lag_matrix[ , list(Ce = .N), by = c('Event', lags, 'ltmGroups')]
-
+		if (n == par$N) {
+			ltm <- lag_matrix[ , list(Ce = tabulate(match(Event, alphabet), nbins = length(alphabet)), Event = alphabet), by = c(lags, 'ltmGroups')]
+		} else {
+			ltm <- lag_matrix[ , list(Ce = .N), by = c('Event', lags, 'ltmGroups')]
+		}
 
 		if (n > 0L && update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', 'ltmGroups', lags)]
 
-
-		ltm[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = c(lags, 'ltmGroups')]
-
 		setnames(ltm, 'Event', 'Sym')
-		setcolorder(ltm, c('ltmGroups', 'Sym', 'C', 't', 't1', 'Ce', lags))
+		setcolorder(ltm, c('ltmGroups', 'Sym', 'Ce', lags))
 
 		counts[[n + 1L]] <- ltm[]
 	
 	}
 	structure(counts, class = 'ltm_counts', update_exclusion = update_exclusion, modelPar = par)
 
+
 }
+
 
 
 
 ltm_collapseGroups <- function(counts) {
 	par <- modelPar(counts)
 
-	if (length(par$groupingFactors) == 0L) return(counts)
+	ngroups <- max(counts[[1]]$ltmGroups)
+	if (ngroups == 1L) return(counts)
 
   for (n in 0:(par$N)) {
 			lags <- if (n > 0) paste0('Lag', 1:n)
 
-			counts[[n + 1]] <- counts[[n + 1]][ , list(Ce = sum(Ce)), by = c('Event', lags)]
+			countsN <- counts[[n + 1]][ , list(Ce = sum(Ce), ltmGroups = 1L), by = c('Sym', lags)]
+			nr <- nrow(countsN)
+			countsN <- countsN[rep(1:nr, ngroups)]
+			countsN[ , ltmGroups := rep(1:ngroups, each = nr)]
+
+			counts[[n + 1L]] <- countsN
 	}
-	par$groupingFactors <- NULL
-	setattr(counts, 'modelPar', par)
-	counts
+	ltm_totals(counts)
 		
 }
 
+ltm_totals <- function(counts) {
+	par <- modelPar(counts)
+	
+
+  for (n in 0:(par$N)) {
+			lags <- if (n > 0) paste0('Lag', 1:n)
+
+			countsN <- counts[[n + 1L]]
+			countsN[ , c('C', 't', 't1') := list(C = sum(Ce), t = sum(Ce > 0), t1 = sum(Ce == 1L)), by = c('ltmGroups', lags)]
+
+			
+			
+	}
+	counts
+
+}
+
+ltm_crossValidate <- function(counts) {
+	par <- modelPar(counts)
+	alphaN <- length(par$alphabet)
+
+	ngroups <- max(par$ltmGroups)
+	if (ngroups == 1L) return(counts)
+
+
+  for (n in 0:(par$N)) {
+			lags <- if (n > 0L) paste0('Lag', 1:n)
+
+
+			countsN <- counts[[n + 1L]]
+			new <- lapply(1:ngroups, \(G) countsN[, list(ltmGroups = G, Ce = sum(Ce * (ltmGroups != G))), by = c('Sym', lags)])
+			#new <- lapply(1:ngroups, \(G) countsN[ltmGroups != G, list(ltmGroups = G, Ce = sum(Ce)), by = c('Sym', lags)])
+			new <- rbindlist(new)
+			setorder(new, ltmGroups)
+
+			counts[[n + 1L]] <- new
+	}
+
+	counts
+
+}
+
+ltm_crossValidatex <- function(counts) {
+	par <- modelPar(counts)
+	alphaN <- length(par$alphabet)
+
+	if (length(unique(counts[[1]]$ltmGroups)) == 1L) return(counts)
+
+	full <- ltm_collapseGroups(counts)
+
+  for (n in 0:(par$N)) {
+			lags <- if (n > 0L) paste0('Lag', 1:n)
+
+
+			new <- counts[[n + 1L]][full[[n + 1L]], on = c('ltmGroups', 'Sym', lags), c(list(ltmGroups = ltmGroups), .SD, list(Ce = i.Ce - Ce, C = i.C - C, 
+																																																						t = getOther_t(t, ltmGroups), 
+																																																						t1 = getOther_t1(t1, ltmGroups))), .SDcols = c('Sym', lags)]
+			browser()
+			setorder(new, ltmGroups)
+
+			counts[[n + 1L]] <- new
+	}
+
+	counts
+
+}
+
+getOther_t <- function(t, ltmGroups) prestmax(t[!duplicated(ltmGroups)])[ltmGroups]
+getOther_t1 <- function(t, ltmGroups) prestmin(t[!duplicated(ltmGroups)])[ltmGroups]
+
+prestmin <- function(x) {
+
+	m <- sort(x, partial = 1:2) # minimum and second minimum are 1 and 2
+	ifelse(x == m[1], m[2], m[1])
+}
+prestmax <- function(x) {
+
+	n <- length(x)
+	m <- sort(x, partial = c(n - 1L, n))[c(n, n - 1L)] # largest and second largest
+	ifelse(x == m[1], m[2], m[1])
+}
+
+
+ltm2index <- function(ltm_p, lag_matrix) {
+	par <- modelPar(lag_matrix)
+
+	lags <- paste0('Lag', 1:(par$N))
+
+
+	ltm_p[lag_matrix, on = c(Sym = "Event", "ltmGroups", lags)]
+	
+}
 
 ltm2dynamic_counts <- function(counts, lag_matrix) {
 	#counts <- ltm_cast(counts)
