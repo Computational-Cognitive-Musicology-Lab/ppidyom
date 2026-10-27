@@ -130,24 +130,30 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 	lag_matrix[, EventMutable := Event]
 	# EventMutable starts the same as Event, but if update_exclusion = TRUE, on each pass some events are set to "" (excluding them from later pass)
 
-	expanded <- lag_matrix[CJ(index, Sym = Event, unique = TRUE), on = 'index']
 
 	for (n in (par$N):0) {
 
 
+    if (n == par$N) {
+			curmatrix <- lag_matrix[CJ(index, Sym = Event, unique = TRUE), on = 'index'] 
+		} else { 
+			curmatrix <- lag_matrix
+			curmatrix[ , Sym := Event]
+		}
 		lags <- if (n > 0) paste0('Lag', 1:n)
 
-		setorderv(expanded, c('Sym', lags, par$groupingFactors, 'index'))
+		setorderv(curmatrix, c('Sym', lags, 'index'))
 
-		expanded[, Ce := cumgroup(Sym == EventMutable, .SD), .SDcols = c('Sym', lags, par$groupingFactors)]
+		curmatrix[, Ce := cumgroup(Sym == EventMutable, .SD), .SDcols = c('Sym', lags)]
 
-		if (n > 0L && update_exclusion) expanded[Ce > 0L, EventMutable := '']
+		if (n > 0L && update_exclusion) curmatrix[Ce > 0L, EventMutable := '']
 
-		expanded[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = index]
+		curmatrix[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = index]
 
 			
+		setorderv(curmatrix, c('index', 'Sym'))
 
-		counts[[n + 1L]] <- expanded[ , .SD, .SDcols = c('Event', 'Sym', 'index', par$groupingFactors, 'C','t','t1','Ce', lags)]
+		counts[[n + 1L]] <- curmatrix[ , .SD, .SDcols = c('Event', 'Sym', 'index', 'C','t','t1','Ce', lags)]
 
 	}
 
