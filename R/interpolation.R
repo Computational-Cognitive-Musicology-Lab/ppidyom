@@ -199,28 +199,22 @@ ppm_interpolated <- function(
   dt_final
 }
 
-interpolation <- function(ltm_counts) {
+interpolation <- function(ltm_counts, escape = 'C') {
 	par <- modelPar(ltm_counts)
 	if (par$N == 0) stop("Can't interpolate zeroth order yet")
 
+	ltm_counts <- do_escape(ltm_counts, escape)
 
 	full <- ltm_counts[[length(ltm_counts)]]
 
-	full[ , P := 0.0]
-	full[ , E := 1.0]
 
-
-	full[ , P := Ce / (C + t)]
-	full[ , E := t / (C + t)]
-
-	setnafill(full, fill = 0.0, cols = c('P'))
-	setnafill(full, fill = 1.0, cols = c('E'))
-
+	full[ , P := ifelse(Denom <= 0, 0.0, Numer / Denom)]
 
 	for (n in (par$N - 1L):0) {
 		lags <- if (n > 0L) paste0("Lag", 1:n)
 
-		full[ltm_counts[[n + 1L]], on = c('Sym', 'ltmGroups', lags), c('P', 'E') := list(P + E * i.Ce / (i.t + i.C), E * (i.t / (i.t + i.C)))]
+		full[ltm_counts[[n + 1L]], on = c('Sym', 'ltmGroups', lags), c('P', 'E') := list(P + E * (i.Numer / i.Denom), 
+																																										 E * i.E)]
 
 	}
 

@@ -65,3 +65,23 @@ escape_functions <- list(
   D = escape_D,
   X = escape_AX
 )
+
+do_escape <- function(counts, escape = 'A') {
+	
+	escape_function <- escape_functions[[escape]]
+
+
+	lapply(counts, \(countN) {
+					 countN[ , c('subtract', 'esc_numer') := escape_function(t, t1)]
+
+					 countN[ , Numer := Ce - subtract]
+					 countN[ , Denom := C - (subtract * t) + esc_numer]
+					 countN[, E := ifelse(Denom <= 0, 1.0, esc_numer / Denom)]
+					 countN[, c('subtract', 'esc_numer') := NULL]
+					 countN[]
+
+	})
+
+	counts
+
+}
