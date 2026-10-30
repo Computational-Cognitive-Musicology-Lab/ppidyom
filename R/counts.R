@@ -99,23 +99,45 @@ shortestDeterm <- function(x, maxN = length(x), alphabet = sort(unique(x))) {
 
 
 
-cumgroup <- function(x, groups) {
+cumgroup <- function(xs, groups) {
 
 	groupid <- rleidv(groups)
 	change <- which(diff(groupid) != 0L)
 
-	counts <- cumsum(x)
-	offset <- integer(length(counts))
+	offset <- integer(length(groupid))
 
-	offset[change + 1L] <- counts[change]
+	Ces <- lapply(xs, 
+									 \(x) {
+											counts <- cumsum(x)
+									    offset[change + 1L] <- counts[change]
+											Ce <- (counts - cummax(offset)) 
+											# it doesn't work to just subtract 1, I don't remember why. You have to do this instead:
+											Ce <- c(0L, head(Ce, -1L))
+											Ce[change + 1L] <- 0L # this makes the zero-padded index shift within each group
+											Ce
 
-	Ce <- counts - cummax(offset)
 
-	Ce <- c(0L, head(Ce, -1L))
-	Ce[change + 1L] <- 0L # this makes the zero-padded index shift within each group
+									 })
+	browser()
+	Ces
 
-	Ce 
 
+	# Ce
+
+}
+
+t1 <- function(x, groups) {
+	groupid <- rleidv(groups)
+
+	change <- which(diff(groupid) != 0L)
+
+	offset <- integer(length(groupid))
+
+	t1 <- seq_along(x)
+	offset[change + 1L] <- t1[change]
+	t1 <- t1 - cummax(offset)
+
+	t1
 }
 
 
@@ -144,16 +166,28 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 
 		setorderv(curmatrix, c('Sym', lags, 'index'))
 
-		curmatrix[, Ce := cumgroup(Sym == EventMutable, .SD), .SDcols = c('Sym', lags)]
+		curmatrix[, Ce := cumgroup(list(Sym == EventMutable), .SD), .SDcols = c('Sym', lags)]
+		
+		# now get C, t, and t1
+		if (n == par$N) {
+			curmatrix[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = index]
 
-		if (n > 0L && update_exclusion) curmatrix[Ce > 0L, EventMutable := '']
+		} else {
+			if (n == 0L) {
+				curmatrix[ , C := seq_along(index) - 1L]
+			} else { 
+				setorderv(curmatrix, c(lags, 'index'))
+				print(curmatrix)
+				curmatrix[ , c('C','t') := cumgroup(list(EventMutable != '', !duplicated(cbind(EventMutable, .SD)) & EventMutable != ''), .SD), .SDcols = lags]
+			}
 
-		curmatrix[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = index]
+		}
 
 			
-		setorderv(curmatrix, c('index', 'Sym'))
+		if (n > 0L && update_exclusion) curmatrix[Ce > 0L, EventMutable := '']
 
-		counts[[n + 1L]] <- curmatrix[ , .SD, .SDcols = c('Event', 'Sym', 'index', 'C','t','t1','Ce', lags)]
+		setorderv(curmatrix, c('index', 'Sym'))
+		counts[[n + 1L]] <- curmatrix[ , .SD, .SDcols = c('Event', 'Sym', 'index', 'C','t','Ce', lags)]
 
 	}
 
