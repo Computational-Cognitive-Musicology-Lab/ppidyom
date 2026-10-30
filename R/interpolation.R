@@ -199,13 +199,13 @@ ppm_interpolated <- function(
   dt_final
 }
 
-interpolation <- function(ltm_counts, escape = 'C') {
-	par <- modelPar(ltm_counts)
+interpolation <- function(counts, escape = 'C', ltm = FALSE) {
+	par <- modelPar(counts)
 	if (par$N == 0) stop("Can't interpolate zeroth order yet")
 
-	ltm_counts <- do_escape(ltm_counts, escape)
+	counts <- do_escape(counts, escape)
 
-	full <- ltm_counts[[length(ltm_counts)]]
+	full <- counts[[length(counts)]]
 
 
 	full[ , P := ifelse(Denom <= 0, 0.0, Numer / Denom)]
@@ -213,13 +213,15 @@ interpolation <- function(ltm_counts, escape = 'C') {
 	for (n in (par$N - 1L):0) {
 		lags <- if (n > 0L) paste0("Lag", 1:n)
 
-		full[ltm_counts[[n + 1L]], on = c('Sym', 'ltmGroups', lags), c('P', 'E') := list(P + E * (i.Numer / i.Denom), 
-																																										 E * i.E)]
+		on <- if (ltm) c('Sym', 'ltmGroups', lags) else c('Sym', 'index')
 
-	}
+		full[counts[[n + 1L]], on = on, c('P', 'E') := list(P + E * ifelse(i.Denom <= 0, 0.0, (i.Numer / i.Denom)), 
+																												E * i.E)]
+}
 
-	full[, P := P + E*(1/length(par$alphabet))]
-	#ltm_counts[, P := P / sum(P), by = c(paste0("Lag", 1:par$N))]
+
+	full[, P := P + E*(1/length(par$alphabet))] # NEED TO incorporate the other argument?
+	#counts[, P := P / sum(P), by = c(paste0("Lag", 1:par$N))]
 	full[]
 }
 

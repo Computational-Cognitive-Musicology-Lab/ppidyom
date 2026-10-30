@@ -29,7 +29,7 @@ lag_matrix <- function(x, N = 3, stmGroups = integer(length(x)), ltmGroups = int
 	lag_matrix[, index := 1:nrow(lag_matrix)]
 	
 
-	setattr(lag_matrix, 'modelPar', list(alphabet = alphabet, ltmGroups = ltmGroups, N = N)) 
+	setattr(lag_matrix, 'modelPar', list(alphabet = alphabet, N = N)) 
 
   lag_matrix[]
 
@@ -142,12 +142,12 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE, needt1 = FALSE) {
 	lag_matrix[, EventMutable := Event]
 	# EventMutable starts the same as Event, but if update_exclusion = TRUE, on each pass some events are set to "" (excluding them from later pass)
 
-
+  full_matrix <- lag_matrix[CJ(index, Sym = Event, unique = TRUE), on = c('index')] 
 	for (n in (par$N):0) {
 
 
-    if (n == par$N) {
-			curmatrix <- lag_matrix[CJ(index, Sym = Event, unique = TRUE), on = c('index')] 
+    if (n == par$N || n == 0L) {
+			curmatrix <- full_matrix
 		} else { 
 			curmatrix <- lag_matrix
 			curmatrix[ , Sym := Event]
@@ -159,17 +159,12 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE, needt1 = FALSE) {
 		curmatrix[, Ce := cumgroup(list(Sym == EventMutable), .SD), .SDcols = c('Sym', 'stmGroups', lags)]
 		
 		# now get C, t, and (maybe) t1
-		if (n == par$N) {
-			curmatrix[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = c('stmGroups', 'index')]
+		if (n == par$N || n == 0L) {
+			curmatrix[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = c('index')]
 
 		} else {
 				setorderv(curmatrix, c('stmGroups', lags, 'index'))
-			if (n == 0L && length(unique(curmatrix$stmGroups)) == 1L) {
-				curmatrix[ , c('C', 't') := list(cumsum(EventMutable != '') - 1L, 
-																				 c(0L, head(cumsum(!duplicated(EventMutable)), -1L)))]
-			} else { 
 				curmatrix[ , c('C','t') := cumgroup(list(EventMutable != '', !duplicated(cbind(EventMutable, .SD)) & EventMutable != ''), .SD), .SDcols = c('stmGroups', lags)]
-			}
 			if (needt1) t1(curmatrix, lags)
 		}
 
@@ -263,7 +258,7 @@ ltm_crossValidate <- function(counts) {
 	par <- modelPar(counts)
 	alphaN <- length(par$alphabet)
 
-	ngroups <- max(par$ltmGroups)
+	ngroups <- max(counts[[1]]$ltmGroups)
 	if (ngroups == 1L) return(counts)
 
 
@@ -299,7 +294,6 @@ ltm_crossValidatex <- function(counts) {
 			new <- counts[[n + 1L]][full[[n + 1L]], on = c('ltmGroups', 'Sym', lags), c(list(ltmGroups = ltmGroups), .SD, list(Ce = i.Ce - Ce, C = i.C - C, 
 																																																						t = getOther_t(t, ltmGroups), 
 																																																						t1 = getOther_t1(t1, ltmGroups))), .SDcols = c('Sym', lags)]
-			browser()
 			setorder(new, ltmGroups)
 
 			counts[[n + 1L]] <- new
