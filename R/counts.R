@@ -14,15 +14,15 @@ library(data.table)
 #' @examples
 #' lag_matrix(c("A", "B", "A", "C", "A"), N = 2)
 #' @export
-lag_matrix <- function(x, N = 3, ltmGroups = integer(length(x)), alphabet = sort(unique(x)), includeStart = TRUE) {
+lag_matrix <- function(x, N = 3, stmGroups = integer(length(x)), ltmGroups = integer(length(x)), alphabet = sort(unique(x)), includeStart = TRUE) {
 
 	alphabetCheck(x, alphabet)
 
-	lag_matrix <- data.table(Event = x, ltmGroups = ltmGroups)
+	lag_matrix <- data.table(Event = x, stmGroups = stmGroups, ltmGroups = ltmGroups)
 	
 	lags <- paste0('Lag', 1:N)
 
-	lag_matrix[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n)), by = ltmGroups]
+	lag_matrix[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n)), by = .(stmGroups, ltmGroups)]
 
 	if (!includeStart) lag_matrix <- lag_matrix[!is.na(lag_matrix[[paste0('Lag', N)]])]
 
@@ -35,22 +35,6 @@ lag_matrix <- function(x, N = 3, ltmGroups = integer(length(x)), alphabet = sort
 
 }
 
-extend_lagMatrix <- function(lag_matrix, N) {
-	par <- modelPar(lag_matrix)
-
-	lags <- if (N > 0) paste0('Lag', 1:N)
-	alphabet <- par$alphabet
-
-	extension <- lag_matrix[, unique(.SD), .SDcols = c('ltmGroups', lags)][ , list(Event = alphabet, index = 0L), by = c('ltmGroups', lags)]
-
-	lag_matrix <- rbind(lag_matrix[ , .SD, .SDcols = c('Event', 'ltmGroups', lags, 'index')], extension)
-
-	setattr(lag_matrix, 'modelPar', par)
-
-	lag_matrix
-
-		
-}
 
 
 modelPar <- function(obj) attr(obj, 'modelPar')
@@ -149,7 +133,7 @@ t1 <- function(countN, lags) {
 
 
 
-stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
+stm_counts <- function(lag_matrix, update_exclusion = TRUE, needt1 = FALSE) {
 
 	par        <- modelPar(lag_matrix)
 
@@ -163,35 +147,36 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 
 
     if (n == par$N) {
-			curmatrix <- lag_matrix[CJ(index, Sym = Event, unique = TRUE), on = 'index'] 
+			curmatrix <- lag_matrix[CJ(index, Sym = Event, unique = TRUE), on = c('index')] 
 		} else { 
 			curmatrix <- lag_matrix
 			curmatrix[ , Sym := Event]
 		}
 		lags <- if (n > 0) paste0('Lag', 1:n)
 
-		setorderv(curmatrix, c('Sym', lags, 'index'))
+		setorderv(curmatrix, c('Sym', 'stmGroups', lags, 'index'))
 
-		curmatrix[, Ce := cumgroup(list(Sym == EventMutable), .SD), .SDcols = c('Sym', lags)]
+		curmatrix[, Ce := cumgroup(list(Sym == EventMutable), .SD), .SDcols = c('Sym', 'stmGroups', lags)]
 		
-		# now get C, t, and t1
+		# now get C, t, and (maybe) t1
 		if (n == par$N) {
-			curmatrix[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = index]
+			curmatrix[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = c('stmGroups', 'index')]
 
 		} else {
-				setorderv(curmatrix, c(lags, 'index'))
-			if (n == 0L) {
-				curmatrix[ , c('C', 't') := list(seq_along(index) - 1L, c(0L, head(cumsum(!duplicated(EventMutable)), -1L)))]
+				setorderv(curmatrix, c('stmGroups', lags, 'index'))
+			if (n == 0L && length(unique(curmatrix$stmGroups)) == 1L) {
+				curmatrix[ , c('C', 't') := list(cumsum(EventMutable != '') - 1L, 
+																				 c(0L, head(cumsum(!duplicated(EventMutable)), -1L)))]
 			} else { 
-				curmatrix[ , c('C','t') := cumgroup(list(EventMutable != '', !duplicated(cbind(EventMutable, .SD)) & EventMutable != ''), .SD), .SDcols = lags]
+				curmatrix[ , c('C','t') := cumgroup(list(EventMutable != '', !duplicated(cbind(EventMutable, .SD)) & EventMutable != ''), .SD), .SDcols = c('stmGroups', lags)]
 			}
-			t1(curmatrix, lags)
+			if (needt1) t1(curmatrix, lags)
 		}
 
 		if (n > 0L && update_exclusion) curmatrix[Ce > 0L, EventMutable := '']
 
 		setorderv(curmatrix, c('index', 'Sym'))
-		counts[[n + 1L]] <- curmatrix[ , .SD, .SDcols = c('Event', 'Sym', 'index', 'C','t','t1','Ce', lags)]
+		counts[[n + 1L]] <- curmatrix[ , .SD, .SDcols = c('stmGroups','Event', 'Sym', 'index', 'C','t', if (needt1) 't1','Ce', lags)]
 
 	}
 
