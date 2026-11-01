@@ -35,6 +35,12 @@ lag_matrix <- function(x, N = 3, stmGroups = integer(length(x)), ltmGroups = int
 
 }
 
+lag_matrix_Xvalidate <- function(lag_matrix) {
+
+	cols <- setdiff(colnames(lag_matrix), 'ltmGroups')
+	lag_matrix[ , lag_matrix[ltmGroups != .BY$ltmGroups, cols, with = FALSE], by = ltmGroups]
+}
+
 
 
 modelPar <- function(obj) attr(obj, 'modelPar')
@@ -211,6 +217,37 @@ ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
 	}
 	structure(counts, class = 'ltm_counts', update_exclusion = update_exclusion, modelPar = par)
 
+}
+
+ltm_Xcounts <- function(lag_matrix,  update_exclusion = TRUE) {
+
+	par <- modelPar(lag_matrix)
+
+	counts <- vector('list', length(par$N) + 1L)
+
+	alphabet <- par$alphabet
+	tmp <- integer(length(alphabet))
+
+	for (n in (par$N):0) {
+		lags <- if (n > 0) paste0('Lag', 1:n)
+	 
+		print(n)
+		if (n == par$N) {
+			ltm <- lag_matrix[ , lag_matrix[ltmGroups != .BY$ltmGroups, list(Ce = tabulate(match(Event, alphabet), nbins = length(alphabet)), Event = alphabet), by = lags], by = c('ltmGroups')]
+		} else {
+			ltm <- lag_matrix[ , lag_matrix[ltmGroups != .BY$ltmGroups, list(Ce = .N), by = c('Event', lags)], by = c('ltmGroups')]
+		}
+
+		if (n > 0L && update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', 'ltmGroups', lags)]
+
+		setnames(ltm, 'Event', 'Sym')
+		setcolorder(ltm, c('ltmGroups', 'Sym', 'Ce', lags))
+
+		counts[[n + 1L]] <- ltm[]
+	
+	}
+	structure(counts, class = 'ltm_counts', update_exclusion = update_exclusion, modelPar = par)
+
 
 }
 
@@ -227,13 +264,15 @@ ltm_collapseGroups <- function(counts) {
 			lags <- if (n > 0) paste0('Lag', 1:n)
 
 			countsN <- counts[[n + 1]][ , list(Ce = sum(Ce), ltmGroups = 1L), by = c('Sym', lags)]
-			nr <- nrow(countsN)
-			countsN <- countsN[rep(1:nr, ngroups)]
-			countsN[ , ltmGroups := rep(1:ngroups, each = nr)]
+			#nr <- nrow(countsN)
+			#countsN <- countsN[rep(1:nr, ngroups)]
+		#	countsN[ , ltmGroups := rep(1:ngroups, each = nr)]
 
 			counts[[n + 1L]] <- countsN
 	}
-	ltm_totals(counts)
+	#ltm_totals(counts)
+	counts
+
 		
 }
 
@@ -281,7 +320,6 @@ ltm_crossValidate <- function(counts) {
 
 ltm_crossValidatex <- function(counts) {
 	par <- modelPar(counts)
-	alphaN <- length(par$alphabet)
 
 	if (length(unique(counts[[1]]$ltmGroups)) == 1L) return(counts)
 
@@ -290,12 +328,28 @@ ltm_crossValidatex <- function(counts) {
   for (n in 0:(par$N)) {
 			lags <- if (n > 0L) paste0('Lag', 1:n)
 
+			countsN    <- counts[[n + 1L]]
+			ngroups_vals <- sort(unique(countsN$ltmGroups))
 
-			new <- counts[[n + 1L]][full[[n + 1L]], on = c('ltmGroups', 'Sym', lags), c(list(ltmGroups = ltmGroups), .SD, list(Ce = i.Ce - Ce, C = i.C - C, 
-																																																						t = getOther_t(t, ltmGroups), 
-																																																						t1 = getOther_t1(t1, ltmGroups))), .SDcols = c('Sym', lags)]
+			# total Ce per (Sym, lags) across all groups
+			total <- full[[n + 1L]][ , .SD, .SDcols = c('Sym', lags, 'Ce')]
+
+			# expand total to every group (cross join)
+			new <- total[rep(seq_len(nrow(total)), length(ngroups_vals))]
+			new[ , ltmGroups := rep(ngroups_vals, each = nrow(total))]
+			setnames(new, 'Ce', 'Ce_total')
+
+			# fill per-group Ce; missing combos stay 0
+			new[ , Ce := 0L]
+			new[countsN, on = c('ltmGroups', 'Sym', lags), Ce := i.Ce]
+
+			# cross-validated counts
+			new[ , Ce := Ce_total - Ce]
+			new[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)),
+					 by = c('ltmGroups', lags)]
+			new[ , Ce_total := NULL]
+
 			setorder(new, ltmGroups)
-
 			counts[[n + 1L]] <- new
 	}
 
