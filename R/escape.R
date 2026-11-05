@@ -66,22 +66,50 @@ escape_functions <- list(
   X = escape_AX
 )
 
-do_escape <- function(counts, escape = 'A') {
+stm_escape <- function(counts, escape = 'A') {
+	par <- modelPar(counts)
+	par$escape <- escape
+
 	
 	escape_function <- escape_functions[[escape]]
 
+	lapply(counts,
+				 \(countN) {
+						countN[ , c('subtract', 'esc_numer') := escape_function(t, t1)]
 
-	lapply(counts, \(countN) {
-					 countN[ , c('subtract', 'esc_numer') := escape_function(t, t1)]
+						countN[ , Numer := Ce - subtract]
+						countN[ , Denom := C - (subtract * t) + esc_numer]
+						countN[, E := ifelse(Denom <= 0, 1.0, esc_numer / Denom)]
+						countN[, c('subtract', 'esc_numer') := NULL]
+						countN[]
 
-					 countN[ , Numer := Ce - subtract]
-					 countN[ , Denom := C - (subtract * t) + esc_numer]
-					 countN[, E := ifelse(Denom <= 0, 1.0, esc_numer / Denom)]
-					 countN[, c('subtract', 'esc_numer') := NULL]
-					 countN[]
+				 })
 
-	})
+	setattr(counts, 'modelPar', par)
 
 	counts
+
+
+}
+
+ltm_escape <- function(counts, escape = 'A') {
+	par <- modelPar(counts)
+	par$escape <- escape
+
+	
+	escape_function <- escape_functions[[escape]]
+
+	counts[ , c('subtract', 'esc_numer') := escape_function(t, t1)]
+
+	counts[ , Numer := Ce - subtract]
+	counts[ , Denom := C - (subtract * t) + esc_numer]
+	counts[, E := ifelse(Denom <= 0, 1.0, esc_numer / Denom)]
+	counts[, c('subtract', 'esc_numer') := NULL]
+
+
+	setattr(counts, 'modelPar', par)
+
+	counts[]
+
 
 }

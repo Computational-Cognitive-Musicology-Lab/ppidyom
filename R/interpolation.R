@@ -199,129 +199,74 @@ ppm_interpolated <- function(
   dt_final
 }
 
-interpolation <- function(counts, escape = 'C', ltm = FALSE) {
+stm_interpolation <- function(counts, escape = 'C') {
 	par <- modelPar(counts)
 	if (par$N == 0) stop("Can't interpolate zeroth order yet")
 
-	counts <- do_escape(counts, escape)
+	counts <- stm_escape(counts, escape)
 
-	full <- counts[[length(counts)]]
-
-
-	full[ , P := ifelse(Denom <= 0, 0.0, Numer / Denom)]
+	full <- counts[[par$N + 1L]]
+	full[, P := ifelse(Denom <= 0, 0.0, Numer / Denom)]
 
 	for (n in (par$N - 1L):0) {
-		lags <- if (n > 0L) paste0("Lag", 1:n)
+		full[counts[[n + 1L]], on = c('Sym', 'index'), c('P', 'E') := list(
+			P + E * ifelse(i.Denom <= 0, 0.0, i.Numer / i.Denom),
+			E * i.E
+		)]
+	}
 
-		on <- if (ltm) c('Sym', 'ltmGroups', lags) else c('Sym', 'index')
-
-		full[counts[[n + 1L]], on = on, c('P', 'E') := list(P + E * ifelse(i.Denom <= 0, 0.0, (i.Numer / i.Denom)), 
-																												E * i.E)]
-}
-
-
-	full[, P := P + E*(1/length(par$alphabet))] # NEED TO incorporate the other argument?
-	#counts[, P := P / sum(P), by = c(paste0("Lag", 1:par$N))]
+	full[, P := P + E * (1 / length(par$alphabet))]
 	full[]
 }
 
+# ltm ----
 
 
-ppidyom_interpolation <- function(counts, 
-																	escape_func = escape_C, exclusion = TRUE, idyom_base = FALSE) {
+ltm_interpolation <- function(counts, escape = 'C', update_exclusion = TRUE) {
+	par               <- modelPar(counts)
 
-	totals_inplace(counts)
 
-	T <- nrow(counts[[1]])
-	t_root <- counts[[1]]$t
 
+	full <- copy(counts)
+	ltm_totals(full)
+	ltm_escape(full, escape)
+
+	full[, P := ifelse(Denom <= 0, 0.0, Numer / Denom)]
+
+	for (n in (par$N - 1L):0) {
+		lags <- if (n > 0L) paste0('Lag', 1:n)
+
+		# derive Ce at order n from previous level
+		counts <- lowerOrder(counts, update_exclusion)
+		ltm_totals(counts)
+		ltm_escape(counts, escape)
+
+		full[counts, on = c('Sym', 'ltmGroups', lags), 
+				 c('P', 'E') := list( P + E * ifelse(i.Denom <= 0, 0.0, i.Numer / i.Denom), 
+														 E * i.E)]
+	}
+
+	full[, P := P + E * (1 / length(par$alphabet))]
+	full[]
+}
+
+lowerOrder <- function(counts, update_exclusion = TRUE) {
 	par <- modelPar(counts)
-	alphabet <- par$alphabet
 
+	newN <- par$N - 1L
 
-	# calculated baseline probability
-	base_prob <- if (idyom_base) {
-		1.0 / (if (exclusion) length(alphabet) + 1L - t_root else length(alphabet))
-	} else { 
-		1.0 / (length(alphabet) + 1L - t_root) # In Ling's code, she seems to recompute t_root here and I'm not sure whyc(0, head(cumsum(!duplicated(counts[[1]]$Event)), -1L)))
+	lags <- if (newN > 0L) paste0('Lag', 1:newN)
+	new <- if (update_exclusion) {
+		counts[Ce > 0L, list(Ce = .N), by = c('ltmGroups', 'Sym', lags)]
+	} else {
+		counts[Ce > 0L, list(Ce = sum(Ce)), by = c('ltmGroups', 'Sym', lags)]
 	}
 
+	par$N <- newN
 
-  P             <- numeric(T) # accumulated probability
-  remaining     <- rep(1.0, T)    # R: ∏(esc_k) for k > current order
-  is_excluded   <- logical(T) # TRUE once Ce > 0 at any higher order
-
-  for (n in (par$N):0) { 
-		countsN <- counts[[n + 1L]]
-		escape <- escape_func(countsN$t, countsN$t1)
-
-		countsN[ , Ce_adj := pmax(Ce - escape$subtract, 0L)]
-
-		countsN[, Excluded := is_excluded]
-
-		if (exclusion) {
-		    countsN[, Denom := sum(Ce_adj * !Excluded), by = index]
-		} else {
-			 	countsN[ , Denom := C - (escape$subtract * t)]
-		}
-		has_ctx <- countsN$Denom > 0 # this comes before adding escape numer
-		countsN[ , Denom := Denom + escape$esc_numer] 
-
-
-    esc_prob <- ifelse(has_ctx, escape$esc_numer / countsN$Denom, 1.0)
-		contrib <- countsN[, ifelse(!has_ctx | Denom == 0L, 0.0, Ce_adj / Denom)] # alpha[s]
-
-    P         <- P + contrib * remaining
-    remaining <- remaining * esc_prob # this has to go after updating P
-
-
-    if (exclusion)  is_excluded[!is_excluded & countsN$Ce > 0] <- TRUE
-
-	}
-
-  # Leftover remaining mass goes to the base distribution.
-  P <- P + remaining * base_prob
-
-  # Renormalize per timestep: handles floating-point drift and the IDyOM base
-  # model (base does not integrate to 1 over the alphabet, so raw sum ≠ 1).
-	P <- data.table(P = P, Event = counts[[1]]$Event, Sym = counts[[1]]$Sym, index = counts[[1]]$index)
-	P[ , P := P / sum(P), by = index]
-	P[P == Inf, P := 1 / length(alphabet)]
-
-	attr(P, 'modelPar') <- par
-
-	setorder(P, index)
-	P
-
+	setattr(new, 'modelPar', par)
+	new
 
 }
 
-
-# l <- \(n) log(n, 2)
-# Let t be the total number of observations
-# Then the "unnormalized entropy" is H * t
-# and the "raw entropy" is H * t + log(t)*t
-# The "raw entropy" is the sum of the log of counts multiplied by the count.
-# For example, the "raw entropy" of the distribution [a, a, a, b, b, c, d, e] is
-#            log(3)*3 + log(2) * 2 + log(1) + log(1) + log(1)
-# You can get the entropy directly from raw entropy and t
-# 
-# ((l(3)*3 + l(2)*2 + l(1) + l(1) + l(1)) - l(8)*8) / 8
-
-# The new entropy, H_i, when a new count (k) is observed at time i is
-# H_(i-1) - l(k-1)*(k-1) + l(k)*k
-#
-# Thus the *change* in raw entropy when count k is observed is always 
-# l(k)*k - l(k-1)(k-1)
-# 
-# This can be computed as diff(l(k)*k)
-#
-# Starting (prior) raw entropy is 2 --- equivalent to prior observation of [a,a, b,c]
-# observe seq
-# 
-# The new count at each index is
-# 
-#2 + cumsum(diff((0:14)*l(0:14))[count]))  # rolling raw entropy (plus prior raw entropy of 2)
-
- #-(2 + cumsum(diff((0:14)*l(0:14))[count]) - l(t)*t) / t
 
