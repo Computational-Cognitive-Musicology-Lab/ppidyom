@@ -250,52 +250,22 @@ ltm_crossValidate <- function(counts) {
 
 
 
-ltm2index <- function(ltm_p, lag_matrix) {
-	par <- modelPar(lag_matrix)
 
-	lags <- paste0('Lag', 1:(par$N))
+ltm2dynamic_counts <- function(ltmP, lag_matrix) {
+	par       <- modelPar(ltmP)
+	lags      <- if (par$N > 0L) paste0('Lag', 1:par$N)
 
 
-	ltm_p[lag_matrix, on = c(Sym = "Event", "ltmGroups", lags)]
-	
-}
+	result <- ltmP[
+		lag_matrix[, c('index', 'Event', 'ltmGroups', lags), with = FALSE],
+		on = c('ltmGroups', lags),
+		allow.cartesian = TRUE
+	]
 
-ltm2dynamic_counts <- function(counts, lag_matrix) {
-	#counts <- ltm_cast(counts)
-	par <- modelPar(counts)
-
-	new_counts <- list()
-
-	for (n in 0:(par$N)) {
-
-		if (n > 0) {
-			lags <- paste0('Lag', 1:n)
-			new <- counts[[n + 1L]][lag_matrix[ , c('Event', 'index', lags), with = FALSE],  on = (lags), allow.cartesian = TRUE] 
-
-		} else {
-			lags <- NULL
-			new <- counts[[n + 1L]][rep(1L:nrow(counts[[n + 1L]]), nrow(lag_matrix))]
-			new[ , index := rep(lag_matrix$index, each = nrow(counts[[n + 1L]]))]
-			new[ , Event := rep(lag_matrix$Event, each = nrow(counts[[n + 1L]]))]
-
-		}
-  
-		setcolorder(new, unique(c('Event', 'Sym', 'index', colnames(counts[[n + 1L]]))))
-
-	
-		# get complete distribution for each index
-
-		new <- new[CJ(index = unique(index), Sym = unique(Sym)), on = c('index', 'Sym')]
-		setnafill(new, fill = 0L, cols = setdiff(colnames(new), c('Event', 'index', 'Sym', lags)))
-
-		new_counts[[n + 1L]] <- new
-	}
-	
 	par$alphabet <- union(modelPar(lag_matrix)$alphabet, par$alphabet)
-	setattr(new_counts, 'modelPar', par)
-	new_counts
-
-	
+	result <- result[, .(index, Event, Sym, P)]
+	setattr(result, 'modelPar', par)
+	result
 }
 
 

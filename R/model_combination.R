@@ -3,29 +3,31 @@
 
 combine_P <- function(P1, P2, b = 1, base = 2) {
 
-	if (!identical(dimnames(P1), dimnames(P2)) || !identical(modelPar(P1), modelPar(P2))) stop("Something is wrong. These two probability matrices don't match. combine_P() doesn't know what to do.")
+	par1 <- modelPar(P1)
+	par2 <- modelPar(P2)
+	if (!identical(par1$alphabet, par2$alphabet)) stop("combine_P(): alphabets don't match.")
+	if (uniqueN(P1$index) != uniqueN(P2$index))   stop("combine_P(): index counts don't match.")
 
-	par <- modelPar(P1)
+	par <- par1
 
 	maxHpossible <- log(length(par$alphabet), 2)
 
-	H_1 <- (get_H(P1) / maxHpossible)^(-b)# normalized and weighted
-	H_2 <- (get_H(P2) / maxHpossible)^(-b) # normalized and weighted
-  
+	H_1 <- (get_H(P1) / maxHpossible)^(-b)
+	H_2 <- (get_H(P2) / maxHpossible)^(-b)
 
 	H_sum <- H_1 + H_2
 	H_1 <- H_1 / H_sum
 	H_2 <- H_2 / H_sum
 
-
-	P <- data.table(P = P1[ , P^H_1[index]] * P2[ , P^H_2[index]], index = P1$index, Event = P1$Event, Sym = P1$Sym)
-
+	P <- P1[P2, on = .(index, Sym), nomatch = 0]
+	P[, P := P^H_1[index] * i.P^H_2[index]]
+	P[, c('i.P', 'i.Event') := NULL]
 
 	P[ , rawSums := sum(P), by = index]
 	P[ , dontNormalize := rawSums > 0.999 & rawSums < 1.0]
 	P[dontNormalize == FALSE, P := P / rawSums]
 
-	P[, list(P, Event, Sym, index)]
+	P[, .(P, Event, Sym, index)]
 
 }
 combine_models <- function(alphabet, p_stm, p_ltm, b=1) {

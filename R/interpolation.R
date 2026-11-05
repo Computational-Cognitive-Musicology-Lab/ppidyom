@@ -216,7 +216,10 @@ stm_interpolation <- function(counts, escape = 'C') {
 	}
 
 	full[, P := P + E * (1 / length(par$alphabet))]
-	full[]
+	par$escape <- escape
+	result <- full[P > 0, .(index, Event, Sym, P)]
+	setattr(result, 'modelPar', par)
+	result
 }
 
 # ltm ----
@@ -247,7 +250,7 @@ ltm_interpolation <- function(counts, escape = 'C', update_exclusion = TRUE) {
 	}
 
 	full[, P := P + E * (1 / length(par$alphabet))]
-	full[]
+	full[P > 0]
 }
 
 lowerOrder <- function(counts, update_exclusion = TRUE) {
