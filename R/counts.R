@@ -189,35 +189,21 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE, needt1 = FALSE) {
 
 
 
-ltm_counts <- function(lag_matrix,  update_exclusion = TRUE) {
+ltm_counts <- function(lag_matrix, update_exclusion = TRUE) {
 
-	par <- modelPar(lag_matrix)
-
-	counts <- vector('list', length(par$N) + 1L)
-
+	par      <- modelPar(lag_matrix)
 	alphabet <- par$alphabet
-	tmp <- integer(length(alphabet))
+	lags     <- paste0('Lag', 1:par$N)
 
-	for (n in (par$N):0) {
-		lags <- if (n > 0) paste0('Lag', 1:n)
-	
-		if (n == par$N) {
-			ltm <- lag_matrix[ , list(Ce = tabulate(match(Event, alphabet), nbins = length(alphabet)), Event = alphabet), by = c(lags, 'ltmGroups')]
-		} else {
-			ltm <- lag_matrix[ , list(Ce = .N), by = c('Event', lags, 'ltmGroups')]
-		}
+	ltm <- lag_matrix[, .(Ce = tabulate(match(Event, alphabet), nbins = length(alphabet)),
+	                       Sym = alphabet),
+	                   by = c(lags, 'ltmGroups')]
+	setcolorder(ltm, c('ltmGroups', 'Sym', 'Ce', lags))
 
-		if (n > 0L && update_exclusion) lag_matrix <- lag_matrix[ , .SD[1], by = c('Event', 'ltmGroups', lags)]
-
-		setnames(ltm, 'Event', 'Sym')
-		setcolorder(ltm, c('ltmGroups', 'Sym', 'Ce', lags))
-
-		counts[[n + 1L]] <- ltm[]
-	
-	}
-	structure(counts, class = 'ltm_counts', update_exclusion = update_exclusion, modelPar = par)
+	structure(list(ltm[]), class = 'ltm_counts', update_exclusion = update_exclusion, modelPar = par)
 
 }
+
 
 ltm_Xcounts <- function(lag_matrix,  update_exclusion = TRUE) {
 
@@ -279,80 +265,36 @@ ltm_collapseGroups <- function(counts) {
 ltm_totals <- function(counts) {
 	par <- modelPar(counts)
 	
+	lags <-  paste0('Lag', 1:par$N)
+	countsN <- counts[[1L]]
 
-  for (n in 0:(par$N)) {
-			lags <- if (n > 0) paste0('Lag', 1:n)
+	countsN[ , c('C', 't', 't1') := list(C = sum(Ce), t = sum(Ce > 0), t1 = sum(Ce == 1L)), by = c('ltmGroups', lags)]
+	countsN[]
 
-			countsN <- counts[[n + 1L]]
-			countsN[ , c('C', 't', 't1') := list(C = sum(Ce), t = sum(Ce > 0), t1 = sum(Ce == 1L)), by = c('ltmGroups', lags)]
-
-			
-			
-	}
 	counts
 
 }
+
 
 ltm_crossValidate <- function(counts) {
-	par <- modelPar(counts)
-	alphaN <- length(par$alphabet)
-
-	ngroups <- max(counts[[1]]$ltmGroups)
-	if (ngroups == 1L) return(counts)
-
-
-  for (n in 0:(par$N)) {
-			lags <- if (n > 0L) paste0('Lag', 1:n)
-
-
-			countsN <- counts[[n + 1L]]
-			new <- lapply(1:ngroups, \(G) countsN[, list(ltmGroups = G, Ce = sum(Ce * (ltmGroups != G))), by = c('Sym', lags)])
-			#new <- lapply(1:ngroups, \(G) countsN[ltmGroups != G, list(ltmGroups = G, Ce = sum(Ce)), by = c('Sym', lags)])
-			new <- rbindlist(new)
-			setorder(new, ltmGroups)
-
-			counts[[n + 1L]] <- new
-	}
-
-	counts
-
-}
-
-ltm_crossValidatex <- function(counts) {
-	par <- modelPar(counts)
-
 	if (length(unique(counts[[1]]$ltmGroups)) == 1L) return(counts)
 
-	full <- ltm_collapseGroups(counts)
+	par  <- modelPar(counts)
+	lags <- paste0('Lag', 1:par$N)
 
-  for (n in 0:(par$N)) {
-			lags <- if (n > 0L) paste0('Lag', 1:n)
+	countsN      <- counts[[1L]]
+	setorderv(countsN, c('Sym', lags, 'ltmGroups'))
+	countsN[ , contextID := rleidv(.SD), .SDcols = c('Sym', lags)] # precomputing the grouping ID once helps speed. Using rleidv workds because of the previous sort
+	#countsN[ , contextID := .GRP, by = c('Sym', lags)]
 
-			countsN    <- counts[[n + 1L]]
-			ngroups_vals <- sort(unique(countsN$ltmGroups))
+	total <- countsN[, .(Ce_total = sum(Ce)), by = contextID]
+	total <- total[Ce_total > 0]
 
-			# total Ce per (Sym, lags) across all groups
-			total <- full[[n + 1L]][ , .SD, .SDcols = c('Sym', lags, 'Ce')]
 
-			# expand total to every group (cross join)
-			new <- total[rep(seq_len(nrow(total)), length(ngroups_vals))]
-			new[ , ltmGroups := rep(ngroups_vals, each = nrow(total))]
-			setnames(new, 'Ce', 'Ce_total')
-
-			# fill per-group Ce; missing combos stay 0
-			new[ , Ce := 0L]
-			new[countsN, on = c('ltmGroups', 'Sym', lags), Ce := i.Ce]
-
-			# cross-validated counts
-			new[ , Ce := Ce_total - Ce]
-			new[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)),
-					 by = c('ltmGroups', lags)]
-			new[ , Ce_total := NULL]
-
-			setorder(new, ltmGroups)
-			counts[[n + 1L]] <- new
-	}
-
+	countsN[total, Ce := Ce_total - Ce, on = 'contextID']
+	countsN[, contextID := NULL]
+	setorderv(countsN, c('ltmGroups', lags, 'Sym'))
+	countsN[]
 	counts
 
 }
