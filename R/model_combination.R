@@ -2,15 +2,16 @@
 
 
 combine_P <- function(P1, P2, b = 1, base = 2) {
+	if (is.null(P2)) return(P1)
+	if (is.null(P1)) return(P2)
 
 	par1 <- modelPar(P1)
 	par2 <- modelPar(P2)
-	if (!identical(par1$alphabet, par2$alphabet)) stop("combine_P(): alphabets don't match.")
 	if (uniqueN(P1$index) != uniqueN(P2$index))   stop("combine_P(): index counts don't match.")
 
-	par <- par1
 
-	maxHpossible <- log(length(par$alphabet), 2)
+	#maxHpossible <- log(max(length(par1$alphabet), length(par2$alphabet)), 2)
+	maxHpossible <- log(length(par1$alphabet) * length(par2$alphabet), 2)
 
 	H_1 <- (get_H(P1) / maxHpossible)^(-b)
 	H_2 <- (get_H(P2) / maxHpossible)^(-b)
@@ -19,54 +20,48 @@ combine_P <- function(P1, P2, b = 1, base = 2) {
 	H_1 <- H_1 / H_sum
 	H_2 <- H_2 / H_sum
 
-	P <- P1[P2, on = .(index, Sym), nomatch = 0]
-	P[, P := P^H_1[index] * i.P^H_2[index]]
-	P[, c('i.P', 'i.Event') := NULL]
+	same_alphabet <- setequal(par1$alphabet, par2$alphabet)
+
+	if (same_alphabet) {
+		P <- P1[P2, on = .(index, Sym), nomatch = 0]
+	} else {
+		P <- P1[P2, on = 'index', allow.cartesian = TRUE]
+		P[, Sym   := paste(Sym,   i.Sym)]
+		P[, Event := paste(Event, i.Event)]
+	}
+
+	P[, P := fcase(i.P == 0, P,
+	               P    == 0, i.P,
+	               default = P^H_1[index] * i.P^H_2[index])]
+	P[, c('i.P', 'i.Event', if (!same_alphabet) 'i.Sym') := NULL]
 
 	P[ , rawSums := sum(P), by = index]
 	P[ , dontNormalize := rawSums > 0.999 & rawSums < 1.0]
 	P[dontNormalize == FALSE, P := P / rawSums]
 
-	P[, .(P, Event, Sym, index)]
+	result <- P[, .(P, Event, Sym, index)]
+	par <- par1
+	if (!same_alphabet) par$alphabet <- do.call('paste', expand.grid(par1$alphabet, par2$alphabet))
+	setattr(result, 'modelPar', par)
+	result
 
 }
-combine_models <- function(alphabet, p_stm, p_ltm, b=1) {
-  dt <- merge(
-    p_stm[, .(index, Event, P_stm=P, H_stm=Entropy)],
-    p_ltm[, .(index, Event, P_ltm=P, H_ltm=Entropy)],
-    by=c("index","Event")
-  )
 
-  logA <- log2(length(alphabet))
 
-  # Relative entropy weights: w_i = (H_i / H_max)^{-b}
-  # Dividing by logA (= H_max for a uniform alphabet) makes w scale-invariant.
-  # The logA^b factor cancels in normalisation, so only the H ratio matters.
-  dt[, Hrel_stm := H_stm / logA]
-  dt[, Hrel_ltm := H_ltm / logA]
+if (FALSE) {
 
-  dt[, w_stm := Hrel_stm^(-b)]
-  dt[, w_ltm := Hrel_ltm^(-b)]
 
-  # Normalise weights to [0,1] so they can be used as geometric-mean exponents
-  dt[, w_norm := w_stm + w_ltm]
-  dt[, w_stm_n := w_stm / w_norm]
-  dt[, w_ltm_n := w_ltm / w_norm]
+pitch <- rep(c('c','d','e'), 10)
+rhythm <- rep(c('4','8','8'), 10)
 
-  # IDyOM log-linear (geometric-mean) combination.
-  # Geometric mean: P_raw(s) = P_stm(s)^w_stm_n * P_ltm(s)^w_ltm_n
-  #
-  # IDyOM normalises conditionally (ppm-star.lisp: normalise-distribution /
-  # sums-to-one-p): if 0.999 < sum(P_raw) < 1.0 it treats the distribution as
-  # already summing to one and skips the division.  We replicate that exactly.
-  dt[, P_raw := P_stm^w_stm_n * P_ltm^w_ltm_n]
-  dt[, Z     := sum(P_raw), by = index]
-  dt[, P     := if (Z[1] > 0.999 && Z[1] < 1.0) P_raw else P_raw / Z,
-      by = index]
 
-  dt[, IC      := -log2(P)]
-  dt[, Entropy := -sum(P * log2(P)), by = index]
+both <- ppidyom(pitch, rhythm, schematic=F, maxN=3)$P
+rr <- ppidyom(rhythm, schematic=FALSE, maxN = 3)$P
+pp <- ppidyom(pitch, schematic=FALSE,maxN=3)$P
 
-  dt[, .(index, Event, P, IC, Entropy)]
+
+plot(both, ylim =c(0,1),type='l')
+
+points(rr, col = 'red', type = 'l')
+points(pp, col = 'blue', type = 'l')
 }
-

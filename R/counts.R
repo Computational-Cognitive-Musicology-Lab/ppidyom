@@ -234,6 +234,8 @@ ltm_crossValidate <- function(counts) {
 	counts[ , contextID := rleidv(.SD), .SDcols = c('Sym', lags)] # precomputing the grouping ID once helps speed. Using rleidv workds because of the previous sort
 	#counts[ , contextID := .GRP, by = c('Sym', lags)]
 
+	cat('cross validating across', length(unique(counts$ltmGroups)), 'schematic groups...')
+
 	total <- counts[, .(Ce_total = sum(Ce)), by = contextID]
 	total <- total[Ce_total > 0]
 
@@ -263,7 +265,7 @@ ltm2dynamic_counts <- function(ltmP, lag_matrix) {
 	]
 
 	par$alphabet <- union(modelPar(lag_matrix)$alphabet, par$alphabet)
-	result <- result[, .(index, Event, Sym, P)]
+	result <- result[P > 0 | Sym == Event, .(index, Event, Sym, P)]
 	setattr(result, 'modelPar', par)
 	result
 }
