@@ -14,16 +14,26 @@ get_p <- function(P) {
 #' @param ... ***One or more input vectors, all the same length.***
 #' @param maxN ***Maximum N-gram length to compute.***
 #'        Defaults to 5.
-#' @param alphabet ***The set of possible input values. By default, cartesian product of input vectors.***
-#' @param model_type ***Which memory component(s) to use:***
-#' - ***`"stm"` — short-term memory, within each `shortTermGroups` group only.***
-#' - ***`"ltm"` — long-term memory, trained across `longTermGroups`.***
-#' - ***`"both"` — STM + LTM blended.***
-#' - ***`"ltm+"`/`"both+"` — as `"ltm"`/`"both"`, but LTM updates online
-#'   group by group.***
+#' @param alphabet ***The set of possible input symbols for each input.***
+#' 
+#' By default, will be the unique values in each input.
+#' 
+#' @param schematic ***Incorporate schematic (long-term) model?***
+#' 
+#' Must be a singleton logical value; an on/off switch.
+#'
+#' Defaults to `TRUE`.
+#'
+#' @param dynamic **Incorporate dynamic (short-term) model?***
+#' 
+#' Must be a singleton logical value; an on/off switch.
+#'
+#' Defaults to `TRUE`.
 #' @param ppm_type ***PPM estimation method:***
-#' - ***`"interpolation"` — weighted sum across all n-gram orders.***
-#' - ***`"backoff"` — falls through orders from longest to shortest matching context.***
+#' 
+#' Right now, only "interpolation" is working.
+#' We'll have a "backoff" option working soon.
+#'
 #' @param shortTermArgs ***List of STM settings:***
 #' - ***`lambda` — escape method, one of `"A"`/`"B"`/`"C"`/`"D"`/`"X"`
 #'   (default `"C"`); see the
@@ -47,7 +57,7 @@ get_p <- function(P) {
 #' @examples
 #' \dontrun{
 #' x <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
-#' ppidyom(x, maxN = 3, model_type = "stm")
+#' ppidyom(x, maxN = 3, schematic = TRUE)
 #' }
 
 #' @export
@@ -59,9 +69,7 @@ ppidyom <- function(...) {
 
 #' @exportS3Method
 ppidyom.default <- function(..., maxN = 10, alphabet = lapply(list(...), unique),
-														dynamic = TRUE, schematic = TRUE, 
-														dynamicGroups = list(), schematicGroups = list(),
-														dynamicArgs = list(), schematicArgs = list(),
+														dynamic = list(), schematic = list(),
 														ppm_type = c("interpolation", "backoff"),
 														b = 1, base = 2) {
 
@@ -73,14 +81,12 @@ ppidyom.default <- function(..., maxN = 10, alphabet = lapply(list(...), unique)
 
 	# need alphabet checks
 
-	dynamicArgs <- modifyList(list(escape = 'C', exclusion = TRUE, update_exclusion = TRUE), dynamicArgs)
-	schematicArgs <- modifyList(list(escape = 'C', exclusion = TRUE, update_exclusion = FALSE, start_token = TRUE, crossValidate = TRUE), schematicArgs)
 
-	if (length(dynamicGroups) == len) dynamicGroups <- list(dynamicGroups)
-	if (length(schematicGroups) == len) schematicGroups <- list(schematicGroups)
-	dynamicGroups <- c(dynamicGroups, schematicGroups)
-	dynamicGroups   <- if (length(dynamicGroups))   frankv(dynamicGroups, ties.method = 'dense') else rep(1L, len)
-	schematicGroups <- if (length(schematicGroups)) frankv(schematicGroups, ties.method = 'dense') else rep(1L, len)
+	dynamicArgs <- modelArgs(dynamic)
+	schematicArgs <- modelArgs(schematic)
+
+	dynamicGroups <- prepGroups(len, dynamicArgs$groupby, schematicArgs$crossValidate)
+	schematicGroups <- prepGroups(len, schematicArgs$crossValidate)
 
 
 	Map(inputs, alphabet, colnames(inputs),
@@ -89,17 +95,17 @@ ppidyom.default <- function(..., maxN = 10, alphabet = lapply(list(...), unique)
 						
 						input <- paste0(' for input ', i)
 
-						dynP <- if (dynamic) {
+						dynP <- if (length(dynamicArgs)) {
 							cat("Computing dynamic probabilities", input, '...', sep = '')
-							lags |> stm_counts() |> stm_interpolation(escape = dynamicArgs$escape)
+							lags |> stm_counts(update_exclusion = dynamicArgs$update_exclusion) |> stm_interpolation(escape = dynamicArgs$escape)
 						}
-						schP <- if (schematic) {
+						schP <- if (length(schematicArgs)) {
 							cat("Computing schematic probabilities", input, '...', sep = '')
-							lags |> ltm_counts() |> ltm_crossValidate() |> ltm_interpolation(escape = schematicArgs$escap) |> ltm2dynamic_counts(lags)
+							lags |> ltm_counts() |> ltm_crossValidate() |> ltm_interpolation(escape = schematicArgs$escape, update_exclusion = schematicArgs$exclusion) |> ltm2dynamic_counts(lags)
 						}
 
-						if (dynamic && schematic) cat("Blending dynamic and schematic models", input, '...', sep = '')
-						combine_P(dynP, schP)
+						if (length(dynamicArgs) && length(schematicArgs)) cat("Blending dynamic and schematic models", input, '...', sep = '')
+						combine_P(dynP, schP, b = b)
 						
 				 }) -> Ps
 
@@ -119,10 +125,45 @@ ppidyom.default <- function(..., maxN = 10, alphabet = lapply(list(...), unique)
 
 }
 
+modelArgs <- function(args, argname) {
+
+	if (is.logical(args)) {
+
+		if (length(args) != 1L) stop('The ', argname, " argument can't be a logical value unless it is length 1.")
+
+		if (args) args <- list() else return(NULL)
+	} 
+
+	defaults <- list(escape = 'C', exclusion = TRUE, update_exclusion = TRUE, dynamicArgs = TRUE, groupby = 1L, crossValidate = 1L)
+	modifyList(defaults, args)
+	
+}
+
+
+prepGroups <- function(targetlen, ...) {
+	groups <- list(...)
+	groups <- groups[lengths(groups) > 0L]
+
+	groups <- lapply(groups, \(group) if (is.atomic(group)) list(group) else group)
+	groups <- do.call('c', groups)
+
+	frankv(groups, ties.method = 'dense')
+
+	
+}
+
 #' @exportS3Method
-ppidyom.humdrumR <- function(humdrumR, ..., maxN = 10, schematicArgs = list(), dynamicArgs = list()) {
+ppidyom.humdrumR <- function(humdrumR, ..., maxN = 10, schematic = list(), dynamic = list()) {
 
 	quos <- rlang::enquos(...)
+
+
+	schematic <- rlang::enexpr(schematic)
+	dynamic <- rlang::enexpr(dynamic)
+
+	if (!'crossValidate' %in% names(schematic)) schematic$crossValidate <- quote(File)
+	if (!'groupby' %in% names(dynamic)) dynamic$groupby <- quote(list(Spine, Path))
+
 
 	ns <- names(quos)
 	if (is.null(ns)) ns <- character(length(quos))
@@ -130,8 +171,7 @@ ppidyom.humdrumR <- function(humdrumR, ..., maxN = 10, schematicArgs = list(), d
 	if (any(ns == '')) names(quos)[ns == ''] <- sapply(quos[ns == ''], rlang::quo_squash)
 	if (length(quos) == 0L) quos <- setNames(list(rlang::quo(.)), selectedFields(humdrumR)[1])
 
-	rlang::eval_tidy(rlang::expr(within(humdrumR,  ppidyom.default(!!!quos, maxN = maxN, schematicGroups = list(Piece), dynamicGroups = list(Spine, Path),
-																																 schematicArgs = schematicArgs, dynamicArgs = dynamicArgs)[ , list(IC, H)], dataTypes = 'D')))
+	rlang::eval_tidy(rlang::expr(within(humdrumR,  ppidyom.default(!!!quos, maxN = maxN, schematic = !!schematic, dynamic = !!dynamic)[ , list(IC, H)], dataTypes = 'D')))
 
 }
 
