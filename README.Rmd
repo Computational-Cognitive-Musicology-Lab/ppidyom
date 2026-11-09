@@ -1,0 +1,267 @@
+---
+output:
+  github_document:
+    pandoc_args: ["--wrap=none"]
+bibliography: null
+---
+
+<!-- README.md is generated from README.Rmd. Please edit README.Rmd, then run rmarkdown::render("README.Rmd") (or devtools::build_readme()). -->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse  = TRUE,
+  comment   = "#>",
+  message   = FALSE,
+  warning   = FALSE,
+  fig.path  = "man/figures/README-",
+  fig.width = 9, fig.height = 3.8, dpi = 120,
+  out.width = "80%", fig.align = "center"
+)
+suppressMessages(devtools::load_all(quiet = TRUE))  # use the local source tree
+library(data.table)
+
+# Small helpers used only to make the README plots look consistent.
+plot_seq <- function(y, labels = NULL, col = "black", ylim = c(0, 6),
+                     ylab = "Information content (bits)", xlab = "Position", ...) {
+  plot(y, type = "o", pch = 19, cex = 0.7, col = col, ylim = ylim,
+       xlab = xlab, ylab = ylab, las = 1, bty = "l", ...)
+  if (!is.null(labels)) text(seq_along(y), y, labels, pos = 3, cex = 0.7, col = col)
+}
+
+# Draw a legend centred underneath all panels of the current figure.
+legend_below <- function(..., ncol = 2) {
+  par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
+  plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+  legend("bottom", ncol = ncol, bty = "n", lwd = 1, pch = 19, cex = 0.8, xpd = TRUE, ...)
+}
+
+# IC (left) and Entropy (right) side by side, for one result or a named list of results.
+plot_ic_entropy <- function(runs, labels = NULL, title = "",
+                            ic_ylim = c(0, 7), ent_ylim = c(0, 4),
+                            cols = c("black", "firebrick", "steelblue", "darkorange", "forestgreen")) {
+  if (is.data.frame(runs)) runs <- list(runs)
+  # Long legend labels go in one column; leave one line of space per legend row.
+  ncol <- if (max(nchar(names(runs)), 0) > 40) 1 else 2
+  rows <- if (length(runs) > 1) ceiling(length(runs) / ncol) else 0
+  par(mfrow = c(1, 2), mar = c(4, 4, 3, 1), oma = c(if (rows) rows * 1.1 + 1 else 0, 0, 0, 0))
+  panels <- list(IC      = list(ylim = ic_ylim,  ylab = "Information content (bits)"),
+                 Entropy = list(ylim = ent_ylim, ylab = "Entropy (bits)"))
+  for (what in names(panels)) {
+    plot_seq(runs[[1]][[what]], labels = labels, ylim = panels[[what]]$ylim,
+             ylab = panels[[what]]$ylab, main = paste0(title, what))
+    for (i in seq_along(runs)[-1])
+      lines(runs[[i]][[what]], type = "o", pch = 19, cex = 0.7, col = cols[i])
+  }
+  if (length(runs) > 1) legend_below(legend = names(runs), col = cols[seq_along(runs)], ncol = ncol)
+}
+```
+
+# PPIDyOM
+
+**PPIDyOM** (R package `ppidyom`) measures how *surprising* and how *predictable* each event in a sequence is. An event can be any symbol: a note in a melody, a chord in a song, or something outside music, like a letter in a word. PPIDyOM uses the same prediction algorithm as the music-cognition model **IDyOM**, which is built on the statistical model **PPM**. It plugs straight into [humdrumR](https://humdrumR.ccml.gtcmt.gatech.edu), so you can run it on a whole corpus of scores in one line.
+
+Website: <https://ppidyom.ccml.gtcmt.gatech.edu>
+
+## What is PPIDyOM?
+
+- **PPM** (*Prediction by Partial Matching*; Cleary & Witten, 1984) began as a data-compression algorithm that predicts the next symbol in a sequence. It asks "the last time I saw this context, what came next?" It checks several context lengths at once (the last 1 symbol, the last 2, the last 3, …) and blends their answers into one probability for every possible next symbol. Conklin & Witten (1995) were the first to apply it to music. Peter Harrison's [ppm](https://github.com/pmcharrison/ppm) R package implements PPM, plus *PPM-Decay*, a version in which older observations gradually fade from memory (Harrison et al., 2020).
+- **IDyOM** (*Information Dynamics of Music*; Pearce, 2005) is a widely used model of musical expectation built on PPM, written in Common Lisp ([Github](https://github.com/mtpearce/idyom)). It incorporates concepts adapted to music, including:
+  - **Long-term memory:** what a listener has learned from lots of other music (long-term musical exposure).
+  - **Short-term memory:** what they have learned so far in the current piece.
+  - **Viewpoints**: different ways of representing the same music (pitch, scale degree, interval, duration, …), each of which can be modelled.
+- **PPIDyOM** brings IDyOM's PPM model into R and connects it to humdrumR. It aims to give the same answers as IDyOM, and as `ppm`'s non-decay model, when they are given the same settings. It is also easier to run on humdrumR data and easier to inspect. 
+
+```{=markdown}
+> PPIDyOM is still being optimized. It does not (yet) include IDyOM's multiple viewpoint selection and PPM-Decay.
+```
+
+For each event, PPIDyOM reports:
+
+- **P**: the probability the model gave to the event that actually happened.
+- **IC** (*information content*, in bits) $= -\log_2 P$: how *surprising* the event was. Higher means more surprising.
+- **Entropy** (bits) $= -\sum_{e} P(e) \log_2 P(e)$, summed over every possible next event $e$: how *uncertain* the model was before the event happened. It is highest when the model spreads its probability evenly over many possible next events, and lowest when it is confident about just one.
+
+## Installation
+
+```r
+# install.packages("devtools")
+devtools::install_github("Computational-Cognitive-Musicology-Lab/ppidyom")
+
+# Optional, but recommended for working with music:
+devtools::install_github("Computational-Cognitive-Musicology-Lab/humdrumR")
+```
+
+## A toy example: any sequence works
+
+PPIDyOM works on any vector of symbols: chord labels, note names, words, numbers. Here is a simple chord progression, written as Roman numerals. The model starts knowing nothing and learns as it goes (`model_type = "stm"`, short-term memory only).
+
+```{r toy}
+chords <- c("I", "IV", "V", "I",
+            "I", "IV", "V", "I",
+            "I", "vi", "IV", "V", "I")
+
+res <- ppidyom(chords, model_type = "stm")
+knitr::kable(res, digits = 3)
+```
+
+```{r toy-plot}
+plot_ic_entropy(res, labels = res$Event, title = "Chord progression: ", ic_ylim = c(0, 5), ent_ylim = c(0, 3))
+```
+
+The first time through, every chord is new and surprising. The second time, the model recognises "I-IV-V-I", so IC drops. Then `vi` breaks the pattern and IC jumps back up.
+
+Entropy shows how *unsure* the model was before each chord, whatever chord actually came. It starts at its maximum (2 bits: four equally likely chords) and stays fairly high, because 13 chords is not much to learn from. It dips a little while I-IV-V-I repeats, and rises again after the unexpected `vi`, when the model is less sure what comes next.
+
+## humdrumR example
+
+humdrumR ships with a few Bach chorales. Load four of them:
+
+```{r hum-load}
+library(humdrumR)
+
+chorales <- readHumdrum(humdrumRroot, "HumdrumData/BachChorales/chor00[1-4].krn")
+```
+
+This first chorale snippet shows how the data looks in HumdrumR:
+```{r hum-preview, echo = FALSE, comment = ""}
+print(chorales[1], maxRecordsPerFile = 50, syntaxHighlight = FALSE)
+```
+
+Each column (*spine*) is one voice: bass, tenor, alto and soprano. Each note is written in `**kern`, which encodes pitch and rhythm.
+
+The quickest way to model it is to pick a viewpoint and pipe straight into `ppidyom()`, e.g. `chorales |> solfa(simple = TRUE) |> ppidyom()`. This handles pieces and voices for you and adds an `ICppidyom` field to the score. That shortcut currently stores IC only, so to keep **both IC and Entropy** we call `ppidyom()` inside `within()` and pass the groups ourselves:
+
+```{r hum-stm}
+stm <- chorales |>
+  # viewpoint: scale degree, no octave
+  solfa(simple = TRUE) |>
+  within(Res <- ppidyom(Solfa, model_type = "stm"),
+         IC <- Res$IC, Entropy <- Res$Entropy)
+```
+
+`stm` is still a humdrumR corpus, now with `IC` and `Entropy` fields next to every note. Here are the first notes of the soprano (spine 4) in chorale 1:
+
+```{r hum-table}
+tab <- pull_data.table(stm, Piece, Spine, Solfa, IC, Entropy)
+sop <- tab[Piece == 1 & Spine == 4 & !is.na(IC)]
+knitr::kable(head(sop, 10), digits = 3)
+```
+
+```{r hum-plot}
+plot_ic_entropy(sop, labels = sop$Solfa, title = "Chorale 1, soprano: ")
+```
+
+## Long-term + short-term memory
+
+A listener doesn't hear each chorale fresh: they bring knowledge from other music. With `model_type = "both"` (the default), PPIDyOM blends two models:
+
+- **Long-term (LTM):** trained on the *other* pieces in the corpus. Each piece is held out in turn, so the model is never tested on music it was trained on ("leave-one-out").
+- **Short-term (STM):** learns from the current voice as it goes, like the toy example above.
+
+To keep this example fast, we use the four chorales loaded above as the whole training corpus. (The current version is not yet fast enough for large corpora.)
+
+```{r both}
+both <- chorales |>
+  solfa(simple = TRUE) |>
+  within(Res <- ppidyom(Solfa, model_type = "both", maxN = 3,
+                      # each voice is one sequence
+                       shortTermGroups = list(Spine, Piece),   
+                       # each chorale is one piece
+                       longTermGroups = list(Piece)),
+         IC <- Res$IC, Entropy <- Res$Entropy)
+
+tab_both <- pull_data.table(both, Piece, Spine, Solfa, IC, Entropy)
+
+# Average per chorale: short-term only vs. long-term + short-term
+cmp <- merge(tab[, .(`IC: STM` = mean(IC, na.rm = TRUE),
+                     `Entropy: STM` = mean(Entropy, na.rm = TRUE)), by = Piece],
+             tab_both[, .(`IC: STM + LTM`  = mean(IC, na.rm = TRUE),
+                          `Entropy: STM + LTM` = mean(Entropy, na.rm = TRUE)), by = Piece])
+knitr::kable(cmp[, c(1, 2, 4, 3, 5)], digits = 2, caption = "Mean IC and Entropy (bits) per chorale")
+```
+
+```{r both-plot, fig.height = 4.4}
+sop_both <- tab_both[Piece == 1 & Spine == 4 & !is.na(IC)]
+plot_ic_entropy(list("STM" = sop, "STM + LTM" = sop_both), title = "Chorale 1, soprano: ")
+```
+
+Adding the long-term model lowers the average IC for chorales 1, 2 and 4, but not for chorale 3 (3.20 → 3.24). The long-term model learns from only the other three chorales, so it helps only as far as the test chorale resembles them.
+
+Average entropy stays about the same (within 0.1 bits). So the blended model is not more certain overall, but it puts more of its probability on the notes that actually occur, which is why IC drops.
+
+## Parameters
+
+All parameters have defaults, so you only need to set the ones you want to change. They work the same way on plain vectors and on humdrumR data.
+
+| Parameter | What it does | Default | Example |
+|---|---|---|---|
+| `...` | The sequence(s) to model. Pass several vectors to combine them into one symbol per event (e.g. pitch + rhythm). | — | `ppidyom(pitch, rhythm)` |
+| `maxN` | The longest context, in events, that the model looks back over. | `5` | `maxN = 3` |
+| `alphabet` | Every symbol that *could* occur, including ones never seen. | unique values of the input | `alphabet = letters` |
+| `model_type` | Which memory to use: `"stm"` (current sequence only), `"ltm"` (other pieces only), `"both"` (blend of the two). `"ltm+"` and `"both+"` also let the long-term model keep learning during the test piece. | `"both"` | `model_type = "stm"` |
+| `ppm_type` | How context lengths are combined: `"interpolation"` blends all of them (Bunton, 1996); `"backoff"` uses the longest one that matches. | `"interpolation"` | `ppm_type = "backoff"` |
+| `shortTermArgs$lambda` | *Escape method*: how much probability to reserve for symbols not yet seen in a context. One of `"A"`, `"B"`, `"C"`, `"D"`, `"X"`. | `"C"` | `shortTermArgs = list(lambda = "D")` |
+| `shortTermArgs$exclusion` | **When predicting:** a shorter context gives its leftover (escape) probability only to symbols the longer context hasn't already predicted. | `TRUE` | `shortTermArgs = list(exclusion = FALSE)` |
+| `shortTermArgs$update_exclusion` | **When learning:** a new event is counted only in the longest contexts that matched, not in every shorter one too. | `TRUE` | `shortTermArgs = list(update_exclusion = FALSE)` |
+| `longTermArgs` | The same settings for the long-term model, plus `start_token`: whether to learn from the very start of each sequence. | `lambda = "C"`, `exclusion = TRUE`, `update_exclusion = FALSE`, `start_token = TRUE` | `longTermArgs = list(start_token = FALSE)` |
+| `longTermGroups` | Which events belong to the same piece, used for leave-one-out training. Set automatically for humdrumR. | one group | `longTermGroups = list(piece_id)` |
+| `shortTermGroups` | Which events belong to the same sequence (e.g. voice). The short-term model restarts for each one. Set automatically for humdrumR. | one group | `shortTermGroups = list(voice_id)` |
+| `b` | When blending STM and LTM, how strongly to favour the more confident model. | `1` | `b = 7` |
+| `idyom_base` | Use IDyOM's exact formula for the fallback "uniform guess", instead of `ppm`'s. | `FALSE` | `idyom_base = TRUE` |
+
+### Examples with parameters
+
+Here are the four chorales again under different settings. `run()` is the same `within()` call as above, with the settings passed through `...`:
+
+```{r params}
+run <- function(..., maxN = 3) {
+  chorales |>
+    solfa(simple = TRUE) |>
+    within(Res <- ppidyom(Solfa, maxN = maxN, ...,
+                         shortTermGroups = list(Spine, Piece),
+                         longTermGroups  = list(Piece)),
+           IC <- Res$IC, Entropy <- Res$Entropy) |>
+    pull_data.table(Piece, Spine, Solfa, IC, Entropy)
+}
+
+runs <- list(
+  "STM"           = run(model_type = "stm"),
+  "STM, maxN = 1" = run(model_type = "stm", maxN = 1),
+  "STM + LTM"     = run(model_type = "both"),
+  "STM + LTM, no exclusion" =
+    run(model_type = "both",
+        shortTermArgs = list(exclusion = FALSE),
+        longTermArgs  = list(exclusion = FALSE))
+)
+
+summary_tab <- data.table(
+  Setting        = names(runs),
+  `Mean IC`      = sapply(runs, function(r) mean(r$IC, na.rm = TRUE)),
+  `Mean Entropy` = sapply(runs, function(r) mean(r$Entropy, na.rm = TRUE))
+)
+knitr::kable(summary_tab, digits = 2, caption = "All four chorales, all voices")
+```
+
+```{r params-plot, fig.height = 4.8}
+sop_runs <- lapply(runs, function(r) r[Piece == 1 & Spine == 4 & !is.na(IC)])
+plot_ic_entropy(sop_runs, title = "Chorale 1, soprano: ")
+```
+
+- **STM + LTM** lowers the average IC (3.08 → 2.71), while entropy barely changes.
+- **`maxN = 1`** only looks at the previous note. The average IC stays the same here, but entropy goes up (2.81 → 2.94): without longer contexts, the model is less sure what comes next.
+- **Turning off exclusion** (last row) makes predictions sharper. With exclusion, a shorter context gives its leftover probability only to notes the longer context hasn't predicted. Without it, every context length adds to the same familiar notes. Probability piles onto fewer notes, so entropy drops (2.80 → 2.04).
+ 
+  But **IC goes up** (2.71 → 2.90). Because the familiar notes take most of the probability, every other note is left with very little. So when a less familiar note does come, it is very surprising: those are the tall orange spikes in the IC plot. On familiar notes, IC drops only a little, so these few big surprises raise the average.
+
+## Learn more
+
+- `?ppidyom` for the full function reference.
+- The [website](https://ppidyom.ccml.gtcmt.gatech.edu) has longer articles on the algorithm, its defaults, how parameters map onto IDyOM and `ppm`, and more humdrumR examples.
+
+## References
+
+- Bunton, S. (1996). *On-line stochastic processes in data compression*. PhD dissertation, University of Washington.
+- Cleary, J. G., & Witten, I. H. (1984). Data compression using adaptive coding and partial string matching. *IEEE Transactions on Communications, 32*(4), 396–402. <https://doi.org/10.1109/TCOM.1984.1096090>
+- Conklin, D., & Witten, I. H. (1995). Multiple viewpoint systems for music prediction. *Journal of New Music Research, 24*(1), 51–73. <https://doi.org/10.1080/09298219508570672>
+- Harrison, P. M. C., Bianco, R., Chait, M., & Pearce, M. T. (2020). PPM-Decay: A computational model of auditory prediction with memory decay. *PLOS Computational Biology, 16*(11), e1008304. <https://doi.org/10.1371/journal.pcbi.1008304>
+- Pearce, M. T. (2005). *The construction and evaluation of statistical models of melodic structure in music perception and composition*. PhD thesis, City University, London.

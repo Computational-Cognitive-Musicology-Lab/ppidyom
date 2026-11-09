@@ -9,3 +9,6 @@ inst/validation/_idyom_work/
 # knitr cache from vignettes
 vignettes/*_cache/
 vignettes/cache/
+
+# test corpus during development
+CoCoPops*
