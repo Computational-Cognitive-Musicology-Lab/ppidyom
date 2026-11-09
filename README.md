@@ -1,336 +1,320 @@
-# PPIDyOM — Developer Guide
 
-This document covers the developer workflow: first-time setup, building, and running tests.
-For the package overview and algorithm description, see [README.md](README.md).
+<!-- README.md is generated from README.Rmd. Please edit README.Rmd, then run rmarkdown::render("README.Rmd") (or devtools::build_readme()). -->
 
----
+# PPIDyOM
 
-## Prerequisites
+**PPIDyOM** (R package `ppidyom`) measures how *surprising* and how *predictable* each event in a sequence is. An event can be any symbol: a note in a melody, a chord in a song, or something outside music, like a letter in a word. PPIDyOM uses the same prediction algorithm as the music-cognition model **IDyOM**, which is built on the statistical model **PPM**. It plugs straight into [humdrumR](https://humdrumR.ccml.gtcmt.gatech.edu), so you can run it on a whole corpus of scores in one line.
 
-- **R ≥ 4.5** (see `DESCRIPTION`)
-- **RStudio** (recommended) or any R IDE with project support
-- **devtools** — the standard R package development toolkit
+Website: <https://ppidyom.ccml.gtcmt.gatech.edu>
 
----
+## What is PPIDyOM?
 
-## 1. First-Time Setup
+-   **PPM** (*Prediction by Partial Matching*; Cleary & Witten, 1984) began as a data-compression algorithm that predicts the next symbol in a sequence. It asks “the last time I saw this context, what came next?” It checks several context lengths at once (the last 1 symbol, the last 2, the last 3, …) and blends their answers into one probability for every possible next symbol. Conklin & Witten (1995) were the first to apply it to music. Peter Harrison’s [ppm](https://github.com/pmcharrison/ppm) R package implements PPM, plus *PPM-Decay*, a version in which older observations gradually fade from memory (Harrison et al., 2020).
+-   **IDyOM** (*Information Dynamics of Music*; Pearce, 2005) is a widely used model of musical expectation built on PPM, written in Common Lisp ([Github](https://github.com/mtpearce/idyom)). It incorporates concepts adapted to music, including:
+    -   **Long-term memory:** what a listener has learned from lots of other music (long-term musical exposure).
+    -   **Short-term memory:** what they have learned so far in the current piece.
+    -   **Viewpoints**: different ways of representing the same music (pitch, scale degree, interval, duration, …), each of which can be modelled.
+-   **PPIDyOM** brings IDyOM’s PPM model into R and connects it to humdrumR. It aims to give the same answers as IDyOM, and as `ppm`’s non-decay model, when they are given the same settings. It is also easier to run on humdrumR data and easier to inspect.
 
-### 1.1 Install devtools
+> PPIDyOM is still being optimized. It does not (yet) include IDyOM's multiple viewpoint selection and PPM-Decay.
 
-```r
-install.packages("devtools")
+For each event, PPIDyOM reports:
+
+-   **P**: the probability the model gave to the event that actually happened.
+-   **IC** (*information content*, in bits) $= -\log_2 P$: how *surprising* the event was. Higher means more surprising.
+-   **Entropy** (bits) $= -\sum_{e} P(e) \log_2 P(e)$, summed over every possible next event $e$: how *uncertain* the model was before the event happened. It is highest when the model spreads its probability evenly over many possible next events, and lowest when it is confident about just one.
+
+## Installation
+
+``` r
+# install.packages("devtools")
+devtools::install_github("Computational-Cognitive-Musicology-Lab/ppidyom")
+
+# Optional, but recommended for working with music:
+devtools::install_github("Computational-Cognitive-Musicology-Lab/humdrumR")
 ```
 
-### 1.2 Install package dependencies
+## A toy example: any sequence works
 
-`ppidyom` depends on `data.table` (CRAN) and `ppm` (GitHub):
+PPIDyOM works on any vector of symbols: chord labels, note names, words, numbers. Here is a simple chord progression, written as Roman numerals. The model starts knowing nothing and learns as it goes (`model_type = "stm"`, short-term memory only).
 
-```r
-install.packages("data.table")
-devtools::install_github("pmcharrison/ppm")
+``` r
+chords <- c("I", "IV", "V", "I",
+            "I", "IV", "V", "I",
+            "I", "vi", "IV", "V", "I")
+
+res <- ppidyom(chords, model_type = "stm")
+knitr::kable(res, digits = 3)
 ```
 
-### 1.3 Install testthat (for running tests)
+| index | Event |     P |    IC | Entropy |
+|------:|:------|------:|------:|--------:|
+|     1 | I     | 0.250 | 2.000 |   2.000 |
+|     2 | IV    | 0.125 | 3.000 |   1.549 |
+|     3 | V     | 0.143 | 2.807 |   1.863 |
+|     4 | I     | 0.278 | 1.848 |   1.971 |
+|     5 | I     | 0.219 | 2.193 |   1.703 |
+|     6 | IV    | 0.300 | 1.737 |   1.807 |
+|     7 | V     | 0.528 | 0.922 |   1.681 |
+|     8 | I     | 0.594 | 0.752 |   1.604 |
+|     9 | I     | 0.580 | 0.786 |   1.537 |
+|    10 | vi    | 0.065 | 3.939 |   1.598 |
+|    11 | IV    | 0.227 | 2.138 |   1.983 |
+|    12 | V     | 0.455 | 1.138 |   1.851 |
+|    13 | I     | 0.484 | 1.047 |   1.814 |
 
-```r
-install.packages("testthat")
+``` r
+plot_ic_entropy(res, labels = res$Event, title = "Chord progression: ", ic_ylim = c(0, 5), ent_ylim = c(0, 3))
 ```
 
-### 1.4 Open the project
+<img src="man/figures/README-toy-plot-1.png" alt="" width="80%" style="display: block; margin: auto;" />
 
-Open `ppidyom.Rproj` in RStudio — this sets the working directory and activates the project environment automatically.
+The first time through, every chord is new and surprising. The second time, the model recognises “I-IV-V-I”, so IC drops. Then `vi` breaks the pattern and IC jumps back up.
 
----
+Entropy shows how *unsure* the model was before each chord, whatever chord actually came. It starts at its maximum (2 bits: four equally likely chords) and stays fairly high, because 13 chords is not much to learn from. It dips a little while I-IV-V-I repeats, and rises again after the unexpected `vi`, when the model is less sure what comes next.
 
-## 2. Build
+## humdrumR example
 
-### Active development (recommended)
+humdrumR ships with a few Bach chorales. Load four of them:
 
-`load_all()` sources every file in `R/` into the current session without a full install. Use this during development — it's fast and reflects your edits immediately:
+``` r
+library(humdrumR)
 
-```r
-devtools::load_all()
+chorales <- readHumdrum(humdrumRroot, "HumdrumData/BachChorales/chor00[1-4].krn")
 ```
 
-### Regenerate documentation
+This first chorale snippet shows how the data looks in HumdrumR:
 
-After editing roxygen2 comments (`#'` blocks) in any `R/` file, regenerate `NAMESPACE` and the `man/` pages:
+    ######################## vvv chor001.krn vvv #########################
+                1:  !!!COM: Bach, Johann Sebastian
+                2:  !!!CDT: 1685/02/21/-1750/07/28/
+                3:  !!!OTL@@DE: Aus meines Herzens Grunde
+                4:  !!!OTL@EN:      From the Depths of My Heart
+                5:  !!!SCT: BWV 269
+                6:  !!!PC#: 1
+                7:  !!!AGN: chorale
+                8:           **kern         **kern         **kern         **kern
+                9:           *ICvox         *ICvox         *ICvox         *ICvox
+               10:           *Ibass        *Itenor         *Ialto        *Isoprn
+               11:          *I"Bass       *I"Tenor        *I"Alto     *I"Soprano
+               12:        *>[A,A,B]      *>[A,A,B]      *>[A,A,B]      *>[A,A,B]
+               13:     *>norep[A,B]   *>norep[A,B]   *>norep[A,B]   *>norep[A,B]
+               14:              *>A            *>A            *>A            *>A
+               15:          *clefF4       *clefGv2        *clefG2        *clefG2
+               16:           *k[f#]         *k[f#]         *k[f#]         *k[f#]
+               17:              *G:            *G:            *G:            *G:
+               18:            *M3/4          *M3/4          *M3/4          *M3/4
+               19:           *MM100         *MM100         *MM100         *MM100
+               20:              4GG             4B             4d             4g
+               21:               =1             =1             =1             =1
+               22:               4G             4B             4d             2g
+               23:               4E            8cL             4e              .
+               24:                .            8BJ              .              .
+               25:              4F#             4A             4d            4dd
+               26:               =2             =2             =2             =2
+               27:               4G             4G             2d            4.b
+               28:               4D            4F#              .              .
+               29:                .              .              .             8a
+               30:               4E             4G             4B             4g
+               31:               =3             =3             =3             =3
+               32:               4C            8cL            8eL            4.g
+               33:                .            8BJ             8d              .
+               34:             8BBL             4c             8e              .
+               35:             8AAJ              .           8f#J             8a
+               36:              4GG             4d             4g             4b
+               37:               =4             =4             =4             =4
+               38:              2D;            2d;           2f#;            2a;
+               39:              4GG             4d             4g             4b
+               40:               =5             =5             =5             =5
+               41:             4FF#             4A             4d            2dd
+               42:              4GG             4B             4e              .
+               43:              4AA             4c            4f#            4cc
+               44:               =6             =6             =6             =6
+               45:              4BB             4d             2g             4b
+               46:               4C             4e              .             2a
+               47:               4D            8dL            4f#              .
+               48:                .            8cJ              .              .
+               49:               =7             =7             =7             =7
+               50:             2GG;            2B;            2d;            2g;
+    ######################## ^^^ chor001.krn ^^^ #########################
 
-```r
-devtools::document()
+       Data fields: 
+                *Token :: character
+
+Each column (*spine*) is one voice: bass, tenor, alto and soprano. Each note is written in `**kern`, which encodes pitch and rhythm.
+
+The quickest way to model it is to pick a viewpoint and pipe straight into `ppidyom()`, e.g. `chorales |> solfa(simple = TRUE) |> ppidyom()`. This handles pieces and voices for you and adds an `ICppidyom` field to the score. That shortcut currently stores IC only, so to keep **both IC and Entropy** we call `ppidyom()` inside `within()` and pass the groups ourselves:
+
+``` r
+stm <- chorales |>
+  # viewpoint: scale degree, no octave
+  solfa(simple = TRUE) |>
+  within(Res <- ppidyom(Solfa, model_type = "stm"),
+         IC <- Res$IC, Entropy <- Res$Entropy)
 ```
 
-### Install the package
+`stm` is still a humdrumR corpus, now with `IC` and `Entropy` fields next to every note. Here are the first notes of the soprano (spine 4) in chorale 1:
 
-Performs a full build and install into your R library. Use this when you want the package available outside this project, or to test it as an end user would:
-
-```r
-devtools::install()
+``` r
+tab <- pull_data.table(stm, Piece, Spine, Solfa, IC, Entropy)
+sop <- tab[Piece == 1 & Spine == 4 & !is.na(IC)]
+knitr::kable(head(sop, 10), digits = 3)
 ```
 
-### Run R CMD CHECK
+| Piece | Spine | Solfa |    IC | Entropy |
+|------:|------:|:------|------:|--------:|
+|     1 |     4 | do    | 1.229 |   2.724 |
+|     1 |     4 | do    | 1.040 |   2.622 |
+|     1 |     4 | so    | 5.048 |   2.228 |
+|     1 |     4 | mi    | 4.074 |   2.645 |
+|     1 |     4 | re    | 3.510 |   2.989 |
+|     1 |     4 | do    | 1.234 |   2.363 |
+|     1 |     4 | do    | 3.781 |   2.820 |
+|     1 |     4 | re    | 2.434 |   3.293 |
+|     1 |     4 | mi    | 1.567 |   2.483 |
+|     1 |     4 | re    | 3.822 |   2.639 |
 
-Runs the full CRAN-style check suite (build, tests, documentation completeness):
-
-```r
-devtools::check()
+``` r
+plot_ic_entropy(sop, labels = sop$Solfa, title = "Chorale 1, soprano: ")
 ```
 
----
+<img src="man/figures/README-hum-plot-1.png" alt="" width="80%" style="display: block; margin: auto;" />
 
-## 3. Running Tests
+## Long-term + short-term memory
 
-Tests live in `tests/testthat/`. The test suite uses the **testthat** framework.
+A listener doesn’t hear each chorale fresh: they bring knowledge from other music. With `model_type = "both"` (the default), PPIDyOM blends two models:
 
-### Run all tests
+-   **Long-term (LTM):** trained on the *other* pieces in the corpus. Each piece is held out in turn, so the model is never tested on music it was trained on (“leave-one-out”).
+-   **Short-term (STM):** learns from the current voice as it goes, like the toy example above.
 
-```r
-devtools::test()
+To keep this example fast, we use the four chorales loaded above as the whole training corpus. (The current version is not yet fast enough for large corpora.)
+
+``` r
+both <- chorales |>
+  solfa(simple = TRUE) |>
+  within(Res <- ppidyom(Solfa, model_type = "both", maxN = 3,
+                      # each voice is one sequence
+                       shortTermGroups = list(Spine, Piece),   
+                       # each chorale is one piece
+                       longTermGroups = list(Piece)),
+         IC <- Res$IC, Entropy <- Res$Entropy)
+
+tab_both <- pull_data.table(both, Piece, Spine, Solfa, IC, Entropy)
+
+# Average per chorale: short-term only vs. long-term + short-term
+cmp <- merge(tab[, .(`IC: STM` = mean(IC, na.rm = TRUE),
+                     `Entropy: STM` = mean(Entropy, na.rm = TRUE)), by = Piece],
+             tab_both[, .(`IC: STM + LTM`  = mean(IC, na.rm = TRUE),
+                          `Entropy: STM + LTM` = mean(Entropy, na.rm = TRUE)), by = Piece])
+knitr::kable(cmp[, c(1, 2, 4, 3, 5)], digits = 2, caption = "Mean IC and Entropy (bits) per chorale")
 ```
 
-This is the standard command. It loads the package first (equivalent to `load_all()`), then runs every `test-*.R` file under `tests/testthat/`.
+| Piece | IC: STM | IC: STM + LTM | Entropy: STM | Entropy: STM + LTM |
+|------:|--------:|--------------:|-------------:|-------------------:|
+|     1 |    2.48 |          2.31 |         2.58 |               2.73 |
+|     2 |    2.62 |          2.56 |         2.76 |               2.82 |
+|     3 |    2.97 |          3.24 |         3.11 |               2.78 |
+|     4 |    2.99 |          2.84 |         3.21 |               2.87 |
 
-### Run a specific test file
+Mean IC and Entropy (bits) per chorale
 
-```r
-devtools::test(filter = "counts")    # runs test-counts.R
-devtools::test(filter = "escape")    # runs test-escape.R
-devtools::test(filter = "invariants") # runs test-invariants.R
-devtools::test(filter = "ppidyom")   # runs test-ppidyom.R
+``` r
+sop_both <- tab_both[Piece == 1 & Spine == 4 & !is.na(IC)]
+plot_ic_entropy(list("STM" = sop, "STM + LTM" = sop_both), title = "Chorale 1, soprano: ")
 ```
 
-Or use `testthat::test_file()` directly after `load_all()`:
+<img src="man/figures/README-both-plot-1.png" alt="" width="80%" style="display: block; margin: auto;" />
 
-```r
-devtools::load_all()
-testthat::test_file("tests/testthat/test-counts.R")
+Adding the long-term model lowers the average IC for chorales 1, 2 and 4, but not for chorale 3 (3.20 → 3.24). The long-term model learns from only the other three chorales, so it helps only as far as the test chorale resembles them.
+
+Average entropy stays about the same (within 0.1 bits). So the blended model is not more certain overall, but it puts more of its probability on the notes that actually occur, which is why IC drops.
+
+## Parameters
+
+All parameters have defaults, so you only need to set the ones you want to change. They work the same way on plain vectors and on humdrumR data.
+
+| Parameter                        | What it does                                                                                                                                                                                             | Default                                                                              | Example                                          |
+|----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|--------------------------------------------------|
+| `...`                            | The sequence(s) to model. Pass several vectors to combine them into one symbol per event (e.g. pitch + rhythm).                                                                                          | —                                                                                    | `ppidyom(pitch, rhythm)`                         |
+| `maxN`                           | The longest context, in events, that the model looks back over.                                                                                                                                          | `5`                                                                                  | `maxN = 3`                                       |
+| `alphabet`                       | Every symbol that *could* occur, including ones never seen.                                                                                                                                              | unique values of the input                                                           | `alphabet = letters`                             |
+| `model_type`                     | Which memory to use: `"stm"` (current sequence only), `"ltm"` (other pieces only), `"both"` (blend of the two). `"ltm+"` and `"both+"` also let the long-term model keep learning during the test piece. | `"both"`                                                                             | `model_type = "stm"`                             |
+| `ppm_type`                       | How context lengths are combined: `"interpolation"` blends all of them (Bunton, 1996); `"backoff"` uses the longest one that matches.                                                                    | `"interpolation"`                                                                    | `ppm_type = "backoff"`                           |
+| `shortTermArgs$lambda`           | *Escape method*: how much probability to reserve for symbols not yet seen in a context. One of `"A"`, `"B"`, `"C"`, `"D"`, `"X"`.                                                                        | `"C"`                                                                                | `shortTermArgs = list(lambda = "D")`             |
+| `shortTermArgs$exclusion`        | **When predicting:** a shorter context gives its leftover (escape) probability only to symbols the longer context hasn’t already predicted.                                                              | `TRUE`                                                                               | `shortTermArgs = list(exclusion = FALSE)`        |
+| `shortTermArgs$update_exclusion` | **When learning:** a new event is counted only in the longest contexts that matched, not in every shorter one too.                                                                                       | `TRUE`                                                                               | `shortTermArgs = list(update_exclusion = FALSE)` |
+| `longTermArgs`                   | The same settings for the long-term model, plus `start_token`: whether to learn from the very start of each sequence.                                                                                    | `lambda = "C"`, `exclusion = TRUE`, `update_exclusion = FALSE`, `start_token = TRUE` | `longTermArgs = list(start_token = FALSE)`       |
+| `longTermGroups`                 | Which events belong to the same piece, used for leave-one-out training. Set automatically for humdrumR.                                                                                                  | one group                                                                            | `longTermGroups = list(piece_id)`                |
+| `shortTermGroups`                | Which events belong to the same sequence (e.g. voice). The short-term model restarts for each one. Set automatically for humdrumR.                                                                       | one group                                                                            | `shortTermGroups = list(voice_id)`               |
+| `b`                              | When blending STM and LTM, how strongly to favour the more confident model.                                                                                                                              | `1`                                                                                  | `b = 7`                                          |
+| `idyom_base`                     | Use IDyOM’s exact formula for the fallback “uniform guess”, instead of `ppm`’s.                                                                                                                          | `FALSE`                                                                              | `idyom_base = TRUE`                              |
+
+### Examples with parameters
+
+Here are the four chorales again under different settings. `run()` is the same `within()` call as above, with the settings passed through `...`:
+
+``` r
+run <- function(..., maxN = 3) {
+  chorales |>
+    solfa(simple = TRUE) |>
+    within(Res <- ppidyom(Solfa, maxN = maxN, ...,
+                         shortTermGroups = list(Spine, Piece),
+                         longTermGroups  = list(Piece)),
+           IC <- Res$IC, Entropy <- Res$Entropy) |>
+    pull_data.table(Piece, Spine, Solfa, IC, Entropy)
+}
+
+runs <- list(
+  "STM"           = run(model_type = "stm"),
+  "STM, maxN = 1" = run(model_type = "stm", maxN = 1),
+  "STM + LTM"     = run(model_type = "both"),
+  "STM + LTM, no exclusion" =
+    run(model_type = "both",
+        shortTermArgs = list(exclusion = FALSE),
+        longTermArgs  = list(exclusion = FALSE))
+)
+
+summary_tab <- data.table(
+  Setting        = names(runs),
+  `Mean IC`      = sapply(runs, function(r) mean(r$IC, na.rm = TRUE)),
+  `Mean Entropy` = sapply(runs, function(r) mean(r$Entropy, na.rm = TRUE))
+)
+knitr::kable(summary_tab, digits = 2, caption = "All four chorales, all voices")
 ```
 
-### Run scalability / timing tests
+| Setting                 | Mean IC | Mean Entropy |
+|:------------------------|--------:|-------------:|
+| STM                     |    3.08 |         2.81 |
+| STM, maxN = 1           |    3.08 |         2.94 |
+| STM + LTM               |    2.71 |         2.80 |
+| STM + LTM, no exclusion |    2.90 |         2.04 |
 
-Scalability tests are disabled by default (they are slow). Enable them with an environment variable before running:
+All four chorales, all voices
 
-```r
-Sys.setenv(RUN_SCALABILITY_TESTS = "true")
-devtools::test(filter = "scalability")
+``` r
+sop_runs <- lapply(runs, function(r) r[Piece == 1 & Spine == 4 & !is.na(IC)])
+plot_ic_entropy(sop_runs, title = "Chorale 1, soprano: ")
 ```
 
----
+<img src="man/figures/README-params-plot-1.png" alt="" width="80%" style="display: block; margin: auto;" />
 
-### Test coverage summary
+-   **STM + LTM** lowers the average IC (3.08 → 2.71), while entropy barely changes.
 
-| Test file | What it covers | 
-|---|---|
-| `test-escape.R` | Escape functions A/B/C/D/AX: correct `subtract`, `esc_numer`, full escape probability |
-| `test-counts.R` | STM and LTM count tables (`Ce`, `C`, `t`, `t1`) at order 0 and order 2; LTM prior accumulation across sequences | 
-| `test-invariants.R` | `P ∈ (0,1]` for observed events; per-timestep distribution sums to 1 | 
-| `test-ppidyom.R` | `detrain_sequence` exactly reverses training (with and without `ltm_update_exclusion`); `run_ppidyom` matches manual leave-one-out | 
-| `test-ppm-comparison.R` | ppidyom STM ↔ Harrison's **ppm** for all 5 escape methods, both exclusion flags, both update-exclusion flags, N ∈ {1,3,5}; full `run_ppidyom` grid | 
-| `test-idyom-comparison.R` | ppidyom ↔ IDyOM (Common Lisp) for all model/escape/exclusion combinations × 2 sequences (AX via `:x`); ppidyom ↔ ppm for STM excl=ON | 
-| `test-scalability.R` | timing benchmarks for large sequences (disabled by default) |
+-   **`maxN = 1`** only looks at the previous note. The average IC stays the same here, but entropy goes up (2.81 → 2.94): without longer contexts, the model is less sure what comes next.
 
----
+-   **Turning off exclusion** (last row) makes predictions sharper. With exclusion, a shorter context gives its leftover probability only to notes the longer context hasn’t predicted. Without it, every context length adds to the same familiar notes. Probability piles onto fewer notes, so **entropy drops** (2.80 → 2.04).
 
-### `test-ppm-comparison.R` — detailed coverage
+    But **IC goes up** (2.71 → 2.90). Because the familiar notes take most of the probability, every other note is left with very little. So when a less familiar note does come, it is very surprising: those are the tall orange spikes in the IC plot. On familiar notes, IC drops only a little, so these few big surprises raise the average.
 
-Compares ppidyom STM against Harrison's **ppm** package.  All tests use
-`ppm_type = "interpolation"` and `idyom_base = FALSE` (ppm-compatible
-shrinking-denominator base).
+## Learn more
 
-#### What IS covered
+-   `?ppidyom` for the full function reference.
+-   The [website](https://ppidyom.ccml.gtcmt.gatech.edu) has longer articles on the algorithm, its defaults, how parameters map onto IDyOM and `ppm`, and more humdrumR examples.
 
-| Section | Escape | Exclusion | Update-excl | N | Sequences |
-|---|---|---|---|---|---|
-| §1 escape sweep | A, B, C, D, AX | FALSE | FALSE | 3 | x1, x2 |
-| §2 exclusion | C | **TRUE** | FALSE | 3 | x1, x2 |
-| §3 update-exclusion | C | FALSE | **TRUE** | 3 | x1, x2 |
-| §3 both flags | C | **TRUE** | **TRUE** | 3 | x1, x2 |
-| §4 order bound | C | FALSE | FALSE | **1** | x1 only |
-| §4 order bound | C | FALSE | FALSE | **5** | x1 only |
-| §5 `run_ppidyom` grid | A, B, C, D, X | FALSE, TRUE | FALSE, TRUE | 3 | x1, x2 |
+## References
 
-Full `run_ppidyom` grid (§5) covers 5 × 2 × 2 = 20 parameter combinations × 2 sequences = 40 checks.
-
-#### What is NOT covered
-
-| Gap | Notes |
-|---|---|
-| LTM / ltm+ / both / both+ model types | ppm package has no LTM; STM only |
-| `idyom_base = TRUE` | always uses ppm-compatible shrinking base |
-| Backoff mode (`ppm_type = "backoff"`) | ppm package uses interpolation only |
----
-
-### `test-idyom-comparison.R` — detailed coverage
-
-Compares ppidyom against ground-truth IDyOM (Common Lisp) output from
-a pre-generated fixture CSV.  All tests use `N = 3`, `idyom_base = TRUE`,
-`ltm_start_token = FALSE`, `b = 7`.  STM with `stm_exclusion = TRUE` also
-gets a three-way ppidyom ↔ ppm ↔ IDyOM comparison.
-
-#### What IS covered
-* OFAT: one-factor-at-a-time
-
-| Model | Parameter combinations | Sequences |
-|---|---|---|
-| `stm` | escape ∈ {a,b,c,d,x} × stm_exclusion ∈ {0,1} × stm_update_exclusion ∈ {0,1} | x1, x2 |
-| `ltm` | escape ∈ {a,b,c,d,x} × ltm_exclusion ∈ {0,1} | x1, x2 |
-| `ltm+` | spot-check: escape=c, ltm_exclusion=1 | x1, x2 |
-| `both` | OFAT on stm/ltm escape and stm/ltm exclusion flags | x1, x2 |
-| `both+` | spot-check: escape=c, exclusion=1 | x1, x2 |
-
-Total: 32 IDyOM configurations × 2 sequences = 64 comparison tests.
-IDyOM's AX escape is invoked as `:x` (not `:ax` — see §6 of `vignette("implementation-discrepancy")`).
-
-#### What is NOT covered
-
-| Gap | Notes |
-|---|---|
-| N ≠ 3 | fixture only uses order-bound=3 |
-| `ltm_update_exclusion = TRUE` | fixture holds `ltm_update_exclusion = 0` throughout |
-| `b ≠ 7` | fixture always uses IDyOM's default b=7 |
-| `idyom_base = FALSE` | always uses IDyOM-compatible base; ppm-compatible base not cross-checked for LTM |
-| Backoff mode | IDyOM supports `mixtures=nil`; not in fixture |
-| STM, `stm_exclusion = FALSE` vs ppm | three-way check only runs when `stm_exclusion = TRUE` (the only setting where all three agree on the base distribution) |
-| More than one training sequence | fixture trains on a single fixed sequence |
-
----
-
-## 4. IDyOM Comparison Tests (Ground-Truth Validation)
-
-The test file `tests/testthat/test-idyom-comparison.R` validates ppidyom against
-real IDyOM (Common Lisp) output. This is a three-way check for STM:
-
-```
-ppidyom  ↔  ppm package  ↔  IDyOM (Lisp)
-```
-
-and a two-way check for LTM / ltm+ / both / both+:
-
-```
-ppidyom  ↔  IDyOM (Lisp)
-```
-
-The comparison requires a pre-generated reference CSV. You only need to regenerate
-it when you change the toy sequences or add new parameter combinations.
-
-### 4.1 Prerequisites
-
-- **Docker** — install from https://docs.docker.com/get-docker/
-
-No local Lisp or IDyOM installation is needed; Docker handles everything.
-
-### 4.2 Generate the IDyOM reference fixture (run once)
-
-From the repo root:
-
-```bash
-bash inst/validation/run_idyom_docker.sh
-```
-
-This will:
-1. Build a Docker image with SBCL + IDyOM + Python 3 (takes ~5 min the first time; cached afterwards).
-2. Run `inst/validation/generate_idyom_reference.py` inside the container.
-3. Write `tests/testthat/fixtures/idyom_reference_ic.csv`.
-
-The script supports **checkpointing** — if interrupted, re-running it skips already-completed parameter combinations.
-
-### 4.3 Run the comparison tests
-
-After the fixture CSV exists, run normally:
-
-```r
-devtools::test(filter = "idyom")
-```
-
-Tests are skipped automatically (with an informative message) if the fixture is absent,
-so `devtools::test()` remains safe to run without Docker.
-
-### 4.4 Parameter grid
-* OFAT: one-factor-at-a-time
-
-The fixture covers **32 IDyOM runs × 2 sequences = 64 total runs**:
-
-| Model | Combos | What's varied |
-|-------|--------|---------------|
-| `stm`  | 8 | baseline + 4 escape methods + exclusion + update_exclusion + both |
-| `ltm`  | 8 | same OFAT pattern on the LTM side |
-| `ltm+` | 3 | spot-check of online updating |
-| `both` | 10 | OFAT on STM+LTM interpolation + key interactions |
-| `both+`| 3 | spot-check of online updating in both+ |
-
-To add more combinations, edit `generate_efficient_grid()` in
-`inst/validation/generate_idyom_reference.py` and re-run the Docker script.
-No R code changes are needed — the test file reads all configs directly from the CSV.
-
-### 4.5 What the Dockerfile installs
-
-`inst/validation/Dockerfile` installs:
-- `sbcl` — Steel Bank Common Lisp (the Lisp compiler IDyOM runs on)
-- `quicklisp` — Common Lisp package manager (downloads IDyOM automatically)
-- `idyom` — Pearce's IDyOM system from GitHub
-- `python3` + `pandas` — to run the generator script and parse `.dat` outputs
-
----
-
-## Typical Development Loop
-
-```
-# Once per session
-devtools::load_all()
-
-# Edit R/*.R files ...
-
-# Reload and run relevant tests
-devtools::load_all()
-devtools::test(filter = "counts")
-
-# Before committing
-devtools::document()   # if you changed roxygen comments
-devtools::check()      # full check (optional but recommended)
-```
-
----
-
-## Understanding the Codebase
-
-### File-by-file overview
-
-| File | Role |
-|------|------|
-| `R/escape.R` | Pure math: escape and discount function definitions (methods A, B, C, D, AX). No side effects, no dependencies. |
-| `R/counts.R` | Count accumulation: builds the sparse count tables (Ce, C, t, t1) for all n-gram orders, for both STM and LTM. Also handles the lag matrix, context key generation, prior seeding, and update-exclusion logic. |
-| `R/interpolation.R` | Probability computation (interpolated PPM): consumes count tables, applies the weighted sum across orders, handles the exclusion mechanism. |
-| `R/backoff.R` | Probability computation (backoff PPM): consumes count tables, cascades through orders assigning probability mass to seen symbols. |
-| `R/ppidyom.R` | The main `ppidyom` R5 Reference Class: wraps LTM state and calls `count_tables`, `ppm_interpolated`/`ppm_backoff`, and `detrain_sequence`. Also contains `combine_models` for STM+LTM blending. |
-| `R/utils.R` | Top-level user function `run_ppidyom`: runs leave-one-out or train-all evaluation over a corpus using the `ppidyom` class. |
-
-### Dependency graph
-
-```
-escape.R  ──────────────────────────────────────────┐
-                                                    ▼
-counts.R  ──► interpolation.R ──────────────► ppidyom.R ──► utils.R
-          └─► backoff.R ───────────────────────────►┘
-```
-
-### Key data structures
-
-**Count table** (output of `count_tables`, input to `ppm_interpolated` / `ppm_backoff`):
-
-A list of N+1 `data.table`s (one per order 0..N). Each row is one `(timestep, symbol)` pair:
-
-| Column | Type | Meaning |
-|--------|------|---------|
-| `index` | int | Timestep (1..T for STM; -1 for LTM, a constant sentinel) |
-| `context_id` | chr | N-gram context string, e.g. `"A_B"` for order 2, `"ROOT"` for order 0 |
-| `Event` | chr | Symbol/event label |
-| `Ce` | int | Count of times this symbol followed this context |
-| `C` | int | Total count of all symbols after this context (= sum of Ce over the alphabet) |
-| `t` | int | Number of distinct symbols seen after this context |
-| `t1` | int | Number of symbols seen exactly once (singletons) |
-
-**LTM environments** (internal representation during accumulation in `counts.R`):
-
-During training, counts are stored as `new.env(hash=TRUE)` objects — one environment per order. Each key is a `context_id` string; each value is a named integer vector `c(A=3, B=1, ...)` mapping symbols to Ce counts. These are converted to data.tables at the end of `count_tables`. Only symbols with Ce > 0 are stored as keys.
-
----
+-   Bunton, S. (1996). *On-line stochastic processes in data compression*. PhD dissertation, University of Washington.
+-   Cleary, J. G., & Witten, I. H. (1984). Data compression using adaptive coding and partial string matching. *IEEE Transactions on Communications, 32*(4), 396–402. <https://doi.org/10.1109/TCOM.1984.1096090>
+-   Conklin, D., & Witten, I. H. (1995). Multiple viewpoint systems for music prediction. *Journal of New Music Research, 24*(1), 51–73. <https://doi.org/10.1080/09298219508570672>
+-   Harrison, P. M. C., Bianco, R., Chait, M., & Pearce, M. T. (2020). PPM-Decay: A computational model of auditory prediction with memory decay. *PLOS Computational Biology, 16*(11), e1008304. <https://doi.org/10.1371/journal.pcbi.1008304>
+-   Pearce, M. T. (2005). *The construction and evaluation of statistical models of melodic structure in music perception and composition*. PhD thesis, City University, London.
