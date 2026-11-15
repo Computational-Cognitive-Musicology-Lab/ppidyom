@@ -1,0 +1,145 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# config.yaml — the parameters to test, and how each one is passed to
+# ppidyom() and to IDyOM.
+#
+# Each parameter has
+#   default:  value used while another parameter is varied
+#   values:   values to try
+#   ppidyom:  where it goes in ppidyom():  `maxN` (top-level argument) or
+#             `dynamic$escape` / `schematic$escape` (element of that list)
+#   idyom:    where it goes in IDyOM:
+#               {stm: ":key"}, {ltm: ":key"}, {both: ":key"}   key in :stmo / :ltmo
+#               map: {value: lisp}   (optional; TRUE/FALSE become t/nil)
+#               models      the dynamic / schematic switches -> :models :both|:stm|:ltm
+#               bias        (mvs:set-ltm-stm-bias b)
+#               resampling  crossValidate: piece -> :k <n pieces>, none -> :k 1 + pretraining on the same data
+#               none        no IDyOM counterpart (only values that match IDyOM's fixed behaviour are listed)
+#   type: grouping   values name a grouping (piece | none) instead of being passed as-is
+#
+# To add a parameter: add an entry here. Nothing else needs to change unless it
+# needs a new kind of `idyom:` mapping (then edit run_idyom.R).
+# ─────────────────────────────────────────────────────────────────────────────
+
+parameters:
+
+  maxN:
+    default: 3
+    values: [0, 1, 2, 3, 5, 10]
+    ppidyom: maxN
+    idyom: {both: ":order-bound"}
+
+  b:
+    default: 1
+    values: [1, 2, 7]
+    ppidyom: b
+    idyom: bias
+
+  ppm_type:
+    default: interpolation
+    values: [interpolation, backoff]
+    ppidyom: ppm_type
+    idyom: {both: ":mixtures", map: {interpolation: "t", backoff: "nil"}}
+
+  # ── dynamic = short-term model (STM) ───────────────────────────────────────
+  dynamic:
+    default: true
+    values: [true, false]
+    idyom: models
+
+  dynamic.escape:
+    default: C
+    values: [A, B, C, D, X]
+    ppidyom: dynamic$escape
+    idyom: {stm: ":escape", map: {A: ":a", B: ":b", C: ":c", D: ":d", X: ":x"}}
+
+  dynamic.exclusion:
+    default: true
+    values: [true, false]
+    ppidyom: dynamic$exclusion
+    idyom: {stm: ":exclusion"}
+
+  dynamic.update_exclusion:
+    default: false
+    values: [true, false]
+    ppidyom: dynamic$update_exclusion
+    idyom: {stm: ":update-exclusion"}
+
+  # IDyOM resets its STM after every piece
+  dynamic.groupby:
+    type: grouping
+    default: piece
+    values: [piece]
+    ppidyom: dynamic$groupby
+    idyom: none
+
+  # ── schematic = long-term model (LTM) ──────────────────────────────────────
+  schematic:
+    default: true
+    values: [true, false]
+    idyom: models
+
+  schematic.escape:
+    default: C
+    values: [A, B, C, D, X]
+    ppidyom: schematic$escape
+    idyom: {ltm: ":escape", map: {A: ":a", B: ":b", C: ":c", D: ":d", X: ":x"}}
+
+  schematic.exclusion:
+    default: true
+    values: [true, false]
+    ppidyom: schematic$exclusion
+    idyom: {ltm: ":exclusion"}
+
+  schematic.update_exclusion:
+    default: false
+    values: [true, false]
+    ppidyom: schematic$update_exclusion
+    idyom: {ltm: ":update-exclusion"}
+
+  # IDyOM never counts start-of-piece contexts
+  schematic.start_token:
+    default: false
+    values: [false]
+    ppidyom: schematic$start_token
+    idyom: none
+
+  schematic.crossValidate:
+    type: grouping
+    default: piece
+    values: [piece, none]
+    ppidyom: schematic$crossValidate
+    idyom: resampling
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Each dataset is either
+#   sequences:   one string per piece, one character per event
+#   corpus:      folder of .hum files (relative to the repo root), with
+#                spine_index (which spine), n_pieces (the first n pieces),
+#                symbol_regex (optional: the part of each token to keep)
+datasets:
+  toy:
+    sequences: [ABCABCACB, ABABABAB, AAAAAA, ACDBACDABC]
+  harm_small:
+    # **harm chords from CoCoPops_varms
+    corpus: tests/data/CoCoPops_varms
+    spine_index: 1                # 1 = **harm
+    symbol_regex: "[^0-9.][^;]*"  # drop duration and fermata
+    n_pieces: 10
+  harm:
+    corpus: tests/data/CoCoPops_varms
+    spine_index: 1                # 1 = **harm
+    symbol_regex: "[^0-9.][^;]*"  # drop duration and fermata
+    n_pieces: 100
+
+settings:
+  tolerance: 1.0e-3                # ppidyom() rounds IC/H to 3 decimals
+  idyom:
+    image: ppidyom-idyom-validation          # build: docker build -t ppidyom-idyom-validation inst/validation
+    workdir: tests/param_suite/_idyom_work   # inputs, Lisp script, cached .dat outputs
+    pitch_offset: 40                         # IDyOM reads only MIDI pitches: k-th symbol -> 40 + k
+    dynamic_space_mb: 8192
+  results_dir: tests/param_suite/results     # last run of each mode: summary.csv, events.csv, calls.txt
+  test_datasets:                             # datasets each testthat mode runs on
+    single:   [toy, harm_small]
+    pairwise: [toy]
+    random:   [toy, harm_small]
