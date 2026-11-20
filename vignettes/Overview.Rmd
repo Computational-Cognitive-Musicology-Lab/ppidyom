@@ -21,8 +21,8 @@ These expectations reflect both the statistical regularities of musical culture
 (patterns learned over years of listening) and the specific context of the
 piece playing right now.
 
-Information theory gives us a way to measure surprise. When an event is
-unexpected, it carries high **information content** (IC); when it was
+Information theory gives us a way to model how expected or unexpected an event is. 
+When an event is unexpected, it carries high **information content** (IC); when it was
 anticipated, IC is low. Averaged over a sequence, this gives **entropy** — a
 measure of how predictable a passage is overall. These quantities have been
 linked empirically to:
@@ -32,11 +32,17 @@ linked empirically to:
 - neural responses to music (EEG, fMRI)
 - cross-cultural differences in tonal stability
 
-**PPM** (Prediction by Partial Matching) is the statistical model underlying
-most of this research. It processes a musical sequence event by event, maintains
-counts of how often each pattern has occurred, and uses those counts to assign
-probabilities to the next event. The output is a per-event IC trajectory that
-can be compared against listener data, neural recordings, or other models.
+
+To compute information content (and entropy) we compute conditional probabilities for each event in a musical sequence.
+We can, for example, look at the first three notes in a melody and consider how probable the next note (the fourth note) is. 
+We can then do this for every (overlapping) subsequence of 3+1 notes in the melody---each subsequence is called a 4-gram.
+We can use longer (10-grams) or shorter (3-grams) sequences, so we call this general approach *N-gram* modeling.
+To construct N-gram models, we take input data and simply count up all the N-grams that happen.
+We can then use this as a model to estimate the probability (and information content) of different N-grams occurring while listening to music.
+The output is a per-event IC trajectory that can be compared against listener data, neural recordings, or other models.
+
+**PPM** (Prediction by Partial Matching) is particularly sophisticated form of N-gram modeling, which is more robust and (probably) meaningful than straight N-gram modeling.
+Rather than pick a particular N-gram length (like 4) and use that for everything, the ppm algorithm blends together probability estimates based on various N-gram lengths.
 
 ---
 
@@ -48,19 +54,24 @@ matching context, reads off the conditional probability, and — when a context
 has never been seen — **escapes** to the next shorter context. This chaining
 continues down to a uniform prior that covers any event not seen at all.
 
-Two kinds of memory can be involved:
-
-- **Short-term memory (STM)**: counts built from the current sequence only.
-  Predictions sharpen as patterns repeat within a single piece.
-- **Long-term memory (LTM)**: counts pre-built from a training corpus.
-  The model brings prior musical knowledge to each new sequence.
-- **Both / both+**: the model blends LTM knowledge with growing STM counts,
-  weighting each source by how confident it currently is (lower entropy =
-  higher weight).
-
 The escape fraction at each order is controlled by the **escape method**
 (A, B, C, D, or AX). Different methods trade off between relying on the
 current context and falling back quickly to shorter histories.
+
+To construct probabilistic estimates, PPM models can incorporate two distinct forms of memory:
+
+- **Dynamic memory**: 
+	This is a model of the expectations we form *as* we are listening to a specific piece of music.
+	The model computes rolling cumulative counts from a single piece of music as it unfolds event by event.
+  Predictions from the dynamic model sharpen as patterns repeat within a single piece.
+- **Schematic memory**: 
+	This is a model of the general musical experience someone has developed from listening to many pieces of music over time.
+	These counts are pre-learned a training corpus.
+
+
+We can also blend the dynamic and schematic approaches, which is what real humans do, weighting each source by how confident it currently is (lower entropy = higher weight).
+In a blended model, the schematic model can be updated on the fly, as a piece unfolds, or held static.
+
 
 ---
 
@@ -76,7 +87,7 @@ Three PPM-based tools for music IC analysis are in active use:
 
 Despite sharing the same conceptual model, these implementations make different
 choices at several algorithmic decision points: how the base prior is computed,
-whether beginning-of-sequence positions are counted during LTM training, how the
+whether beginning-of-sequence positions are counted during schematic training, how the
 escape method AX is interpreted, and what the default mixture weight is.
 
 These divergences are subtle — they are not documented comprehensively anywhere
@@ -92,8 +103,8 @@ even when the nominal settings appear identical. This makes it difficult to:
 
 ## What ppidyom offers
 
-ppidyom is a new R implementation of PPM covering all four memory configurations
-(STM, LTM, both, both+) and exposing every parameter that governs how the model
+ppidyom is a new R implementation of PPM covering all four model configurations
+(dynamic, schematic, or blended) and exposing every parameter that governs how the model
 behaves.
 
 ### Transparency and parameter correspondence
@@ -117,13 +128,13 @@ ppidyom builds count tables with `data.table` and processes sequences with
 vectorised operations. This makes it substantially faster than the IDyOM CLI
 on large corpora.
 
-### HumdrumR integration (early / basic)
+### HumdrumR integration 
 
 ppidyom now integrates with
 [HumdrumR](https://github.com/Computational-Cognitive-Musicology-Lab/humdrumR),
 the symbolic music analysis framework for R, via `ppidyom.humdrumR()` — an S3
 method on the new `ppidyom()` generic. It accepts Humdrum-format scores
-directly and returns IC results attached to the HumdrumR data object,
+directly and returns IC and entropy results attached to the HumdrumR data object,
 enabling PPM-based analysis as part of a broader corpus analysis pipeline.
 This is a first-pass implementation; see
 [`vignette("example-calls")`](ExampleCalls.html#humdrumr-integration-early-basic)
@@ -145,7 +156,7 @@ PPM-based IC analysis has been applied to a wide range of questions:
   historical periods?
 - **Neuroimaging** — does BOLD signal or EEG amplitude track per-note IC?
 
-ppidyom's full LTM support and configurable parameters make it suitable for any
+ppidyom's full schematic-memory support and configurable parameters make it suitable for any
 of these use cases. The ability to replicate both IDyOM and ppm behaviour from
 a single codebase also makes it useful for replication studies and
 cross-implementation comparison.
@@ -160,23 +171,11 @@ library(data.table)
 
 # A short melody represented as symbol labels
 melody   <- c("A", "B", "A", "C", "A", "B", "A", "C", "A")
-alphabet <- c("A", "B", "C")
 N        <- 3L   # order bound: consider up to 3-event contexts
 
-# STM model with default IDyOM-compatible settings
-model <- ppidyomModel$new(N = N, alphabet = alphabet, stm_exclusion = TRUE)
+# dynamic-only (short-term) model with default IDyOM-compatible settings:
+ppidyom(melody, maxN = N, schematic = FALSE)
 
-result <- model$predict_sequence(
-  melody,
-  model_type = "stm",
-  ppm_type   = "interpolation",
-  stm_lambda = "C",
-  idyom_base = TRUE
-)
-
-# Extract IC for the observed events
-obs <- data.table(index = seq_along(melody), Event = melody)
-result[obs, on = .(index, Event)][, .(index, Event, IC, Entropy)]
 ```
 
 For calls that replicate IDyOM or the ppm package exactly, see

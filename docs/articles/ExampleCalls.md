@@ -61,7 +61,6 @@ statistics; as patterns repeat, higher orders take over.
 ppidyom(testSequence, maxN = N, alphabet = alphabet, 
                 model_type = 'stm', ppm_type = 'interpolation', idyom_base = FALSE,
                 shortTermArgs = list(lambda = 'C', exclusion = FALSE, update_exclusion = FALSE))
-#> i is 1 in lt_groups
 #>    index  Event          P        IC   Entropy
 #>    <int> <char>      <num>     <num>     <num>
 #> 1:     1      A 0.33333333 1.5849625 1.5849625
@@ -89,7 +88,6 @@ not yet covered by higher-order predictions.
 ppidyom(testSequence, maxN = N, alphabet = alphabet, 
                 model_type = 'stm', ppm_type = 'interpolation', idyom_base = FALSE,
                 shortTermArgs = list(lambda = 'A', exclusion = TRUE, update_exclusion = FALSE)) 
-#> i is 1 in lt_groups
 #>    index  Event          P        IC  Entropy
 #>    <int> <char>      <num>     <num>    <num>
 #> 1:     1      A 0.33333333 1.5849625 1.584963
@@ -127,7 +125,6 @@ ppidyom(testCorpus$Sequence, maxN = N, alphabet = alphabet,
                 model_type = 'stm', ppm_type = 'interpolation', idyom_base = FALSE,
                 shortTermArgs = list(lambda = 'C', exclusion = FALSE, update_exclusion = FALSE),
               shortTermGroups = list(testCorpus$Piece))
-#> i is 1 in lt_groups
 #>     index  Event          P        IC   Entropy
 #>     <int> <char>      <num>     <num>     <num>
 #>  1:     1      A 0.33333333 1.5849625 1.5849625
@@ -180,7 +177,6 @@ here; all three implementations agree.
 ppidyom(testSequence, maxN = N, alphabet = alphabet, 
                 model_type = 'stm', ppm_type = 'interpolation', idyom_base = TRUE,
                 shortTermArgs = list(lambda = 'C', exclusion = TRUE, update_exclusion = FALSE))
-#> i is 1 in lt_groups
 #>    index  Event         P        IC  Entropy
 #>    <int> <char>     <num>     <num>    <num>
 #> 1:     1      A 0.3333333 1.5849625 1.584963
@@ -211,12 +207,10 @@ values.**
 result_idyom <- ppidyom(testSequence, maxN = N, alphabet = alphabet, 
                                                 model_type = 'stm', ppm_type = 'interpolation', idyom_base = TRUE,
                                                 shortTermArgs = list(lambda = 'C', exclusion = FALSE, update_exclusion = FALSE))
-#> i is 1 in lt_groups
 
 result_ppm   <- ppidyom(testSequence, maxN = N, alphabet = alphabet, 
                                                 model_type = 'stm', ppm_type = 'interpolation', idyom_base = FALSE,
                                                 shortTermArgs = list(lambda = 'C', exclusion = FALSE, update_exclusion = FALSE))
-#> i is 1 in lt_groups
 data.frame(event = testSequence,
                      IC_idyom_compat = result_idyom$IC, 
                      IC_ppm_compat   = result_ppm$IC
@@ -257,8 +251,6 @@ ppidyom(testCorpus$Sequence, maxN = N, alphabet = alphabet,
                 model_type = 'ltm', ppm_type = 'interpolation', idyom_base = TRUE,
                 longTermArgs = list(lambda = 'C', exclusion = TRUE, start_token = FALSE),
                 longTermGroups = list(testCorpus$Piece)) 
-#> i is 1 in lt_groups
-#> i is 2 in lt_groups
 #>     index  Event         P        IC  Entropy
 #>     <int> <char>     <num>     <num>    <num>
 #>  1:     1      A 0.3571429 1.4854268 1.577406
@@ -299,8 +291,6 @@ ppidyom(testCorpus$Sequence, maxN = N, alphabet = alphabet,
                 shortTermArgs = list(lambda = 'C', exclusion = TRUE, update_exclusion = FALSE),
                 longTermArgs = list(lambda = 'C', exclusion = TRUE, update_exclusion = FALSE, start_token = FALSE),
                 longTermGroups = list(testCorpus$Piece)) 
-#> i is 1 in lt_groups
-#> i is 2 in lt_groups
 #>     index  Event         P        IC  Entropy
 #>     <int> <char>     <num>     <num>    <num>
 #>  1:     1      A 0.3455200 1.5331590 1.583009

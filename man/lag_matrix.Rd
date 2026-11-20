@@ -4,18 +4,30 @@
 \alias{lag_matrix}
 \title{Generate Lagged N-gram Matrix}
 \usage{
-lag_matrix(x, N = 3)
+lag_matrix(
+  x,
+  N = 3,
+  stmGroups = integer(length(x)),
+  ltmGroups = integer(length(x)),
+  alphabet = sort(unique(x)),
+  includeStart = TRUE
+)
 }
 \arguments{
 \item{x}{Character vector of symbols/events.}
 
 \item{N}{Maximum N-gram order.}
+
+\item{includeStart}{Logical switch to include or exclude incomplete contexts at the start.}
+
+\item{...}{Zero or more grouping vectors.}
 }
 \value{
-A \code{data.table} with columns LagN..Lag0 and index.
+A \code{data.table} with columns LagN..Event and index.
 }
 \description{
-Creates a lagged representation of a sequence for N-gram modeling.
+Creates a lagged representation of a sequence for N-gram modeling,
+grouped within blocks indicated in \code{...} vectors.
 }
 \examples{
 lag_matrix(c("A", "B", "A", "C", "A"), N = 2)

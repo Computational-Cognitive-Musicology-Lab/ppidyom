@@ -97,7 +97,7 @@ ppidyom.default <- function(..., maxN = 10, alphabet = lapply(list(...), unique)
 
 						dynP <- if (length(dynamicArgs)) {
 							cat("Computing dynamic probabilities", input, '...', sep = '')
-							lags |> stm_counts(update_exclusion = dynamicArgs$update_exclusion) |> stm_interpolation(escape = dynamicArgs$escape)
+							lags |> stm_counts(update_exclusion = dynamicArgs$update_exclusion, needt1 = dynamicArgs$escape == 'X') |> stm_interpolation(escape = dynamicArgs$escape)
 						}
 						schP <- if (length(schematicArgs)) {
 							cat("Computing schematic probabilities", input, '...', sep = '')
@@ -142,6 +142,8 @@ modelArgs <- function(args, argname) {
 
 prepGroups <- function(targetlen, ...) {
 	groups <- list(...)
+
+	if (sum(lengths(groups)) == 0L) return(1L)
 	groups <- groups[lengths(groups) > 0L]
 
 	groups <- lapply(groups, \(group) if (is.atomic(group)) list(group) else group)
