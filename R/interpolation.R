@@ -199,19 +199,21 @@ ppm_interpolated <- function(
   dt_final
 }
 
-stm_interpolation <- function(counts, escape = 'C') {
+stm_interpolation <- function(counts, escape = 'C', exclusion = TRUE) {
 	par <- modelPar(counts)
 	if (par$N == 0) stop("Can't interpolate zeroth order yet")
 
 	counts <- stm_escape(counts, escape)
 
 	full <- counts[[par$N + 1L]]
-	full[, P := ifelse(Denom <= 0, 0.0, Numer / Denom)]
+	full[ , P := ifelse(Denom <= 0, 0.0, Numer / Denom)]
+	full[ , Exclude := if (exclusion) P > 0 else FALSE]
 
 	for (n in (par$N - 1L):0) {
 
-		full[counts[[n + 1L]], on = c('Sym', 'index'), P := P + E * ifelse(i.Denom <= 0, 0.0, i.Numer / i.Denom)]
-		full[counts[[n + 1L]], on = c('index'), E := E * i.E]
+		full[counts[[n + 1L]], on = c('Sym', 'index'), P := P + (E * ifelse(i.Denom <= 0, 0.0, i.Numer / i.Denom) * !Exclude)]
+		full[counts[[n + 1L]], on = c('index'), E := E * ifelse(i.Denom <= 0, 1, (i.esc_numer / i.Denom - (i.Numer *  Exclude)))]
+		if (exclusion) full[, Exclude := Exclude | P > 0]
 	}
 
 	full[, P := P + E * (1 / length(par$alphabet))]

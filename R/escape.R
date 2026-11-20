@@ -80,7 +80,7 @@ stm_escape <- function(counts, escape = 'A') {
 						countN[ , Numer := ifelse(Ce >= subtract, Ce - subtract, 0L)]
 						countN[ , Denom := C - (subtract * t) + esc_numer]
 						countN[, E := ifelse(Denom <= 0, 1.0, esc_numer / Denom)]
-						countN[, c('subtract', 'esc_numer') := NULL]
+						countN[, c('subtract') := NULL]
 						countN[]
 
 				 })
