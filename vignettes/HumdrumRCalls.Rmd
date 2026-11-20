@@ -8,7 +8,7 @@ vignette: >
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = TRUE, cache = TRUE, cache.path = 'cache/')
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = TRUE, cache = TRUE, cache.path = 'cache/', message = FALSE)
 library(ppidyom)
 library(data.table)
 ```
@@ -30,10 +30,11 @@ library(ppidyom)
 Let's start with trusty Bach chorales, the first ten of which are packaged with humdrumR.
 To load them, we just need this:
 
-```{r}
+```{r, message = TRUE}
 
 chorales <- readHumdrum(humdrumRroot, "HumdrumData/BachChorales/.*krn")
 
+chorales
 ```
 
 If you have any other humdrum data on your machine, you can just pass `readHumdrum()` the path and pattern to match your files.
@@ -78,7 +79,7 @@ chorales |> solfa(simple = FALSE) |> ppidyom()
 
 ```
 
-Or maybe you just want to atonal absolute pitch (semitones).
+Or maybe you want to instead consider an atonal absolute perspective on pitch (semitones).
 That's easy, just switch to the `semits()` function:
 
 
@@ -98,9 +99,13 @@ Let's compare:
 chorales |> solfa(simple = TRUE)  |> ppidyom() |> pull() -> tonal
 chorales |> semits() |> ppidyom() |> pull() -> atonal
 
-draw(tonal, atonal)
+draw(tonal, atonal,
+		 xlab = 'Tonal Information Content Estimates',
+     ylab = 'Atonal Information Content Estimates')
 
 ```
+
+
 
 
 # Other examples
@@ -109,10 +114,11 @@ draw(tonal, atonal)
 How about a different type of pitch data: harmonies?
 Let's pull up `humdrumR`'s prepackaged subset of the *Rolling Stone 200* dataset:
 
-```{r}
+```{r, message = TRUE}
 
 rs <- readHumdrum(humdrumRroot, '/HumdrumData/RollingStoneCorpus/.*hum')
 
+rs 
 ```
 
 We can extract the roman numerals from the `**harm` spine, and then apply ppidyom:
