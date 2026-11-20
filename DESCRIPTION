@@ -1,7 +1,7 @@
 Package: ppidyom
 Type: Package
 Title: Apply partial predictive modeling to musical data
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: c(
     person("Nat", "Condit-Schultz", email = "natcs@gatech.edu", role = c("aut", "cre")),
     person("Ling", "Qi", email = "lqi60@gatech.edu", role = "aut")

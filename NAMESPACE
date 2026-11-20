@@ -2,6 +2,5 @@
 
 S3method(ppidyom,default)
 S3method(ppidyom,humdrumR)
-export(count_tables)
 export(lag_matrix)
 export(ppidyom)

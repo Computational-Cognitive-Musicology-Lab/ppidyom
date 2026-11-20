@@ -13,12 +13,37 @@ library(ppidyom)
 library(data.table)
 ```
 
-PPM models a listener who hears a musical sequence event by event and forms
-expectations about what comes next.  Different configurations of ppidyom
-correspond to different assumptions about what kind of memory that listener
-has:
+N-gram are a tool for modeling the process of a listener hearing a sequence of musical events---notes, chords, etc.
 
-- **STM only** — the listener remembers only the current sequence.
+Our goal here is model the experience of music as a sequence of events---notes, chords, etc.
+As we listen note-by-note (or chord-by-chord, etc.) we form (largely unconscious) expectations about what we expect the next note to be.
+N-grams are a useful tool for modeling this situation.
+We break the sequence up into a string of overlapping sub-sequences (N-grams).
+We can then think of the last event/note in each N-gram as being the next event we are forming expectations about, with the rest of the n-gram giving us the musical context to form that expectation.
+
+We will model our "expectations" as conditional probabilities.
+At each point, we compute how probable various next-events are, given the context.
+This can be done essentially by simply counting how common differ n-grams in a set of data.
+
+The full *partial-predictive-matching* model computes N-gram-based probabilities in several different ways, then blends them together to come up with a final probabilistic estimate.
+
++ First of all, we compute N-grams of various lengths, from one through some maximum N.
+  The maximum N becomes the upper limit of the model's dynamic memory, and we might consider values like $\approx 10$, similar to the number of events humans can hold in working memory.
+  Probabilistic estimates based on all the different lengths of N-grams are then blended together, generally favoring the longer ones.
++ There are then two fundamentally different ways we can apply our N-gram models to music, each which is relevant to models of human perception.
+	+ We can model the *dynamic* formation of expectations as we listen to a piece. 
+		If we hear a repeated motif in a piece, we will start to expect to hear it again as the piece continues.
+		We model this by counting up the n-grams that occur within a single piece in a cumulative manner, adding more and more to the counts as the piece goes on.
+		+ In IDyOM, this is called the "short-term model."
+	+ We can also model the *schematic* knowledge and exactions that music listens have learned over the course of their lifetimes of experience listening to music.
+		To do this, we count up N-grams in a large corpus of music which we hope to act like a representative sample of a musical style.
+		The "pretraining" attempts to model the *prior* knowledge you have about music before you start listening to a particular piece.
+		+ In IDyOM, this is called the "long term model."
+
+
+In ppidyom, we can use either dynamic models or schematic models, or use both and blend their estimates together.
+
+- **Dynamic only** — the listener remembers only the current sequence.
   Predictions become sharper as the sequence unfolds and patterns repeat.
 - **LTM only** — the listener draws entirely on prior musical experience
   encoded in a training corpus.  The current sequence does not update their

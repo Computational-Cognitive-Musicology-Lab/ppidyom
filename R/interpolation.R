@@ -209,10 +209,9 @@ stm_interpolation <- function(counts, escape = 'C') {
 	full[, P := ifelse(Denom <= 0, 0.0, Numer / Denom)]
 
 	for (n in (par$N - 1L):0) {
-		full[counts[[n + 1L]], on = c('Sym', 'index'), c('P', 'E') := list(
-			P + E * ifelse(i.Denom <= 0, 0.0, i.Numer / i.Denom),
-			E * i.E
-		)]
+
+		full[counts[[n + 1L]], on = c('Sym', 'index'), P := P + E * ifelse(i.Denom <= 0, 0.0, i.Numer / i.Denom)]
+		full[counts[[n + 1L]], on = c('index'), E := E * i.E]
 	}
 
 	full[, P := P + E * (1 / length(par$alphabet))]

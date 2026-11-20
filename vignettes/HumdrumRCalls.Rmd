@@ -16,7 +16,7 @@ library(data.table)
 
 
 
-Though it can be used on any R data vectors, `ppidyom` is fully incorporated into [humdrumR](https://humdrumr.ccml.gtcmt.gatech.edu/), making it very easy to apply to existing musical datasets using various operational definitions ("viewpoints").
+Though it can be used on any R data vector, `ppidyom` is also fully incorporated into [humdrumR](https://humdrumr.ccml.gtcmt.gatech.edu/), making it very easy to apply to existing musical datasets using various operational definitions ("viewpoints").
 
 ```{r, message = FALSE}
 library(humdrumR)
@@ -41,10 +41,9 @@ If you have any other humdrum data on your machine, you can just pass `readHumdr
 
 Before applying ppidyom, consider what dimension of the music you want to model, and your *operational definition* for that dimension.
 This choral data is encoded as `**kern`, which means it has relative rhythm data and absolute pitch encoded for each note, as well as notation details like stem direction.
-Here we'll consider just focus on modeling pitch, ignoring rhythm.
-But "pitch" can be viewed different ways: absolute vs relative, tonal vs atonal, etc.
-
-Let's start with simple (no octave information) scale degree, which we can extract using `solfa(simple = TRUE)`.
+Here we'll just focus on modeling pitch, ignoring rhythm.
+But "pitch" can be viewed different ways---absolute vs relative, tonal vs atonal, etc.---, so we need to decide how we want to operationalize pitch.
+Let's start with simple (no octave information) scale degree, which we can extract using humdrumR's `solfa(simple = TRUE)`.
 We can then pass that straight to `ppidyom()`:
 
 ```{r}
@@ -55,17 +54,46 @@ chorales |> solfa(simple = TRUE) |> ppidyom()
 ```
 
 And that's all it takes!
-We see a unique information theory prediction for each and every note in the score.
+We see a unique information theory and entropy predictions for each and every note in the score.
 
-----
+
+### Arguments
 
 The ppidyom() function has *many* arguments, but here we're just using the default settings.
-What exactly did ppidyom do here, by default?:
+So, what exactly did ppidyom do here, by default?:
 
++ Used both a dynamic model and a schematic model.
 + *Leave-one-out cross validation*:
-	+ For each chorale, the model is trained on the *other nine* chorales to create the "long-term" model.
+	+ For each chorale, the model is trained on the *other nine* chorales to create the "schematic memory" model.
 + All four voices (bass, tenor, alto, soprano) within each chorale are used, each treated like a separate sequence.
-+ The maximum N-gram length of five is used.
++ The maximum N-gram length of ten is used.
++ The escape probability method "C" is used.
+
+We can modify these parameters fairly easily.
+The N-gram length is controlled by an argument called `maxN`, while the escape function is determined by, you guessed it, the `escape` argument.
+
+```{r}
+
+
+chorales |> solfa(simple = TRUE) |> ppidyom(maxN = 12, escape = 'C')
+
+
+```
+
+The numbers are slightly different now.
+
+---
+
+We can also decide to deactivate either of the memory models by specifying either `dynamic = FALSE` or `schematic = FALSE`.
+
+```{r}
+
+
+chorales |> solfa(simple = TRUE) |> ppidyom(dynamic = FALSE)
+chorales |> solfa(simple = TRUE) |> ppidyom(schematic = FALSE)
+
+```
+
 
 ## Different operational definitions 
 
@@ -90,7 +118,7 @@ chorales |> semits() |> ppidyom()
 ```
 
 
-I wonder how different the ppm information content estimates will be when we use these different approaches.
+I wonder how different the ppm information content estimates will be when we use these different approaches?
 Let's compare:
 
 
