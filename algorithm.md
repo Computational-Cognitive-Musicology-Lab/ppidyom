@@ -182,33 +182,11 @@ The nice things about the count-matrix approach include that
 
 ## Dev Testing
 
-This project uses **`testthat`** for testing. All tests live under `tests/testthat/`.
+Tests live in `tests/testthat/` (testthat). From the repo root:
 
-See [README_DEV.md](README_DEV.md) for the full developer setup and build workflow.
-
-### Run tests
-
-From the R console (after `devtools::load_all()`):
 ```r
-devtools::test()
-```
-To run a specific test file:
-```r
-devtools::test(filter = "counts")          # test-counts.R
-devtools::test(filter = "escape")          # test-escape.R
-devtools::test(filter = "ppm-comparison")  # test-ppm-comparison.R
-devtools::test(filter = "idyom")           # test-idyom-comparison.R
+devtools::test()                          # everything
+devtools::test(filter = "idyom-match")    # ppidyom() vs IDyOM (needs the IDyOM Docker image)
 ```
 
-See [README_DEV.md](README_DEV.md) for the full test coverage tables, including what conditions each file covers and what is not yet tested.
-
-### Run scalability timing tests
-
-Scalability tests are disabled by default to avoid slowing down routine test runs.
-
-To enable them:
-```r
-Sys.setenv(RUN_SCALABILITY_TESTS = "true")
-devtools::test(filter = "scalability")
-```
-
+See [README_DEV.md](README_DEV.md) for setup, what each test file checks, and where the results are written.

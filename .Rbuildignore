@@ -4,3 +4,4 @@
 ^Meta$
 ^\.claude$
 ^vignettes/.*cache
+^README\.Rmd$

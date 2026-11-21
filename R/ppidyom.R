@@ -97,11 +97,25 @@ ppidyom.default <- function(..., maxN = 10, alphabet = lapply(list(...), unique)
 
 						dynP <- if (length(dynamicArgs)) {
 							cat("Computing dynamic probabilities", input, '...', sep = '')
-							lags |> stm_counts(update_exclusion = dynamicArgs$update_exclusion, needt1 = dynamicArgs$escape == 'X') |> stm_interpolation(escape = dynamicArgs$escape)
+							lags |> stm_counts(update_exclusion = dynamicArgs$update_exclusion, needt1 = dynamicArgs$escape == 'X') |> stm_interpolation(escape = dynamicArgs$escape, exclusion = dynamicArgs$exclusion)
 						}
 						schP <- if (length(schematicArgs)) {
 							cat("Computing schematic probabilities", input, '...', sep = '')
-							lags |> ltm_counts() |> ltm_crossValidate() |> ltm_interpolation(escape = schematicArgs$escape, update_exclusion = schematicArgs$exclusion) |> ltm2dynamic_counts(lags)
+							# One table per order 0…maxN, each counted then cross-validated.
+							ue <- schematicArgs$update_exclusion
+							lapply(
+								# With update exclusion, also count order maxN+1 (ue is TRUE = 1).
+								0:(maxN + ue), \(n) lags |> 
+									ltm_counts(
+										update_exclusion = ue && n <= maxN, 
+										N = n, 
+										start_token = isTRUE(schematicArgs$start_token), 
+										ends = n > maxN
+									) |> 
+									ltm_crossValidate()
+							) |>
+								ltm_interpolation(escape = schematicArgs$escape, exclusion = schematicArgs$exclusion, update_exclusion = ue) |> 
+								ltm2dynamic_counts(lags)
 						}
 
 						if (length(dynamicArgs) && length(schematicArgs)) cat("Blending dynamic and schematic models", input, '...', sep = '')
@@ -149,7 +163,9 @@ prepGroups <- function(targetlen, ...) {
 	groups <- lapply(groups, \(group) if (is.atomic(group)) list(group) else group)
 	groups <- do.call('c', groups)
 
-	frankv(groups, ties.method = 'dense')
+	# frankv needs one value per event in every grouping; a single value (e.g. the default crossValidate = 1L)
+	# is stretched to all targetlen events, and groupings that already have one per event stay unchanged
+	frankv(lapply(groups, rep_len, length.out = targetlen), ties.method = 'dense')
 
 	
 }

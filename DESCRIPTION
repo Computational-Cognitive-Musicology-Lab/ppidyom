@@ -22,9 +22,13 @@ Suggests:
     knitr,
     rmarkdown,
     ppm,
-    humdrumR
+    humdrumR,
+    yaml,
+    withr,
+    rlang
 Remotes:
-    pmcharrison/ppm
+    pmcharrison/ppm,
+    Computational-Cognitive-Musicology-Lab/humdrumR
 VignetteBuilder: knitr
 Imports:
     data.table

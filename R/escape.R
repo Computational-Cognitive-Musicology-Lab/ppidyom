@@ -78,8 +78,10 @@ stm_escape <- function(counts, escape = 'A') {
 						countN[ , c('subtract', 'esc_numer') := escape_function(t, t1)]
 
 						countN[ , Numer := ifelse(Ce >= subtract, Ce - subtract, 0L)]
-						countN[ , Denom := C - (subtract * t) + esc_numer]
-						countN[, E := ifelse(Denom <= 0, 1.0, esc_numer / Denom)]
+            countN[ , state := sum(Numer[!excluded]), by = index] # = C - subtract * t without exclusion
+						countN[ , Denom := state + esc_numer]
+            # If the context has nothing to give, all mass escapes (E = 1).
+						countN[, E := ifelse(state <= 0, 1.0, esc_numer / Denom)]
 						countN[, c('subtract') := NULL]
 						countN[]
 
@@ -101,9 +103,13 @@ ltm_escape <- function(counts, escape = 'A') {
 
 	counts[ , c('subtract', 'esc_numer') := escape_function(t, t1)]
 
-	counts[ , Numer := Ce - subtract]
-	counts[ , Denom := C - (subtract * t) + esc_numer]
-	counts[, E := ifelse(Denom <= 0, 1.0, esc_numer / Denom)]
+  # avoid negative counts for unseen symbols in escape methods that subtract (escape method B & D)
+  # 0, not 0L: the subtracted amount can be fractional (0.5 in method D), so counts must stay double
+  counts[ , Numer := ifelse(Ce >= subtract, Ce - subtract, 0)]
+  counts[ , state := sum(Numer[!excluded]), by = c('ltmGroups', if (par$N > 0L) paste0('Lag', 1:par$N))] # = C - subtract * t without exclusion
+  counts[ , Denom := state + esc_numer]
+  # If the context has nothing to give, all mass escapes (E = 1).
+  counts[, E := ifelse(state <= 0, 1.0, esc_numer / Denom)]
 	counts[, c('subtract', 'esc_numer') := NULL]
 
 
