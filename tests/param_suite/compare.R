@@ -178,6 +178,23 @@ test_datasets <- function(config, mode) {
   }, config$settings$test_datasets[[mode]])
 }
 
+# Prints a Markdown table per dataset: accuracy, and seconds (ppidyom's whole call vs IDyOM's modelling time, read from its cache when unchanged)
+report_summary <- function(results, mode) {
+  summary <- results[ , .(`matching sets` = sprintf("%d / %d", sum(verdict == "MATCH"), .N),
+                          `events matching` = sprintf("%.1f%%", mean(pct_events_match, na.rm = TRUE)),
+                          `ppidyom s (total)` = sprintf("%.2f", sum(ppidyom_seconds, na.rm = TRUE)),
+                          `IDyOM s (total)` = sprintf("%.2f", sum(idyom_seconds, na.rm = TRUE)),
+                          `ppidyom s (median)` = sprintf("%.3f", median(ppidyom_seconds, na.rm = TRUE)),
+                          `IDyOM s (median)` = sprintf("%.3f", median(idyom_seconds, na.rm = TRUE))),
+                      by = dataset]
+  markdown_row <- function(cells) paste0("| ", paste(cells, collapse = " | "), " |")
+  cat("\n", mode, " (", format(Sys.Date()), ")\n\n", sep = "")
+  cat(markdown_row(names(summary)), markdown_row(rep("---", ncol(summary))),
+      apply(summary, 1, markdown_row), sep = "\n")
+  cat("\n")
+  invisible(summary)
+}
+
 # One expectation per parameter set, so each failure names its parameter set
 expect_match_idyom <- function(results) {
   testthat::expect_gt(nrow(results), 0)

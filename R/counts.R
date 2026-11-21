@@ -19,12 +19,15 @@ lag_matrix <- function(x, N = 3, stmGroups = integer(length(x)), ltmGroups = int
 	alphabetCheck(x, alphabet)
 
 	lag_matrix <- data.table(Event = x, stmGroups = stmGroups, ltmGroups = ltmGroups)
+
+	if (N > 0L) { # N = 0: no lags
 	
-	lags <- paste0('Lag', 1:N)
+		lags <- paste0('Lag', 1:N)
 
-	lag_matrix[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n)), by = .(stmGroups, ltmGroups)]
+		lag_matrix[ , c(lags) := lapply(1:N, \(n) data.table::shift(Event, n)), by = .(stmGroups, ltmGroups)]
 
-	if (!includeStart) lag_matrix <- lag_matrix[!is.na(lag_matrix[[paste0('Lag', N)]])]
+		if (!includeStart) lag_matrix <- lag_matrix[!is.na(lag_matrix[[paste0('Lag', N)]])]
+	}
 
 	lag_matrix[, index := 1:nrow(lag_matrix)]
 	
@@ -143,21 +146,14 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE, needt1 = FALSE) {
 
 	par        <- modelPar(lag_matrix)
 
-	counts <- vector('list', length(par$N) + 1L)
+	counts <- vector('list', par$N + 1L) # one table per order 0..N
 
 	lag_matrix[, EventMutable := Event]
 	# EventMutable starts the same as Event, but if update_exclusion = TRUE, on each pass some events are set to "" (excluding them from later pass)
 
   full_matrix <- lag_matrix[CJ(index, Sym = Event, unique = TRUE), on = c('index')] 
 	for (n in (par$N):0) {
-
-
-    if (n == par$N || n == 0L) {
-			curmatrix <- full_matrix
-		} else { 
-			curmatrix <- lag_matrix
-			curmatrix[ , Sym := Event]
-		}
+    	curmatrix <- full_matrix # every order needs every symbol (they all escape to lower orders)
 		lags <- if (n > 0) paste0('Lag', 1:n)
 
 		setorderv(curmatrix, c('Sym', 'stmGroups', lags, 'index'))
@@ -165,14 +161,7 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE, needt1 = FALSE) {
 		curmatrix[, Ce := cumgroup(list(Sym == EventMutable), .SD), .SDcols = c('Sym', 'stmGroups', lags)]
 		
 		# now get C, t, and (maybe) t1
-		if (n == par$N || n == 0L) {
-			curmatrix[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = c('index')]
-
-		} else {
-				setorderv(curmatrix, c('stmGroups', lags, 'index'))
-				curmatrix[ , c('C','t') := cumgroup(list(EventMutable != '', !duplicated(cbind(EventMutable, .SD)) & EventMutable != ''), .SD), .SDcols = c('stmGroups', lags)]
-			if (needt1) t1(curmatrix, lags)
-		}
+		curmatrix[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = c('index')]
 
 		if (n > 0L && update_exclusion) curmatrix[Ce > 0L, EventMutable := '']
 
@@ -192,17 +181,21 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE, needt1 = FALSE) {
 
 
 
-ltm_counts <- function(lag_matrix, update_exclusion = TRUE) {
+ltm_counts <- function(lag_matrix, update_exclusion = TRUE, N = modelPar(lag_matrix)$N, start_token = FALSE) {
 
 	par      <- modelPar(lag_matrix)
 	alphabet <- par$alphabet
-	lags     <- paste0('Lag', 1:par$N)
+	lags     <- if (N > 0L) paste0('Lag', 1:N) # counts of order N contexts (the last N lags)
 
 	ltm <- lag_matrix[, .(Ce = tabulate(match(Event, alphabet), nbins = length(alphabet)),
 	                       Sym = alphabet),
 	                   by = c(lags, 'ltmGroups')]
+	
+	# When user asks to match IDyOM which has no start-of-piece contexts, contexts with an NA lag (piece starts) get count 0.
+	if (!start_token && N > 0L) ltm[!complete.cases(ltm[ , lags, with = FALSE]), Ce := 0L] # complete.cases() is TRUE for rows with no NA.
 	setcolorder(ltm, c('ltmGroups', 'Sym', 'Ce', lags))
 
+	par$N <- N
 	par$update_exclusion_counts <- update_exclusion
 	par$model_type <- 'ltm'
 	setattr(ltm, 'modelPar', par)
@@ -228,7 +221,7 @@ ltm_crossValidate <- function(counts) {
 	if (length(unique(counts$ltmGroups)) == 1L) return(counts)
 
 	par  <- modelPar(counts)
-	lags <- paste0('Lag', 1:par$N)
+	lags <-  if (par$N > 0L) paste0('Lag', 1:par$N)
 
 	setorderv(counts, c('Sym', lags, 'ltmGroups'))
 	counts[ , contextID := rleidv(.SD), .SDcols = c('Sym', lags)] # precomputing the grouping ID once helps speed. Using rleidv workds because of the previous sort

@@ -18,6 +18,8 @@ seed <- as.integer(Sys.getenv("PPIDYOM_RANDOM_SEED", sample.int(1e6, 1)))
 
 test_that(sprintf("seed %d: random parameter sets match IDyOM", seed), {
   withr::local_seed(seed)
-  expect_match_idyom(compare_suite("random", test_datasets(config, "random"), n_random = as.integer(Sys.getenv("PPIDYOM_RANDOM_N")),
-                                   config = config, verbose = FALSE))
+  results <- compare_suite("random", test_datasets(config, "random"), n_random = as.integer(Sys.getenv("PPIDYOM_RANDOM_N")),
+                           config = config, verbose = FALSE)
+  report_summary(results, "random")
+  expect_match_idyom(results)
 })

@@ -201,22 +201,39 @@ ppm_interpolated <- function(
 
 stm_interpolation <- function(counts, escape = 'C', exclusion = TRUE) {
 	par <- modelPar(counts)
-	if (par$N == 0) stop("Can't interpolate zeroth order yet")
+  lowerOrders <- rev(seq_len(par$N)) - 1L # N-1 down to 0; none when N = 0
 
+  # exclusion: symbols seen one order up leave the denominator, but still get this order's share
+  counts[[par$N + 1L]][ , excluded := FALSE]
+  for (n in lowerOrders) {
+    counts[[n + 1L]][
+      counts[[n + 2L]], on = c('Sym', 'index'), excluded := exclusion & i.Ce > 0L
+    ]
+  }
+  
 	counts <- stm_escape(counts, escape)
 
 	full <- counts[[par$N + 1L]]
-	full[ , P := ifelse(Denom <= 0, 0.0, Numer / Denom)]
-	full[ , Exclude := if (exclusion) P > 0 else FALSE]
+  # state = the context's total count, after the escape discount, leaving out excluded symbols (consistent with IDyOM's variable name)
+  full[ , P := ifelse(state <= 0, 0.0, Numer / Denom)]
 
-	for (n in (par$N - 1L):0) {
-
-		full[counts[[n + 1L]], on = c('Sym', 'index'), P := P + (E * ifelse(i.Denom <= 0, 0.0, i.Numer / i.Denom) * !Exclude)]
-		full[counts[[n + 1L]], on = c('index'), E := E * ifelse(i.Denom <= 0, 1, (i.esc_numer / i.Denom - (i.Numer *  Exclude)))]
-		if (exclusion) full[, Exclude := Exclude | P > 0]
+	for (n in lowerOrders) {
+    full[
+      counts[[n + 1L]], on = c('Sym', 'index'),
+      c('P', 'E') := list(
+        # Every symbol, excluded or not, gets this order's share.
+        P + E * ifelse(i.state <= 0, 0.0, i.Numer / i.Denom),
+        E * i.E
+      )
+    ]
 	}
 
-	full[, P := P + E * (1 / length(par$alphabet))]
+  # base (order -1, IDyOM): with exclusion 1/(|A| + 1 - t0), t0 = symbols seen at order 0; without exclusion 1/|A|
+  full[counts[[1L]], on = c('Sym', 'index'), t_root := i.t]
+  full[, P := P + E * (if (exclusion) 1 / (length(par$alphabet) + 1 - t_root) else 1 / length(par$alphabet))]
+  full[, total := sum(P), by = index]
+  full[!(total > 0.999 & total < 1), P := P / total] # IDyOM doesn't normalise sums in (0.999, 1)
+
 	par$escape <- escape
 	result <- full[, .(index, Event, Sym, P)]
 	setattr(result, 'modelPar', par)
@@ -225,52 +242,31 @@ stm_interpolation <- function(counts, escape = 'C', exclusion = TRUE) {
 
 # ltm ----
 
+# counts: one table per order 0..N (ltm_counts of each order)
+ltm_interpolation <- function(counts, escape = 'C', exclusion = TRUE) {
+	par      <- modelPar(counts[[length(counts)]])
+  fullLags <- if (par$N > 0L) paste0('Lag', 1:par$N)
 
-ltm_interpolation <- function(counts, escape = 'C', update_exclusion = TRUE) {
-	par               <- modelPar(counts)
+	full <- copy(counts[[par$N + 1L]])
+  full[ , c('P', 'remaining', 'excluded') := list(0, 1, FALSE)]
 
-
-
-	full <- copy(counts)
-	ltm_totals(full)
-	ltm_escape(full, escape)
-
-	full[, P := ifelse(Denom <= 0, 0.0, Numer / Denom)]
-
-	for (n in (par$N - 1L):0) {
+	for (n in par$N:0) {
 		lags <- if (n > 0L) paste0('Lag', 1:n)
 
-		# derive Ce at order n from previous level
-		counts <- lowerOrder(counts, update_exclusion)
-		ltm_totals(counts)
-		ltm_escape(counts, escape)
+    # this order's counts on each full context: exclusion depends on the full context, so totals are per full context
+    full[counts[[n + 1L]], on = c('Sym', 'ltmGroups', lags), Ce := i.Ce]
+    ltm_totals(full)
+    ltm_escape(full, escape)
 
-		full[counts, on = c('Sym', 'ltmGroups', lags), 
-				 c('P', 'E') := list( P + E * ifelse(i.Denom <= 0, 0.0, i.Numer / i.Denom), 
-														 E * i.E)]
+    # remaining: mass not yet handed out, left for the lower orders (product of escapes so far)
+    # not E: E is each order's own escape, and ltm_escape rewrites it in place for each order
+    full[ , c('P', 'remaining') := list(P + remaining * ifelse(state <= 0, 0.0, Numer / Denom), remaining * E)]
+    full[ , excluded := exclusion & Ce > 0L]
 	}
 
-	full[, P := P + E * (1 / length(par$alphabet))]
+  # base (order -1, IDyOM): with exclusion 1/(|A| + 1 - t0), t0 = symbols seen at order 0; without exclusion 1/|A|
+  full[, P := P + remaining * (if (exclusion) 1 / (length(par$alphabet) + 1 - t) else 1 / length(par$alphabet))]
+  full[, total := sum(P), by = c('ltmGroups', fullLags)]
+  full[!(total > 0.999 & total < 1), P := P / total] # IDyOM doesn't normalise sums in (0.999, 1)
 	full[]
 }
-
-lowerOrder <- function(counts, update_exclusion = TRUE) {
-	par <- modelPar(counts)
-
-	newN <- par$N - 1L
-
-	lags <- if (newN > 0L) paste0('Lag', 1:newN)
-	new <- if (update_exclusion) {
-		counts[Ce > 0L, list(Ce = .N), by = c('ltmGroups', 'Sym', lags)]
-	} else {
-		counts[Ce > 0L, list(Ce = sum(Ce)), by = c('ltmGroups', 'Sym', lags)]
-	}
-
-	par$N <- newN
-
-	setattr(new, 'modelPar', par)
-	new
-
-}
-
-
