@@ -29,6 +29,8 @@ lag_matrix <- function(x, N = 3, stmGroups = integer(length(x)), ltmGroups = int
 		if (!includeStart) lag_matrix <- lag_matrix[!is.na(lag_matrix[[paste0('Lag', N)]])]
 	}
 
+	# extra lag N+1: update exclusion at top order N needs the order N+1 context
+	lag_matrix[ , (paste0('Lag', N + 1L)) := data.table::shift(Event, N + 1L), by = .(stmGroups, ltmGroups)]
 	lag_matrix[, index := 1:nrow(lag_matrix)]
 	
 
@@ -151,19 +153,30 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE, needt1 = FALSE) {
 	lag_matrix[, EventMutable := Event]
 	# EventMutable starts the same as Event, but if update_exclusion = TRUE, on each pass some events are set to "" (excluding them from later pass)
 
-  full_matrix <- lag_matrix[CJ(index, Sym = Event, unique = TRUE), on = c('index')] 
+	# IDyOM uses full counts at order N where the context one order up was seen before (update-exclusion)
+	use_full_counts <- duplicated(lag_matrix, by = c('stmGroups', paste0('Lag', 1:(par$N + 1L))))
+  	full_matrix <- lag_matrix[CJ(index, Sym = Event, unique = TRUE), on = c('index')]
 	for (n in (par$N):0) {
     	curmatrix <- full_matrix # every order needs every symbol (they all escape to lower orders)
 		lags <- if (n > 0) paste0('Lag', 1:n)
 
+		# update exclusion (IDyOM): count an event only if the symbol is new after the context one order up
+		if (update_exclusion) {
+			new_after_longer_context <- !duplicated(lag_matrix, by = c('stmGroups', paste0('Lag', 1:(n + 1L)), 'Event'))
+			curmatrix[ , EventMutable := fifelse(new_after_longer_context[index], Event, '')]
+		}
+
 		setorderv(curmatrix, c('Sym', 'stmGroups', lags, 'index'))
 
 		curmatrix[, Ce := cumgroup(list(Sym == EventMutable), .SD), .SDcols = c('Sym', 'stmGroups', lags)]
+		# If the order N+1 context was seen before, top order N uses full counts, not update-excluded (IDyOM's rule)
+		if (n == par$N && update_exclusion) {
+			curmatrix[ , Ce_full := cumgroup(list(Sym == Event), .SD), .SDcols = c('Sym', 'stmGroups', lags)]
+			curmatrix[use_full_counts[index], Ce := Ce_full]
+		}
 		
 		# now get C, t, and (maybe) t1
 		curmatrix[ , c('C', 't', 't1') := list(sum(Ce), sum(Ce > 0L), sum(Ce == 1L)), by = c('index')]
-
-		if (n > 0L && update_exclusion) curmatrix[Ce > 0L, EventMutable := '']
 
 		setorderv(curmatrix, c('index', 'Sym'))
 		counts[[n + 1L]] <- curmatrix[ , .SD, .SDcols = c('stmGroups','Event', 'Sym', 'index', 'C','t', if (needt1) 't1','Ce', lags)]
@@ -180,19 +193,59 @@ stm_counts <- function(lag_matrix, update_exclusion = TRUE, needt1 = FALSE) {
 
 
 
-
-ltm_counts <- function(lag_matrix, update_exclusion = TRUE, N = modelPar(lag_matrix)$N, start_token = FALSE) {
-
+ltm_counts <- function(lag_matrix, update_exclusion = TRUE, N = modelPar(lag_matrix)$N, start_token = FALSE, ends = FALSE) {
 	par      <- modelPar(lag_matrix)
 	alphabet <- par$alphabet
 	lags     <- if (N > 0L) paste0('Lag', 1:N) # counts of order N contexts (the last N lags)
+	crossValidate <- uniqueN(lag_matrix$ltmGroups) > 1L
 
 	ltm <- lag_matrix[, .(Ce = tabulate(match(Event, alphabet), nbins = length(alphabet)),
 	                       Sym = alphabet),
 	                   by = c(lags, 'ltmGroups')]
+
+	# update exclusion (IDyOM): a symbol counts once per distinct context one order up (each piece start its own), from the other groups
+	if (update_exclusion) {
+		units <- lag_matrix[ , c(lags, 'Event', 'ltmGroups', paste0('Lag', N + 1L)), with = FALSE]
+		# An NA lag one order up means a piece start. .I is the row number, so each start gets its own unique label.
+		setnames(units, ncol(units), 'Above')
+		units[is.na(Above), Above := paste0('start', .I)]
+		# A unit = (context, symbol, one-order-up context, group).
+		units <- unique(units)
+		units[ , shared := uniqueN(ltmGroups) > 1L, by = c(lags, 'Event', 'Above')]
+		# Ce_ue = Total distinct one-order-up contexts per (context, symbol)
+		ltm[units[ , .(Ce_ue = uniqueN(Above)), by = c(lags, 'Event')], on = c(lags, Sym = 'Event'), Ce_ue := i.Ce_ue]
+		if (crossValidate) {
+			# Leave-one-out = (distinct over all pieces) − (those that occur only in the held-out piece).
+			ltm[
+				units[shared == FALSE, .N, 
+				by = c(lags, 'Event', 'ltmGroups')], on = c(lags, Sym = 'Event', 'ltmGroups'), 
+				Ce_ue := Ce_ue - i.N
+			]
+		}
+		ltm[is.na(Ce_ue), Ce_ue := 0L]
+	}
+
+	# IDyOM appends an end marker to each training piece, so the last context of a piece exists in its model even though no symbol follows it.
+	if (ends) {
+		last <- lag_matrix[lag_matrix[ , .I[.N], by = .(stmGroups, ltmGroups)]$V1]
+		# The context after the last event: Lag1 = last Event, Lag2 = last Lag1, and so on.
+		endContexts <- setnames(last[ , c('Event', head(lags, -1L), 'ltmGroups'), with = FALSE], c(lags, 'ltmGroups'))
+		ltm[endContexts[ , .N, by = c(lags)], on = lags, nEnds := i.N]
+		if (crossValidate) {
+			ltm[
+				endContexts[ , .N, by = c(lags, 'ltmGroups')], 
+				on = c(lags, 'ltmGroups'), 
+				nEnds := nEnds - i.N
+			]
+		}
+		ltm[is.na(nEnds), nEnds := 0L]
+	}
 	
-	# When user asks to match IDyOM which has no start-of-piece contexts, contexts with an NA lag (piece starts) get count 0.
-	if (!start_token && N > 0L) ltm[!complete.cases(ltm[ , lags, with = FALSE]), Ce := 0L] # complete.cases() is TRUE for rows with no NA.
+	# When user asks to match IDyOM which has no start-of-piece contexts, contexts with an NA lag (piece starts) get count 0 (either it's full count of update-exclusion count).
+	if (!start_token && N > 0L) {
+		ltm[!complete.cases(ltm[ , lags, with = FALSE]), intersect(c('Ce', 'Ce_ue'), names(ltm)) := 0L] # complete.cases() is TRUE for rows with no NA.
+	}
+
 	setcolorder(ltm, c('ltmGroups', 'Sym', 'Ce', lags))
 
 	par$N <- N

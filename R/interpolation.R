@@ -242,19 +242,29 @@ stm_interpolation <- function(counts, escape = 'C', exclusion = TRUE) {
 
 # ltm ----
 
-# counts: one table per order 0..N (ltm_counts of each order)
-ltm_interpolation <- function(counts, escape = 'C', exclusion = TRUE) {
-	par      <- modelPar(counts[[length(counts)]])
+# counts: one table per order 0..N (ltm_counts of each order), plus order N + 1 with update exclusion
+ltm_interpolation <- function(counts, escape = 'C', exclusion = TRUE, update_exclusion = FALSE) {
+  N        <- length(counts) - 1L - update_exclusion
+  par      <- modelPar(counts[[length(counts)]]) # the contexts we predict from (order N + 1 with update exclusion)
   fullLags <- if (par$N > 0L) paste0('Lag', 1:par$N)
 
-	full <- copy(counts[[par$N + 1L]])
+	full <- copy(counts[[length(counts)]])
   full[ , c('P', 'remaining', 'excluded') := list(0, 1, FALSE)]
 
-	for (n in par$N:0) {
+  # when predicting, if the current order N+1 context exists in the model, top order N uses full counts
+  if (update_exclusion) {
+    full[ , use_full_counts := sum(Ce) > 0L | nEnds > 0L, by = c('ltmGroups', fullLags)]
+  } 
+
+	for (n in N:0) {
 		lags <- if (n > 0L) paste0('Lag', 1:n)
 
     # this order's counts on each full context: exclusion depends on the full context, so totals are per full context
-    full[counts[[n + 1L]], on = c('Sym', 'ltmGroups', lags), Ce := i.Ce]
+    full[
+      counts[[n + 1L]], 
+      on = c('Sym', 'ltmGroups', lags), 
+      Ce := if (update_exclusion) fifelse(n == N & use_full_counts, i.Ce, i.Ce_ue) else i.Ce
+    ]
     ltm_totals(full)
     ltm_escape(full, escape)
 

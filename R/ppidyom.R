@@ -102,8 +102,19 @@ ppidyom.default <- function(..., maxN = 10, alphabet = lapply(list(...), unique)
 						schP <- if (length(schematicArgs)) {
 							cat("Computing schematic probabilities", input, '...', sep = '')
 							# One table per order 0…maxN, each counted then cross-validated.
-							lapply(0:maxN, \(n) lags |> ltm_counts(N = n, start_token = isTRUE(schematicArgs$start_token)) |> ltm_crossValidate()) |> 
-								ltm_interpolation(escape = schematicArgs$escape, exclusion = schematicArgs$exclusion) |> 
+							ue <- schematicArgs$update_exclusion
+							lapply(
+								# With update exclusion, also count order maxN+1 (ue is TRUE = 1).
+								0:(maxN + ue), \(n) lags |> 
+									ltm_counts(
+										update_exclusion = ue && n <= maxN, 
+										N = n, 
+										start_token = isTRUE(schematicArgs$start_token), 
+										ends = n > maxN
+									) |> 
+									ltm_crossValidate()
+							) |>
+								ltm_interpolation(escape = schematicArgs$escape, exclusion = schematicArgs$exclusion, update_exclusion = ue) |> 
 								ltm2dynamic_counts(lags)
 						}
 
